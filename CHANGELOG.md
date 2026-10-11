@@ -4,7 +4,40 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.6.0] - Corrente
+## [1.7.0] - Corrente
+
+### 💬 Assistente AI conversazionale che agisce sul documento
+- Nuova scheda **Assistente AI** nell'area di revisione (e pulsante **Chatta con AI**): conversazione in italiano con il modello locale
+- L'AI **non scrive mai l'XML**: propone azioni strutturate (imposta ore/minuti, sposta date, riscala durate, cambia giustificativo, rimuovi) che il programma valida e applica all'anteprima
+- **Azioni sicure**: i codici giustificativo vengono accettati solo se già configurati; i filtri selezionano i movimenti per dipendente, giustificativo, giorno o intervallo; ogni azione riporta l'esito e l'anteprima/XML si rigenerano subito
+- **Cronologia conversazione persistente** nel database locale, con pulsante **Nuova chat**
+
+### 🔁 Conversioni migliorate
+- Le durate espresse in **giorni** (intestazioni `Giorni`, `Durata (giorni)`, `Days`, `gg`) vengono convertite in ore con la giornata lavorativa standard di 8h: prima "2 giorni" sarebbe diventato "2 ore"
+- Nuova classe pura `DocumentEditor`/`DocumentEditParser`, separata dalla UI e coperta da test
+
+### 💾 Preferenze e codici sempre salvati
+- Codice azienda salvato automaticamente poco dopo la digitazione (debounce), non solo quando il campo perde il focus
+- Posizione e dimensione della finestra ricordate (con controllo che ricadano in un monitor collegato)
+- Ultima cartella del file Excel ricordata e riproposta all'importazione
+- I codici dipendente/giustificativo corretti nell'anteprima vengono riportati nel database locale
+
+### 🎨 Grafica
+- Striscia sfumata (`AccentBar`) in cima all'header, nuova tinta di accento ciano
+- Pannello di chat temizzato (bolla messaggi, stato, compositore) coerente con il resto dell'interfaccia
+
+### 🚀 Rilasci automatici
+- Nuovo workflow `.github/workflows/release.yml`: a ogni push su `main` (o tag `vX.Y.Z`) compila app e installer e crea la Release GitHub con `PresenzeFlow-Setup-X.Y.Z.exe` allegato
+- Il workflow verifica che `Version` del `.csproj` e `AppVersion` di `Installer.iss` coincidano e non duplica Release già esistenti
+- Nuovo script `tools/New-Version.ps1` che aggiorna la versione in tutti i punti (csproj + Installer.iss) in un solo comando
+
+### ✅ Verifiche
+- **10 nuovi test** su `DocumentEditor`/`DocumentEditParser` e sulla conversione giorni→ore (46 test di logica, tutti verdi)
+- Nota: i test per la UI WinForms richiedono Windows; su questo ambiente di build Linux sono stati verificati compilazione dell'app e dei test e l'esecuzione della logica
+
+---
+
+## [1.6.0] - Precedente
 
 ### 🎨 Interfaccia: palette unica e bug grafici risolti
 - **Tema unico** (`Theme.cs`): tutti i colori e i font sono definiti una sola volta e nominati per ruolo; finestra principale e i tre dialoghi usavano quattro blu diversi per lo stesso pulsante e bordi di tono differente

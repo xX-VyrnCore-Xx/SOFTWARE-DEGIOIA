@@ -37,6 +37,7 @@ internal static class Theme
     public static readonly Color BrandSoft = Color.FromArgb(239, 246, 255);    // fondo bottoni secondari
     public static readonly Color BrandLite = Color.FromArgb(219, 234, 254);    // selezione in griglia
     public static readonly Color BrandInk = Color.FromArgb(30, 64, 175);       // testo su fondo chiaro
+    public static readonly Color Accent = Color.FromArgb(8, 145, 178);         // accento secondario (ciano) dei gradienti
 
     /* --------------------------- Esito positivo ------------------------ */
     public static readonly Color Success = Color.FromArgb(22, 163, 74);

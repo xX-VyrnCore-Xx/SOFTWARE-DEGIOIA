@@ -4,7 +4,7 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.6.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.7.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
 Durante l'installazione il wizard chiede se installare anche l'AI locale (Ollama + modello `qwen2.5:1.5b`, circa 2 GB, opzionale e deselezionabile): la conversione funziona comunque senza.
 
@@ -36,7 +36,7 @@ Durante la disinstallazione puoi scegliere se rimuovere il programma mantenendo 
    - Limita i movimenti al periodo `From Date`/`To Date` del foglio quando disponibile
    - Le richieste dello stesso dipendente che generano movimenti sullo stesso giorno sono segnalate per la revisione (non vengono scartate o modificate automaticamente)
 
-6. **Revisione e export**: Nella griglia puoi correggere codice dipendente, giustificativo, data, ore e minuti: l'XML viene aggiornato automaticamente (con una breve pausa dopo le modifiche, per restare fluido). Il file si salva dove vuoi e il programma ricorda l'ultima cartella usata.
+6. **Revisione, assistente AI ed export**: Nella griglia puoi correggere codice dipendente, giustificativo, data, ore e minuti: l'XML viene aggiornato automaticamente (con una breve pausa dopo le modifiche, per restare fluido). Nella scheda **Assistente AI** puoi invece descrivere a parole la correzione e l'AI la applica all'anteprima. Il file si salva dove vuoi e il programma ricorda l'ultima cartella usata. Le correzioni ai codici fatte in griglia vengono salvate nel database locale.
 
 7. **Chiusura**: alla prima chiusura puoi scegliere una sola volta (o ricordare la scelta) se uscire definitivamente o restare in tray: in background ricevi una notifica quando una conversione termina.
 
@@ -44,9 +44,29 @@ Il file generato contiene solo i movimenti di assenza presenti nell'Excel; non i
 
 ## AI locale opzionale
 
-Per il riconoscimento assistito di intestazioni variabili e per proporre abbinamenti basati su giustificativi già configurati, l'app usa il modello `qwen2.5:1.5b` (adatto a classificazione e abbinamento su CPU, temperature 0 per suggerimenti riproducibili). Può essere installato dal wizard di installazione oppure da `Assistente AI locale` nel programma, che scarica l'installer ufficiale di Ollama e poi il modello. Se è già installato un altro modello compatibile (es. `qwen2.5:0.5b` o `3b`) viene usato automaticamente. Il runtime supera 1 GB e il modello richiede altro spazio; l'AI è opzionale. 
+L'app usa un modello locale (`qwen2.5:1.5b` per impostazione predefinita) per tre attività:
 
-**Comunicazioni**: Il programma comunica solo con `127.0.0.1:11434`; all'AI invia esclusivamente intestazioni, etichette `Policy` e mapping già configurati, mai nominativi o righe del foglio. L'AI non può introdurre codici ufficiali nuovi: i suggerimenti vanno verificati e confermati. Senza il modello puoi associare le colonne e i codici manualmente.
+1. **Riconoscimento assistito delle colonne** quando il foglio non ha intestazioni standard.
+2. **Proposta di abbinamenti** tra le etichette `Policy` e i giustificativi già configurati.
+3. **Assistente conversazionale** (scheda **Assistente AI** nell'area di revisione, oppure pulsante **Chatta con AI**): scrivi in italiano cosa vuoi correggere e l'app lo trasforma in modifiche controllate sui movimenti.
+
+Il modello può essere installato dal wizard di installazione oppure da **Configura AI locale**, che scarica l'installer ufficiale di Ollama e poi il modello. Se è già presente un altro modello compatibile (es. `qwen2.5:0.5b` o `3b`) viene usato automaticamente. Il runtime supera 1 GB e il modello richiede altro spazio; l'AI è opzionale.
+
+### Assistente AI: cosa può fare sul documento
+
+L'AI **non scrive mai direttamente l'XML**. Descrivi a parole la correzione e l'applicazione la traduce in un insieme di azioni validate da codice:
+
+- impostare ore e minuti sui movimenti che corrispondono a un filtro (dipendente, giustificativo, giorno o intervallo);
+- spostare le date di N giorni (avanti o indietro);
+- riscalare le durate (es. dimezzare);
+- cambiare il **codice giustificativo**, ma solo riusando codici già configurati;
+- rimuovere movimenti.
+
+Un filtro senza campi vale "tutti i movimenti". Esempi di richieste: *"metti le ferie di Rossi a 4 ore il 17/08"*, *"sposta di un giorno tutti i movimenti del 20 agosto"*, *"dimezza le ore di Mario Bianchi"*, *"rimuovi i permessi non retribuiti di luglio"*.
+
+Ogni modifica viene mostrata nel riquadro della conversazione con l'esito (quanti movimenti aggiornati, rimossi o ignorati) e l'anteprima/XML si rigenerano subito. Se l'AI propone un codice non configurato, la modifica viene scartata e viene segnalato. La conversazione è salvata nel database locale e viene ripristinata al riavvio (puoi azzerarla con **Nuova chat**).
+
+**Comunicazioni e privacy**: Il programma comunica solo con `127.0.0.1:11434` (modello locale). Per le attività 1 e 2 invia esclusivamente intestazioni, etichette `Policy` e mapping già configurati, mai nominativi o righe del foglio. Per l'assistente conversazionale invia al modello locale il **riepilogo dell'anteprima corrente** (dipendenti, codici, date e giustificativi): serve a capire cosa correggere e **non esce mai dal tuo PC**. Nessun dato viene inviato a servizi esterni. L'AI non può introdurre codici ufficiali nuovi: i suggerimenti vanno verificati e confermati.
 
 ## Dati e tracciato
 
@@ -91,6 +111,37 @@ La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`
 ⚠️ **Nota per chi cura la build**: il `PublishSingleFile` non include le librerie native, quindi `dist/app/e_sqlite3.dll` **deve** essere copiato dall'installer accanto a `PresenzeFlow.exe`. Senza quel file l'app non può aprire il database locale e termina all'avvio (ora con un messaggio d'errore esplicito invece di un silenzioso crash).
 
 Per rigenerare l'icona e le immagini della procedura guidata, esegui `.\assets\Create-BrandAssets.ps1`.
+
+## Rilasci automatici (GitHub Actions)
+
+Ogni nuova versione viene pubblicata come **Release GitHub** con l'installer Windows allegato, tramite il workflow `.github/workflows/release.yml`. Non serve compilare a mano.
+
+Il workflow parte:
+
+- a ogni push su `main`: se la versione del progetto non ha ancora una Release, la crea;
+- a ogni tag `vX.Y.Z`;
+- manualmente da **Actions → Release → Run workflow**.
+
+Prima di pubblicare, il workflow **verifica che `Version` nel `.csproj` e `AppVersion` in `Installer.iss` coincidano** (altrimenti si ferma senza pubblicare nulla), esegue i test, compila l'app single-file `win-x64`, genera l'installer con Inno Setup e allega `PresenzeFlow-Setup-X.Y.Z.exe` alla Release.
+
+Per preparare una nuova versione:
+
+```powershell
+.\tools\New-Version.ps1 -Version 1.7.1   # aggiorna csproj e Installer.iss in un colpo
+git commit -am "Rilascio 1.7.1"
+git tag v1.7.1
+git push origin main --follow-tags
+```
+
+Il tag è facoltativo: basta il push su `main` e il workflow crea da sé il tag `vX.Y.Z` e la Release corrispondente. Se la Release esiste già, il workflow non la duplica.
+
+## Novità v1.7.0
+
+- **Assistente AI conversazionale**: nuova scheda **Assistente AI** in cui chatti in italiano e l'AI **agisce sull'anteprima** (ore, date, durate, codici, rimozioni) tramite azioni validate; l'XML non viene mai scritto direttamente dall'AI
+- **Conversione più fedele**: se il foglio esprime la durata in **giorni** (intestazioni `Giorni`, `Days`, `gg`) viene convertita in ore usando la giornata lavorativa standard (8h), evitando di importare "2 giorni" come "2 ore"
+- **Preferenze e codici sempre salvati**: il codice azienda si salva da solo poco dopo la digitazione, la posizione/dimensione della finestra e l'ultima cartella usata sono ricordate, la cronologia della chat persiste e i codici corretti nella griglia vengono riportati nel database locale
+- **Grafica**: striscia sfumata in cima all'header, nuova palette con accento ciano e pannello di chat temizzato coerente con il resto dell'interfaccia
+- **10 nuovi test di logica** per le modifiche dell'assistente e la conversione giorni→ore (46 test di logica totali, tutti verdi)
 
 ## Novità v1.6.0
 

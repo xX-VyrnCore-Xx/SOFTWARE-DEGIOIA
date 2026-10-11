@@ -457,4 +457,68 @@ public class ConversionTests
             }
         }
     }
+
+    private static string CreateWorkbookWithDuration(double value, string durationHeader)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"presenze-dur-{Guid.NewGuid():N}.xlsx");
+        using var workbook = new XLWorkbook();
+        var sheet = workbook.Worksheets.Add("Richieste");
+        sheet.Cell(1, 1).Value = "Nome dipendente";
+        sheet.Cell(1, 2).Value = "Causale";
+        sheet.Cell(1, 3).Value = "Data inizio";
+        sheet.Cell(1, 4).Value = "Data fine";
+        sheet.Cell(1, 5).Value = durationHeader;
+        sheet.Cell(2, 1).Value = "Mario Rossi";
+        sheet.Cell(2, 2).Value = "Ferie";
+        sheet.Cell(2, 3).Value = new DateTime(2026, 8, 17);
+        sheet.Cell(2, 4).Value = new DateTime(2026, 8, 17);
+        sheet.Cell(2, 5).Value = value;
+        workbook.SaveAs(path);
+        return path;
+    }
+
+    [Theory]
+    [InlineData("Giorni", 2, 16)]
+    [InlineData("Durata (giorni)", 3, 24)]
+    [InlineData("Days", 1, 8)]
+    public void DayBasedDurationHeadersAreConvertedToHours(string header, double value, decimal expectedHours)
+    {
+        var path = CreateWorkbookWithDuration(value, header);
+        try
+        {
+            var inspection = AttendanceWorkbookReader.Inspect(path);
+            var request = Assert.Single(inspection.ReadRequests(new ColumnSelection(0, 1, 2, 3, 4)));
+
+            Assert.Equal(expectedHours, request.Hours);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("Ore totali", 2, 2)]
+    [InlineData("Duration in Range", 7.5, 7.5)]
+    public void HourBasedDurationHeadersAreNotRescaled(string header, double value, decimal expectedHours)
+    {
+        var path = CreateWorkbookWithDuration(value, header);
+        try
+        {
+            var inspection = AttendanceWorkbookReader.Inspect(path);
+            var request = Assert.Single(inspection.ReadRequests(new ColumnSelection(0, 1, 2, 3, 4)));
+
+            Assert.Equal(expectedHours, request.Hours);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
 }

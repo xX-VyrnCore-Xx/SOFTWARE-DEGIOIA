@@ -37,9 +37,20 @@ internal sealed class WorkbookInspection
     public DateTime? PeriodStart { get; }
     public DateTime? PeriodEnd { get; }
 
-    public IReadOnlyList<AttendanceRequest> ReadRequests(ColumnSelection columns)
+    /// <summary>Ore di una giornata lavorativa standard, usate quando la durata è espressa in giorni.</summary>
+    public const decimal DefaultHoursPerDay = 8m;
+
+    public IReadOnlyList<AttendanceRequest> ReadRequests(ColumnSelection columns, decimal hoursPerDay = DefaultHoursPerDay)
     {
         ValidateColumns(columns);
+        if (hoursPerDay <= 0m || hoursPerDay > 24m)
+        {
+            hoursPerDay = DefaultHoursPerDay;
+        }
+        // Alcuni export esprimono la durata in giorni ("Giorni", "Days", "gg"): in quel
+        // caso va convertita in ore, altrimenti 2 giorni di ferie diventerebbe 2 ore.
+        var durationInDays = IsDayBasedDurationHeader(
+            columns.Duration >= 0 && columns.Duration < Headers.Count ? Headers[columns.Duration] : string.Empty);
         var requests = new List<AttendanceRequest>();
         foreach (var row in _rows.Where(row => row.Count > 0 && row[0].RowNumber > _headerRow))
         {
@@ -65,11 +76,12 @@ internal sealed class WorkbookInspection
                 policyName.Length > 200 ||
                 !start.TryGetDate(out var startDate) ||
                 !end.TryGetDate(out var endDate) ||
-                !duration.TryGetNumber(out var hours))
+                !duration.TryGetNumber(out var rawDuration))
             {
                 throw new InvalidDataException(
                     $"La riga {rowNumber} contiene dati incompleti o non validi. Verifica nome, giustificativo, date e durata.");
             }
+            var hours = durationInDays ? rawDuration * hoursPerDay : rawDuration;
 
             if (startDate.Date > endDate.Date)
             {
@@ -121,6 +133,24 @@ internal sealed class WorkbookInspection
         {
             throw new InvalidDataException("Seleziona una colonna distinta e valida per ogni campo richiesto.");
         }
+    }
+
+    /// <summary>
+    /// Riconosce le intestazioni che esprimono la durata in giorni anziché in ore.
+    /// </summary>
+    private static bool IsDayBasedDurationHeader(string header)
+    {
+        var value = header.Trim().ToLowerInvariant();
+        if (value.Length == 0)
+        {
+            return false;
+        }
+        var tokens = new string(value.Select(character => char.IsLetterOrDigit(character) ? character : ' ').ToArray())
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Any(token =>
+            token.StartsWith("giorn", StringComparison.Ordinal) ||
+            token.StartsWith("day", StringComparison.Ordinal) ||
+            token is "gg" or "g");
     }
 
     private static WorkbookCell GetCell(IReadOnlyList<WorkbookCell> row, int column)

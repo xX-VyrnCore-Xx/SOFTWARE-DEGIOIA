@@ -1,0 +1,144 @@
+# Crea automaticamente una Release GitHub (con l'installer Windows allegato)
+# per ogni nuova versione di PresenzeFlow.
+#
+# Quando parte:
+#   - push su main: se la versione nel .csproj non ha ancora una Release, la crea;
+#   - push di un tag "vX.Y.Z": crea/aggiorna la Release di quel tag;
+#   - manualmente da Actions (workflow_dispatch), per rigenerare l'ultima versione.
+#
+# La versione è quella scritta in PresenzeXmlConverter.csproj ed è obbligatorio
+# che coincida con AppVersion di Installer.iss: se non coincidono il workflow
+# si ferma e non pubblica nulla.
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+  workflow_dispatch:
+
+# Necessario per creare tag e Release.
+permissions:
+  contents: write
+
+# Serializza le esecuzioni: un push su main e uno di tag non devono creare
+# la stessa Release due volte in parallelo.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Leggi la versione
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      should_release: ${{ steps.meta.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Determina versione e se serve una nuova Release
+        id: meta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          version=$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' PresenzeXmlConverter/PresenzeXmlConverter.csproj | head -n1)
+          installer_version=$(sed -n 's:.*#define AppVersion "\([^"]*\)".*:\1:p' Installer.iss | head -n1)
+
+          echo "csproj=$version · Installer.iss=$installer_version"
+          if [ -z "$version" ]; then
+            echo "::error::Versione non trovata in PresenzeXmlConverter.csproj"
+            exit 1
+          fi
+          if [ "$version" != "$installer_version" ]; then
+            echo "::error::Versione disallineata: csproj=$version, Installer.iss=$installer_version. Aggiorna entrambi (vedi tools/New-Version.ps1)."
+            exit 1
+          fi
+
+          # Se il push è su un tag, il tag è la fonte di verità.
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+              echo "::error::Il tag $GITHUB_REF_NAME non corrisponde alla versione $version del progetto."
+              exit 1
+            fi
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="v$version"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "La Release $tag esiste già: nessuna nuova Release."
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "La Release $tag non esiste: verrà creata."
+          fi
+
+  build-and-release:
+    name: Compila, testa e pubblica
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Test
+        run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release
+
+      - name: Compila l'app (single file, win-x64)
+        run: dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
+
+      - name: Verifica i file richiesti dall'installer
+        shell: pwsh
+        run: |
+          foreach ($file in @('dist\app\PresenzeFlow.exe', 'dist\app\e_sqlite3.dll')) {
+            if (-not (Test-Path $file)) {
+              throw "File mancante dopo il publish: $file (l'app installata non partirebbe)."
+            }
+          }
+
+      - name: Individua il compilatore Inno Setup
+        id: iscc
+        shell: pwsh
+        run: |
+          $candidates = @(
+            'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+            'C:\Program Files\Inno Setup 6\ISCC.exe'
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+            if ($command) { $iscc = $command.Source }
+          }
+          if (-not $iscc) { throw 'ISCC.exe non trovato: Inno Setup 6 non è installato sul runner.' }
+          "path=$iscc" >> $env:GITHUB_OUTPUT
+          Write-Host "Uso $iscc"
+
+      - name: Compila l'installer
+        shell: pwsh
+        run: |
+          & '${{ steps.iscc.outputs.path }}' Installer.iss
+          $installer = "dist\PresenzeFlow-Setup-${{ needs.prepare.outputs.version }}.exe"
+          if (-not (Test-Path $installer)) { throw "Installer non generato: $installer" }
+          Get-Item $installer | Select-Object Name, Length
+
+      - name: Crea la Release GitHub
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: PresenzeFlow ${{ needs.prepare.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/PresenzeFlow-Setup-*.exe

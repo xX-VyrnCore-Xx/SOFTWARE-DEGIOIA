@@ -28,6 +28,8 @@ internal sealed partial class MainForm : Form
     private string? _lastExportDirectory;
     private readonly NotifyIcon _trayIcon = new();
     private readonly System.Windows.Forms.Timer _xmlRefreshDebounce = new() { Interval = 350 };
+    private readonly System.Windows.Forms.Timer _companyCodeSaveDebounce = new() { Interval = 700 };
+    private string? _lastSourceDirectory;
 
     public MainForm()
     {
@@ -50,6 +52,15 @@ internal sealed partial class MainForm : Form
             _xmlRefreshDebounce.Stop();
             RefreshXmlFromPreview();
         };
+        // Il codice azienda si salva da solo poco dopo l'ultima digitazione.
+        _companyCodeSaveDebounce.Tick += (_, _) =>
+        {
+            _companyCodeSaveDebounce.Stop();
+            SaveCompanyCode();
+        };
+        _lastSourceDirectory = _database.GetSetting("last-source-dir");
+        LoadChatHistory();
+        ShowChatWelcome();
         SetupTrayIcon();
         UpdateButtons();
         UpdateAiStatusAsync();
@@ -58,6 +69,7 @@ internal sealed partial class MainForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
+        RestoreWindowBounds();
         // La geometria viene già riscalata dal AutoScaleMode.Dpi della finestra
         // (che scala bordi, righe dei layout e posizioni di tutti i controlli):
         // una seconda scalatura manuale, come c'era in precedenza, gonfiava la
@@ -123,6 +135,7 @@ internal sealed partial class MainForm : Form
             }
         }
 
+        SaveWindowBounds();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         base.OnFormClosing(e);
@@ -186,6 +199,10 @@ internal sealed partial class MainForm : Form
             CheckFileExists = true,
             Multiselect = false
         };
+        if (!string.IsNullOrEmpty(_lastSourceDirectory) && Directory.Exists(_lastSourceDirectory))
+        {
+            picker.InitialDirectory = _lastSourceDirectory;
+        }
         if (picker.ShowDialog(this) != DialogResult.OK)
         {
             return;
@@ -233,6 +250,12 @@ internal sealed partial class MainForm : Form
             _requests = inspection.ReadRequests(columns);
             _inspection = inspection;
             _sourcePath = picker.FileName;
+            var sourceDirectory = Path.GetDirectoryName(picker.FileName);
+            if (!string.IsNullOrEmpty(sourceDirectory))
+            {
+                _lastSourceDirectory = sourceDirectory;
+                _database.SaveSetting("last-source-dir", sourceDirectory);
+            }
             _fileLabel.Text = Path.GetFileName(picker.FileName);
             ClearGeneratedPreview();
             UpdateWorkflowSummary();
@@ -731,6 +754,7 @@ internal sealed partial class MainForm : Form
             _xmlPreview.Text = _xml;
             ApplyXmlSyntaxHighlighting();
             _hasWarnings = false;
+            PersistMovementMappings();
             UpdatePreviewSummary(movements);
             UpdateButtons();
             SetStatus("Anteprima modificata: XML aggiornato. Verifica nuovamente prima di scaricare.", false);
@@ -851,6 +875,91 @@ internal sealed partial class MainForm : Form
             FormatException or
             OverflowException or
             ArgumentException;
+    }
+
+    /// <summary>
+    /// Ripristina posizione e dimensione dell'ultima sessione, ma solo se la
+    /// finestra cade ancora dentro un monitor collegato (es. dopo aver
+    /// scollegato uno schermo secondario).
+    /// </summary>
+    private void RestoreWindowBounds()
+    {
+        var raw = _database.GetSetting("window-bounds");
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return;
+        }
+        var parts = raw.Split(';');
+        if (parts.Length != 4 ||
+            !int.TryParse(parts[0], out var x) ||
+            !int.TryParse(parts[1], out var y) ||
+            !int.TryParse(parts[2], out var width) ||
+            !int.TryParse(parts[3], out var height) ||
+            width < 400 || height < 300)
+        {
+            return;
+        }
+
+        var bounds = new Rectangle(x, y, width, height);
+        if (!Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(bounds)))
+        {
+            return;
+        }
+        StartPosition = FormStartPosition.Manual;
+        Bounds = bounds;
+    }
+
+    private void SaveWindowBounds()
+    {
+        try
+        {
+            var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+            if (bounds.Width < 200 || bounds.Height < 200)
+            {
+                return;
+            }
+            _database.SaveSetting("window-bounds", $"{bounds.X};{bounds.Y};{bounds.Width};{bounds.Height}");
+        }
+        catch (SqliteException)
+        {
+            // Il ripristino della geometria è un extra: se non si salva, l'app funziona comunque.
+        }
+    }
+
+    /// <summary>
+    /// Dopo una correzione nell'anteprima, ribadisce nel database locale gli
+    /// abbinamenti nome→codice usati, così i codici non vanno reinseriti.
+    /// </summary>
+    private void PersistMovementMappings()
+    {
+        try
+        {
+            var employees = _database.GetEmployeeMappings();
+            var policies = _database.GetPolicyMappings();
+            foreach (var movement in _movements)
+            {
+                if (!string.IsNullOrWhiteSpace(movement.EmployeeName) &&
+                    !string.IsNullOrWhiteSpace(movement.EmployeeCode) &&
+                    (!employees.TryGetValue(movement.EmployeeName, out var employeeCode) ||
+                     !string.Equals(employeeCode, movement.EmployeeCode, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _database.SaveEmployeeMapping(movement.EmployeeName, movement.EmployeeCode);
+                    employees[movement.EmployeeName] = movement.EmployeeCode;
+                }
+                if (!string.IsNullOrWhiteSpace(movement.Policy) &&
+                    !string.IsNullOrWhiteSpace(movement.ReasonCode) &&
+                    (!policies.TryGetValue(movement.Policy, out var reasonCode) ||
+                     !string.Equals(reasonCode, movement.ReasonCode, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _database.SavePolicyMapping(movement.Policy, movement.ReasonCode);
+                    policies[movement.Policy] = movement.ReasonCode;
+                }
+            }
+        }
+        catch (SqliteException)
+        {
+            // La persistenza dei codici non deve interrompere la generazione dell'XML.
+        }
     }
 
     private void ShowError(string title, Exception exception)

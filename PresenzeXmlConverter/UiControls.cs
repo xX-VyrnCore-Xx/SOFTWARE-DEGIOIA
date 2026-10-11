@@ -182,6 +182,39 @@ internal sealed class RoundedField : Panel
 }
 
 /// <summary>
+/// Striscia decorativa con gradiente orizzontale: usata come accento in cima
+/// all'header per dare profondità senza ricorrere a immagini esterne.
+/// </summary>
+internal sealed class AccentBar : Control
+{
+    public AccentBar()
+    {
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+        BackColor = Theme.Brand;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        if (ClientSize.Width < 2 || ClientSize.Height < 2)
+        {
+            base.OnPaint(e);
+            return;
+        }
+        using var brush = new LinearGradientBrush(
+            ClientRectangle,
+            Theme.Brand,
+            Theme.Accent,
+            LinearGradientMode.Horizontal);
+        e.Graphics.FillRectangle(brush, ClientRectangle);
+    }
+}
+
+/// <summary>
 /// Schede a pagina singola con barra disegnata in casa.
 /// La striscia del TabControl nativo viene dipinta dal controllo di Windows
 /// con il grigio di sistema ed ignora BackColor: qui barra, testo e

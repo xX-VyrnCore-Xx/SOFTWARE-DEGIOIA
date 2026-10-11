@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace PresenzeXmlConverter;
 
-internal sealed class LocalAiAssistant
+internal sealed partial class LocalAiAssistant
 {
     /// <summary>Modello predefinito: bilancia qualità dei suggerimenti e velocità su CPU.</summary>
     public const string DefaultModel = "qwen2.5:1.5b";

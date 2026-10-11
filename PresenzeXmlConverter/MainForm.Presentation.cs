@@ -111,6 +111,10 @@ internal sealed partial class MainForm
         {
             InvalidatePreview();
             UpdateWorkflowSummary();
+            // Salvataggio automatico: le preferenze non si perdono se l'app si chiude
+            // senza che il campo perda il focus.
+            _companyCodeSaveDebounce.Stop();
+            _companyCodeSaveDebounce.Start();
         };
         _companyCode.Leave += (_, _) => SaveCompanyCode();
         setup.Controls.Add(_companyCode, 0, 2);
@@ -161,11 +165,30 @@ internal sealed partial class MainForm
         mappingButton.Click += (_, _) => EditMappings();
         setup.Controls.Add(mappingButton, 0, 8);
 
-        var aiButton = Theme.CreateButton("Assistente AI locale", Theme.ButtonTone.Neutral);
+        var aiRow = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        aiRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        aiRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        aiRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var aiButton = Theme.CreateButton("Configura AI", Theme.ButtonTone.Neutral, compact: true);
         aiButton.Dock = DockStyle.Fill;
-        aiButton.Margin = new Padding(0, 3, 0, 3);
+        aiButton.Margin = new Padding(0, 3, 4, 3);
         aiButton.Click += async (_, _) => await ConfigureAiAsync();
-        setup.Controls.Add(aiButton, 0, 9);
+        aiRow.Controls.Add(aiButton, 0, 0);
+
+        var chatButton = Theme.CreateButton("Chatta con AI", Theme.ButtonTone.Neutral, compact: true);
+        chatButton.Dock = DockStyle.Fill;
+        chatButton.Margin = new Padding(4, 3, 0, 3);
+        chatButton.Click += (_, _) => FocusAiChat();
+        aiRow.Controls.Add(chatButton, 1, 0);
+        setup.Controls.Add(aiRow, 0, 9);
 
         setup.Controls.Add(BuildWorkflowSteps(), 0, 10);
 
@@ -280,7 +303,22 @@ internal sealed partial class MainForm
         _reviewStatusBadge.Margin = new Padding(0, 24, 4, 0);
         body.Controls.Add(_reviewStatusBadge, 2, 0);
 
-        header.Controls.Add(body);
+        // Accento sfumato in cima all'header: la card resta la stessa, ma con un
+        // tocco di profondità in più. La riga è fissa (4 px) e il corpo riempie il resto.
+        var shell = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Theme.HeaderFill,
+            Margin = Padding.Empty
+        };
+        shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 4));
+        shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        shell.Controls.Add(new AccentBar { Dock = DockStyle.Fill, Margin = Padding.Empty }, 0, 0);
+        shell.Controls.Add(body, 0, 1);
+        header.Controls.Add(shell);
         return header;
     }
 
@@ -578,6 +616,7 @@ internal sealed partial class MainForm
         xmlPage.Controls.Add(_xmlPreview);
         _previewTabs.AddPage("Movimenti  ·  0", movementPage);
         _previewTabs.AddPage("Anteprima XML", xmlPage);
+        _previewTabs.AddPage("Assistente AI", BuildAiChatPanel());
         _previewTabs.SelectedIndex = 0;
         return _previewTabs;
     }
