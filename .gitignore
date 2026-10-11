@@ -1,0 +1,36 @@
+# --- Build .NET ---
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+artifacts/
+
+# --- Output installer e app pubblicata (ricostruiti con i comandi del README) ---
+dist/
+
+# --- Test e copertura ---
+[Tt]est[Rr]esults/
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# --- IDE / editor ---
+# (\.vscode resta tracciato: contiene launch/tasks condivisi dal team)
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.idea/
+
+# --- OS ---
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# --- Log e temporanei (es. error.log dell'app) ---
+*.log
+*.tmp
+*.bak
+~$*
