@@ -57,6 +57,11 @@ internal sealed partial class MainForm
         };
         workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 282));
         workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        // Riga dichiarata esplicitamente: senza RowStyles la tabella ricade su una
+        // riga autosize che non combacia con l'altezza reale della cella, così la
+        // colonna di sinistra può ricevere meno spazio di quanto ne ha a
+        // disposizione e i testi dei passi finiscono tagliati.
+        workspace.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.Controls.Add(workspace, 0, 1);
 
         var setupCard = new SurfacePanel
@@ -447,7 +452,7 @@ internal sealed partial class MainForm
         steps.Controls.Add(reviewStep, 0, 1);
         steps.Controls.Add(new Label
         {
-            Text = "Rivedi i movimenti ed esporta l'XML",
+            Text = "Rivedi ed esporta l'XML",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Theme.MutedInk,
