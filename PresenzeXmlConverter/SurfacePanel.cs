@@ -2,16 +2,58 @@ namespace PresenzeXmlConverter;
 
 using System.Drawing.Drawing2D;
 
+/// <summary>
+/// Card arrotondata: il pannello base di tutte le sezioni della finestra.
+/// Riempimento, bordo e raggio sono configurabili perché header, card chiare
+/// e fasce colorate condividano esattamente lo stesso raggio d'angolo e la
+/// stessa palette, invece di ritoccare i valori a mano in ogni punto.
+/// </summary>
 internal sealed class SurfacePanel : Panel
 {
-    private const int Radius = 12;
+    private int _radius = 12;
+    private Color _fill = Theme.Surface;
+    private Color _border = Theme.Divider;
 
     public SurfacePanel()
     {
-        BackColor = Color.White;
+        BackColor = Theme.Surface;
         DoubleBuffered = true;
         ResizeRedraw = true;
         UpdateRoundedRegion();
+    }
+
+    /// <summary>Raggio d'angolo in pixel.</summary>
+    public int Radius
+    {
+        get => _radius;
+        set
+        {
+            _radius = value;
+            UpdateRoundedRegion();
+            Invalidate();
+        }
+    }
+
+    /// <summary>Colore di riempimento (anche il BackColor, per i figli).</summary>
+    public Color SurfaceFill
+    {
+        get => _fill;
+        set
+        {
+            _fill = value;
+            BackColor = value;
+        }
+    }
+
+    /// <summary>Colore del bordo; per nasconderlo usa lo stesso tono del fill.</summary>
+    public Color SurfaceBorder
+    {
+        get => _border;
+        set
+        {
+            _border = value;
+            Invalidate();
+        }
     }
 
     protected override void OnResize(EventArgs eventArgs)
@@ -29,10 +71,10 @@ internal sealed class SurfacePanel : Panel
         }
 
         eventArgs.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var path = CreateRoundedRectangle(
+        using var path = Theme.RoundedRectangle(
             new Rectangle(0, 0, ClientSize.Width - 1, ClientSize.Height - 1),
-            Radius);
-        using var pen = new Pen(Color.FromArgb(224, 231, 239));
+            _radius);
+        using var pen = new Pen(_border);
         eventArgs.Graphics.DrawPath(pen, path);
     }
 
@@ -42,21 +84,9 @@ internal sealed class SurfacePanel : Panel
         {
             return;
         }
-        using var path = CreateRoundedRectangle(
+        using var path = Theme.RoundedRectangle(
             new Rectangle(0, 0, ClientSize.Width, ClientSize.Height),
-            Radius);
+            _radius);
         Region = new Region(path);
-    }
-
-    private static GraphicsPath CreateRoundedRectangle(Rectangle bounds, int radius)
-    {
-        var path = new GraphicsPath();
-        var diameter = Math.Min(radius * 2, Math.Min(bounds.Width, bounds.Height));
-        path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
-        path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
-        path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
-        path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
-        path.CloseFigure();
-        return path;
     }
 }

@@ -4,26 +4,13 @@ namespace PresenzeXmlConverter;
 
 internal sealed partial class MainForm
 {
-    // Modern, sophisticated color palette
-    private static readonly Color Ink = Color.FromArgb(15, 26, 40);
-    private static readonly Color InkSecondary = Color.FromArgb(55, 75, 100);
-    private static readonly Color MutedInk = Color.FromArgb(103, 120, 142);
-    private static readonly Color BrandBlue = Color.FromArgb(59, 130, 246);          // Modern vibrant blue
-    private static readonly Color BrandBlueDark = Color.FromArgb(30, 58, 138);       // Darker blue for contrast
-    private static readonly Color BrandBlueLite = Color.FromArgb(219, 234, 254);     // Light blue for backgrounds
-    private static readonly Color BrandGreen = Color.FromArgb(34, 197, 94);          // Modern vibrant green
-    private static readonly Color BrandGreenDark = Color.FromArgb(20, 83, 45);       // Darker green
-    private static readonly Color BrandGreenLite = Color.FromArgb(220, 252, 231);    // Light green
-    private static readonly Color Accent = Color.FromArgb(168, 85, 247);             // Purple accent
-    private static readonly Color Surface = Color.White;
-    private static readonly Color Canvas = Color.FromArgb(248, 250, 254);            // Lighter, more refined
-    private static readonly Color CanvasDark = Color.FromArgb(241, 245, 250);
-    private static readonly Color SurfaceHover = Color.FromArgb(243, 247, 252);
-    private static readonly Color Divider = Color.FromArgb(229, 231, 235);
-    private static readonly Color DividerLight = Color.FromArgb(242, 244, 248);
-    private static readonly Font GridCodeFont = new("Cascadia Code", 8.2f);
-    private static readonly Font GridNumberFont = new("Segoe UI Semibold", 9, FontStyle.Bold);
-    private static readonly Font PreviewTabFont = new("Segoe UI Semibold", 8.5f, FontStyle.Bold);
+    // Colore di sfondo della fascia dei numeri di riga: deve coincidere con
+    // RowHeadersDefaultCellStyle.BackColor, altrimenti la numerazione rimane
+    // impressa su un rettangolo di un altro colore.
+    private static readonly Color RowHeaderFill = Theme.Sunken;
+
+    private static readonly string[] SearchableColumns =
+        { "employee", "code", "date", "policy", "reason", "source" };
 
     private readonly Label _sourceInfoLabel = new();
     private readonly Label _requestMetricLabel = new();
@@ -31,9 +18,9 @@ internal sealed partial class MainForm
     private readonly Label _previewTitleLabel = new();
     private readonly Label _previewSubtitleLabel = new();
     private readonly Label _previewCountLabel = new();
-    private readonly TextBox _previewSearch = new();
+    private readonly RoundedField _previewSearch = new();
     private readonly Button _copyXmlButton = new();
-    private readonly Panel _reviewStatusBadge = new();
+    private readonly StatusPill _reviewStatusBadge = new();
     private bool _isApplyingFilter;
     private bool _hasWarnings;
 
@@ -42,7 +29,7 @@ internal sealed partial class MainForm
         Text = "PresenzeFlow";
         MinimumSize = new Size(1024, 650);
         Size = new Size(1360, 860);
-        BackColor = Canvas;
+        BackColor = Theme.Canvas;
         Icon = _applicationIcon;
 
         var root = new TableLayoutPanel
@@ -51,32 +38,31 @@ internal sealed partial class MainForm
             ColumnCount = 1,
             RowCount = 3,
             Padding = new Padding(18, 14, 18, 10),
-            BackColor = Canvas
+            BackColor = Theme.Canvas
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 84));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         Controls.Add(root);
 
-        var header = BuildBrandHeader();
-        root.Controls.Add(header, 0, 0);
+        root.Controls.Add(BuildBrandHeader(), 0, 0);
 
         var workspace = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = Canvas,
-            Margin = new Padding(0)
+            BackColor = Theme.Canvas,
+            Margin = Padding.Empty
         };
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280));
+        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 282));
         workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.Controls.Add(workspace, 0, 1);
 
         var setupCard = new SurfacePanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(22, 20, 22, 20),
+            Padding = new Padding(20, 18, 20, 18),
             Margin = new Padding(0, 0, 16, 0)
         };
         var setup = new TableLayoutPanel
@@ -84,21 +70,22 @@ internal sealed partial class MainForm
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 12,
-            BackColor = Surface
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
         };
         setup.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 33));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        setup.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));   // titolo
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));   // sezione 01
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));   // codice azienda
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));   // sezione 02
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));   // importa file
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));   // nome file
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));   // dettagli file
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));   // metriche
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // codici e giustificativi
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // assistente AI
+        setup.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // passi del flusso
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));   // genera anteprima
         setupCard.Controls.Add(setup);
         workspace.Controls.Add(setupCard, 0, 0);
 
@@ -107,20 +94,18 @@ internal sealed partial class MainForm
             Text = "Nuova conversione",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Ink,
-            Font = new Font("Segoe UI", 18, FontStyle.Bold),
-            Margin = new Padding(0)
+            ForeColor = Theme.Ink,
+            Font = Theme.Fonts.CardTitle,
+            Margin = Padding.Empty
         };
         setup.Controls.Add(title, 0, 0);
 
-        setup.Controls.Add(CreateSectionLabel("01   AZIENDA ZUCCHETTI"), 0, 1);
+        setup.Controls.Add(CreateSectionRow("01   AZIENDA ZUCCHETTI", "fino a 6 caratteri"), 0, 1);
         _companyCode.MaxLength = 6;
         _companyCode.Dock = DockStyle.Fill;
-        _companyCode.Font = new Font("Segoe UI", 13, FontStyle.Bold);
-        _companyCode.BackColor = Color.FromArgb(249, 250, 253);
-        _companyCode.ForeColor = Ink;
+        _companyCode.InputFont = Theme.Fonts.Field;
         _companyCode.CharacterCasing = CharacterCasing.Upper;
-        _companyCode.BorderStyle = BorderStyle.FixedSingle;
+        _companyCode.Placeholder = "es. ABC123";
         _companyCode.Margin = new Padding(0, 2, 0, 8);
         _companyCode.TextChanged += (_, _) =>
         {
@@ -130,10 +115,9 @@ internal sealed partial class MainForm
         _companyCode.Leave += (_, _) => SaveCompanyCode();
         setup.Controls.Add(_companyCode, 0, 2);
 
-        setup.Controls.Add(CreateSectionLabel("02   FILE SORGENTE"), 0, 3);
-        var importButton = CreateButton("SELEZIONA FILE EXCEL", BrandBlue, true);
+        setup.Controls.Add(CreateSectionRow("02   FILE SORGENTE", "formato .xlsx"), 0, 3);
+        var importButton = Theme.CreateButton("SELEZIONA FILE EXCEL", Theme.ButtonTone.Primary);
         importButton.Dock = DockStyle.Fill;
-        importButton.Height = 44;
         importButton.Margin = new Padding(0, 2, 0, 8);
         importButton.Click += async (_, _) => await ImportWorkbookAsync();
         setup.Controls.Add(importButton, 0, 4);
@@ -141,17 +125,19 @@ internal sealed partial class MainForm
         _fileLabel.Dock = DockStyle.Fill;
         _fileLabel.AutoSize = false;
         _fileLabel.AutoEllipsis = true;
+        _fileLabel.TextAlign = ContentAlignment.MiddleLeft;
         _fileLabel.Text = "Nessun file selezionato";
-        _fileLabel.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-        _fileLabel.ForeColor = InkSecondary;
-        _fileLabel.Margin = new Padding(1, 1, 0, 0);
+        _fileLabel.Font = Theme.Fonts.SmallBold;
+        _fileLabel.ForeColor = Theme.InkSecondary;
+        _fileLabel.Margin = Padding.Empty;
         setup.Controls.Add(_fileLabel, 0, 5);
 
         _sourceInfoLabel.Dock = DockStyle.Fill;
+        _sourceInfoLabel.TextAlign = ContentAlignment.MiddleLeft;
         _sourceInfoLabel.Text = "Seleziona un file Excel da analizzare.";
-        _sourceInfoLabel.Font = new Font("Segoe UI", 8.7f);
-        _sourceInfoLabel.ForeColor = MutedInk;
-        _sourceInfoLabel.Margin = new Padding(1, 0, 0, 5);
+        _sourceInfoLabel.Font = Theme.Fonts.Small;
+        _sourceInfoLabel.ForeColor = Theme.MutedInk;
+        _sourceInfoLabel.Margin = new Padding(1, 0, 0, 4);
         setup.Controls.Add(_sourceInfoLabel, 0, 6);
 
         var metrics = new TableLayoutPanel
@@ -159,76 +145,42 @@ internal sealed partial class MainForm
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = Surface,
-            Margin = new Padding(0, 4, 0, 4)
+            BackColor = Theme.Surface,
+            Margin = new Padding(0, 2, 0, 2)
         };
         metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        metrics.RowStyles.Clear();
         metrics.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var requestTile = CreateMetricTile("RICHIESTE", _requestMetricLabel, BrandBlue, BrandBlueLite);
-        var employeeTile = CreateMetricTile("DIPENDENTI", _employeeMetricLabel, BrandGreen, BrandGreenLite);
-        metrics.Controls.Add(requestTile, 0, 0);
-        metrics.Controls.Add(employeeTile, 1, 0);
+        metrics.Controls.Add(CreateMetricTile("RICHIESTE", _requestMetricLabel, Theme.BrandInk, Theme.BrandSoft), 0, 0);
+        metrics.Controls.Add(CreateMetricTile("DIPENDENTI", _employeeMetricLabel, Theme.SuccessInk, Theme.SuccessSoft), 1, 0);
         setup.Controls.Add(metrics, 0, 7);
 
-        var mappingButton = CreateButton("Codici e giustificativi", BrandBlueLite, false);
+        var mappingButton = Theme.CreateButton("Codici e giustificativi", Theme.ButtonTone.Neutral);
         mappingButton.Dock = DockStyle.Fill;
-        mappingButton.Margin = new Padding(0, 4, 0, 4);
+        mappingButton.Margin = new Padding(0, 3, 0, 3);
         mappingButton.Click += (_, _) => EditMappings();
         setup.Controls.Add(mappingButton, 0, 8);
 
-        var aiButton = CreateButton("Assistente AI locale", BrandBlueLite, false);
+        var aiButton = Theme.CreateButton("Assistente AI locale", Theme.ButtonTone.Neutral);
         aiButton.Dock = DockStyle.Fill;
-        aiButton.Margin = new Padding(0, 4, 0, 4);
+        aiButton.Margin = new Padding(0, 3, 0, 3);
         aiButton.Click += async (_, _) => await ConfigureAiAsync();
         setup.Controls.Add(aiButton, 0, 9);
 
-        var guidance = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 7, 0, 6) };
-        var verticalRule = new Panel
-        {
-            BackColor = Color.FromArgb(226, 232, 240),
-            Location = new Point(8, 5),
-            Size = new Size(2, 56)
-        };
-        guidance.Controls.Add(verticalRule);
-        var importStep = CreateStepDot("1", true);
-        importStep.Location = new Point(0, 3);
-        guidance.Controls.Add(importStep);
-        guidance.Controls.Add(new Label
-        {
-            Text = "Importa foglio e codici",
-            Size = new Size(190, 24),
-            Location = new Point(28, 2),
-            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(59, 130, 246)
-        });
-        var reviewStep = CreateStepDot("2", false);
-        reviewStep.Location = new Point(0, 36);
-        guidance.Controls.Add(reviewStep);
-        guidance.Controls.Add(new Label
-        {
-            Text = "Rivedi ed esporta l'XML",
-            Size = new Size(190, 24),
-            Location = new Point(28, 36),
-            Font = new Font("Segoe UI", 8.5f),
-            ForeColor = MutedInk
-        });
-        setup.Controls.Add(guidance, 0, 10);
+        setup.Controls.Add(BuildWorkflowSteps(), 0, 10);
 
-        _generateButton.Text = "Genera anteprima  →";
+        _generateButton.Text = "Genera anteprima   →";
         _generateButton.Dock = DockStyle.Fill;
-        _generateButton.Margin = new Padding(0, 3, 0, 0);
-        _generateButton.Height = 48;
-        StyleButton(_generateButton, BrandGreen, true);
+        _generateButton.Margin = new Padding(0, 4, 0, 0);
+        Theme.StyleButton(_generateButton, Theme.ButtonTone.Positive);
         _generateButton.Click += (_, _) => GeneratePreview();
         setup.Controls.Add(_generateButton, 0, 11);
 
         var reviewCard = new SurfacePanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(18, 16, 18, 16),
-            Margin = new Padding(0)
+            Padding = new Padding(16, 14, 16, 14),
+            Margin = Padding.Empty
         };
         workspace.Controls.Add(reviewCard, 1, 0);
         var reviewLayout = new TableLayoutPanel
@@ -236,10 +188,11 @@ internal sealed partial class MainForm
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = Surface
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
         };
-        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
-        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
+        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         reviewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         reviewCard.Controls.Add(reviewLayout);
 
@@ -251,33 +204,36 @@ internal sealed partial class MainForm
         UpdateButtons();
     }
 
-    private Panel BuildBrandHeader()
+    private Control BuildBrandHeader()
     {
-        var header = new Panel
+        var header = new SurfacePanel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(15, 26, 40),
-            Margin = new Padding(0, 0, 0, 16)
+            SurfaceFill = Theme.HeaderFill,
+            SurfaceBorder = Theme.HeaderFill,
+            Radius = 14,
+            Margin = new Padding(0, 0, 0, 14)
         };
         var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 3,
             RowCount = 1,
-            Margin = new Padding(0)
+            BackColor = Theme.HeaderFill,
+            Margin = Padding.Empty
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 268));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var mark = new PictureBox
         {
             Image = _applicationIcon.ToBitmap(),
-            Size = new Size(52, 52),
+            Size = new Size(50, 50),
             SizeMode = PictureBoxSizeMode.Zoom,
             Anchor = AnchorStyles.Top | AnchorStyles.Left,
-            Margin = new Padding(16, 16, 0, 0)
+            Margin = new Padding(16, 15, 0, 0)
         };
         body.Controls.Add(mark, 0, 0);
 
@@ -288,10 +244,11 @@ internal sealed partial class MainForm
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 4,
-            Margin = new Padding(0)
+            BackColor = Theme.HeaderFill,
+            Margin = Padding.Empty
         };
         titles.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        titles.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+        titles.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         titles.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
         titles.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -300,121 +257,255 @@ internal sealed partial class MainForm
             Text = "PresenzeFlow",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Color.White,
-            Font = new Font("Segoe UI", 24, FontStyle.Bold),
-            Margin = new Padding(0)
+            ForeColor = Theme.HeaderInk,
+            Font = Theme.Fonts.HeaderTitle,
+            Margin = Padding.Empty
         };
         titles.Controls.Add(title, 0, 1);
 
         var subtitle = new Label
         {
-            Text = "Trasforma i dati · Verifica · Esporta",
+            Text = "Importa · Verifica · Esporta in XML TRRIPW",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.TopLeft,
-            ForeColor = Color.FromArgb(186, 206, 232),
-            Font = new Font("Segoe UI", 8.5f),
+            ForeColor = Theme.HeaderMuted,
+            Font = Theme.Fonts.Small,
             Margin = new Padding(1, 0, 0, 4)
         };
         titles.Controls.Add(subtitle, 0, 2);
         body.Controls.Add(titles, 1, 0);
 
-        _reviewStatusBadge.BackColor = Color.FromArgb(30, 58, 138);
         _reviewStatusBadge.Dock = DockStyle.Top;
-        _reviewStatusBadge.Height = 38;
-        _reviewStatusBadge.Margin = new Padding(0, 25, 0, 0);
-        _reviewStatusBadge.Controls.Add(new Label
-        {
-            Text = "●   ELABORAZIONE LOCALE",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleCenter,
-            ForeColor = Color.FromArgb(191, 219, 254),
-            Font = new Font("Segoe UI", 8.2f, FontStyle.Bold)
-        });
+        _reviewStatusBadge.Height = 34;
+        _reviewStatusBadge.Margin = new Padding(0, 24, 4, 0);
         body.Controls.Add(_reviewStatusBadge, 2, 0);
 
         header.Controls.Add(body);
         return header;
     }
 
+    /// <summary>
+    /// Riga di sezione con etichetta a sinistra e breve guida a destra:
+    /// il testo di aiuto non può finire sotto l'etichetta perché le due
+    /// colonne sono separate.
+    /// </summary>
+    private static Control CreateSectionRow(string text, string hint)
+    {
+        var row = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var label = new Label
+        {
+            Text = text,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.MutedInk,
+            Font = Theme.Fonts.Section,
+            Margin = Padding.Empty
+        };
+        row.Controls.Add(label, 0, 0);
+
+        var help = new Label
+        {
+            Text = hint,
+            AutoSize = true,
+            Anchor = AnchorStyles.Right,
+            TextAlign = ContentAlignment.MiddleRight,
+            ForeColor = Theme.FaintInk,
+            Font = Theme.Fonts.Tiny,
+            Margin = new Padding(6, 0, 0, 0)
+        };
+        row.Controls.Add(help, 1, 0);
+        return row;
+    }
+
+    /// <summary>
+    /// Le due caselle delle metriche: impilate su righe fisse, così il
+    /// numero grande non può mai sforare la tile ad altezza ridotta.
+    /// </summary>
+    private static Panel CreateMetricTile(string caption, Label metric, Color accent, Color background)
+    {
+        var tile = new SurfacePanel
+        {
+            Dock = DockStyle.Fill,
+            SurfaceFill = background,
+            SurfaceBorder = background,
+            Radius = 10,
+            Padding = new Padding(14, 8, 12, 8),
+            Margin = new Padding(0, 0, 8, 0)
+        };
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = background,
+            Margin = Padding.Empty
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        layout.Controls.Add(new Label
+        {
+            Text = caption,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.MutedInk,
+            Font = Theme.Fonts.Section,
+            Margin = Padding.Empty
+        }, 0, 0);
+
+        metric.Text = "0";
+        metric.Dock = DockStyle.Fill;
+        metric.TextAlign = ContentAlignment.MiddleLeft;
+        metric.ForeColor = accent;
+        metric.Font = Theme.Fonts.Metric;
+        metric.Margin = Padding.Empty;
+        layout.Controls.Add(metric, 0, 1);
+        tile.Controls.Add(layout);
+        return tile;
+    }
+
+    /// <summary>Mini-guida al flusso di lavoro, con cerchini numerati.</summary>
+    private static Control BuildWorkflowSteps()
+    {
+        var steps = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 2,
+            BackColor = Theme.Surface,
+            Margin = new Padding(0, 8, 0, 4)
+        };
+        steps.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30));
+        steps.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        steps.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 10));
+        steps.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        steps.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+
+        var importStep = new StepBadge("1", true) { Dock = DockStyle.Top, Margin = new Padding(0, 2, 0, 0) };
+        steps.Controls.Add(importStep, 0, 0);
+        steps.Controls.Add(new Label
+        {
+            Text = "Importa il foglio e verifica i codici",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.BrandInk,
+            Font = Theme.Fonts.Step,
+            Margin = Padding.Empty
+        }, 1, 0);
+
+        var reviewStep = new StepBadge("2", false) { Dock = DockStyle.Top, Margin = new Padding(0, 2, 0, 0) };
+        steps.Controls.Add(reviewStep, 0, 1);
+        steps.Controls.Add(new Label
+        {
+            Text = "Rivedi i movimenti ed esporta l'XML",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.MutedInk,
+            Font = Theme.Fonts.Small,
+            Margin = Padding.Empty
+        }, 1, 1);
+        return steps;
+    }
+
     private Control BuildPreviewHeading()
     {
-        var heading = new Panel { Dock = DockStyle.Fill, BackColor = Surface };
+        var heading = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = Padding.Empty };
         _previewTitleLabel.Text = "Area di revisione";
         _previewTitleLabel.AutoSize = true;
         _previewTitleLabel.Location = new Point(0, 2);
-        _previewTitleLabel.Font = new Font("Segoe UI", 16, FontStyle.Bold);
-        _previewTitleLabel.ForeColor = Ink;
+        _previewTitleLabel.Font = Theme.Fonts.CardTitle;
+        _previewTitleLabel.ForeColor = Theme.Ink;
         heading.Controls.Add(_previewTitleLabel);
         _previewSubtitleLabel.Text = "Importa un foglio Excel per visualizzare e controllare i movimenti.";
         _previewSubtitleLabel.AutoSize = false;
-        _previewSubtitleLabel.Location = new Point(0, 38);
-        _previewSubtitleLabel.Height = 24;
+        _previewSubtitleLabel.Location = new Point(0, 34);
+        _previewSubtitleLabel.Height = 22;
         _previewSubtitleLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        _previewSubtitleLabel.Font = new Font("Segoe UI", 8.9f);
-        _previewSubtitleLabel.ForeColor = MutedInk;
+        _previewSubtitleLabel.Font = Theme.Fonts.Small;
+        _previewSubtitleLabel.ForeColor = Theme.MutedInk;
         heading.Controls.Add(_previewSubtitleLabel);
         return heading;
     }
 
     private Control BuildPreviewToolbar()
     {
+        var bar = new SurfacePanel
+        {
+            Dock = DockStyle.Fill,
+            SurfaceFill = Theme.Sunken,
+            SurfaceBorder = Theme.Divider,
+            Radius = 10,
+            Padding = new Padding(12, 5, 12, 5),
+            Margin = new Padding(0, 2, 0, 8)
+        };
         var toolbar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = CanvasDark,
-            Padding = new Padding(12, 6, 12, 6),
-            Margin = new Padding(0, 2, 0, 6)
+            BackColor = Theme.Sunken,
+            Margin = Padding.Empty
         };
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 43));
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 57));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
         // Riga percentuale esplicita: senza una riga dichiarata la tabella usa un
         // default che non combacia con l'altezza reale e i figli escono fuori.
-        toolbar.RowStyles.Clear();
         toolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         _previewCountLabel.Text = "In attesa di un file";
         _previewCountLabel.Dock = DockStyle.Fill;
         _previewCountLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _previewCountLabel.Font = new Font("Segoe UI", 8.7f, FontStyle.Bold);
-        _previewCountLabel.ForeColor = InkSecondary;
+        _previewCountLabel.AutoEllipsis = true;
+        _previewCountLabel.Font = Theme.Fonts.SmallBold;
+        _previewCountLabel.ForeColor = Theme.InkSecondary;
         toolbar.Controls.Add(_previewCountLabel, 0, 0);
 
-        _previewSearch.PlaceholderText = "Cerca nei movimenti";
-        _previewSearch.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        _previewSearch.Margin = new Padding(0, 0, 8, 0);
-        _previewSearch.Font = new Font("Segoe UI", 9);
-        _previewSearch.BackColor = Surface;
+        _previewSearch.Size = new Size(220, 32);
+        _previewSearch.Placeholder = "Cerca nei movimenti";
+        _previewSearch.Margin = new Padding(0, 0, 10, 0);
         _previewSearch.TextChanged += (_, _) => FilterMovements();
+
         var toolbarActions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
             BackColor = Color.Transparent,
-            Padding = new Padding(0, 5, 0, 0),
-            Margin = new Padding(0)
+            Padding = new Padding(0, 1, 0, 0),
+            Margin = Padding.Empty
         };
 
+        // Il campo di ricerca ha una larghezza fissa: con l'AutoSize di default
+        // il TextBox veniva largo 100 px e il testo non si leggeva.
         _copyXmlButton.Text = "Copia XML";
-        StyleButton(_copyXmlButton, Color.FromArgb(225, 237, 249), false);
-        _copyXmlButton.MinimumSize = Size.Empty;
-        _copyXmlButton.Height = 34;
-        _copyXmlButton.Margin = new Padding(5, 0, 0, 0);
+        Theme.StyleButton(_copyXmlButton, Theme.ButtonTone.Neutral, compact: true);
+        _copyXmlButton.Size = new Size(108, 32);
+        _copyXmlButton.Margin = new Padding(6, 0, 0, 0);
         _copyXmlButton.Click += (_, _) => CopyXmlToClipboard();
 
         _exportButton.Text = "Scarica XML";
-        StyleButton(_exportButton, BrandBlue, true);
-        _exportButton.MinimumSize = Size.Empty;
-        _exportButton.Height = 34;
-        _exportButton.Margin = new Padding(5, 0, 0, 0);
+        Theme.StyleButton(_exportButton, Theme.ButtonTone.Primary, compact: true);
+        _exportButton.Size = new Size(114, 32);
+        _exportButton.Margin = new Padding(6, 0, 0, 0);
         _exportButton.Click += (_, _) => ExportXml();
+
         toolbarActions.Controls.Add(_exportButton);
         toolbarActions.Controls.Add(_copyXmlButton);
         toolbarActions.Controls.Add(_previewSearch);
         toolbar.Controls.Add(toolbarActions, 1, 0);
-        return toolbar;
+        bar.Controls.Add(toolbar);
+        return bar;
     }
 
     private TabControl BuildPreview()
@@ -422,43 +513,23 @@ internal sealed partial class MainForm
         _previewTabs.Dock = DockStyle.Fill;
         _previewTabs.Appearance = TabAppearance.Normal;
         _previewTabs.SizeMode = TabSizeMode.Fixed;
-        _previewTabs.ItemSize = new Size(160, 35);
-        _previewTabs.Font = new Font("Segoe UI Semibold", 9, FontStyle.Bold);
+        _previewTabs.ItemSize = new Size(156, 34);
+        _previewTabs.Font = Theme.Fonts.Tab;
         _previewTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
         _previewTabs.DrawItem += DrawPreviewTab;
-        _previewTabs.Padding = new Point(12, 4);
-        _previewTabs.Margin = new Padding(0);
+        _previewTabs.Padding = new Point(14, 5);
+        _previewTabs.Margin = Padding.Empty;
+        // Senza un fondo esplicito la striscia delle schede resta del grigio
+        // di sistema e si stacca dalle card chiare.
+        _previewTabs.BackColor = Theme.Surface;
 
-        var movementTab = new TabPage("Movimenti  ·  0") { BackColor = Surface, Padding = new Padding(7) };
-        _movementsGrid.Dock = DockStyle.Fill;
-        _movementsGrid.AllowUserToAddRows = false;
-        _movementsGrid.AllowUserToDeleteRows = false;
-        _movementsGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        _movementsGrid.BackgroundColor = Surface;
-        _movementsGrid.BorderStyle = BorderStyle.None;
+        var movementTab = new TabPage("Movimenti  ·  0") { BackColor = Theme.Surface, Padding = new Padding(7) };
         _movementsGrid.RowHeadersVisible = true;
-        _movementsGrid.RowHeadersWidth = 48;
-        _movementsGrid.RowHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 254);
-        _movementsGrid.RowHeadersDefaultCellStyle.ForeColor = Color.FromArgb(148, 163, 184);
+        _movementsGrid.RowHeadersWidth = 46;
+        _movementsGrid.RowHeadersDefaultCellStyle.BackColor = RowHeaderFill;
+        _movementsGrid.RowHeadersDefaultCellStyle.ForeColor = Theme.RowNumberInk;
         _movementsGrid.RowHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-        _movementsGrid.SelectionMode = DataGridViewSelectionMode.CellSelect;
-        _movementsGrid.MultiSelect = false;
-        _movementsGrid.EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
-        _movementsGrid.EnableHeadersVisualStyles = false;
-        _movementsGrid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(242, 244, 248);
-        _movementsGrid.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(55, 65, 81);
-        _movementsGrid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
-        _movementsGrid.ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 4, 0);
-        _movementsGrid.ColumnHeadersHeight = 45;
-        _movementsGrid.RowTemplate.Height = 42;
-        _movementsGrid.DefaultCellStyle.Font = new Font("Segoe UI", 8.9f);
-        _movementsGrid.DefaultCellStyle.ForeColor = Color.FromArgb(30, 41, 59);
-        _movementsGrid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(219, 234, 254);
-        _movementsGrid.DefaultCellStyle.SelectionForeColor = Color.FromArgb(15, 26, 40);
-        _movementsGrid.DefaultCellStyle.Padding = new Padding(9, 0, 5, 0);
-        _movementsGrid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 254);
-        _movementsGrid.GridColor = Color.FromArgb(237, 239, 244);
-        _movementsGrid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+        _movementsGrid.RowHeadersDefaultCellStyle.Font = Theme.Fonts.MonoSmall;
         _movementsGrid.Columns.Add(CreateGridColumn("employee", "Dipendente", 148, true));
         _movementsGrid.Columns.Add(CreateGridColumn("code", "Codice PAGHE", 100, false));
         _movementsGrid.Columns.Add(CreateGridColumn("date", "Data movimento", 103, false));
@@ -476,16 +547,16 @@ internal sealed partial class MainForm
                 args.RowBounds.Height);
             // Prima si cancella il numero già disegnato dalla griglia: senza questa
             // riga in capo restano sovrapposti ("1" sopra "01").
-            using (var background = new SolidBrush(Color.FromArgb(248, 250, 254)))
+            using (var background = new SolidBrush(RowHeaderFill))
             {
                 args.Graphics.FillRectangle(background, bounds);
             }
             TextRenderer.DrawText(
                 args.Graphics,
                 (args.RowIndex + 1).ToString("D2"),
-                new Font("Segoe UI", 8.2f),
+                Theme.Fonts.MonoSmall,
                 bounds,
-                Color.FromArgb(148, 163, 184),
+                Theme.RowNumberInk,
                 TextFormatFlags.Right | TextFormatFlags.VerticalCenter);
         };
         _movementsGrid.CellFormatting += FormatMovementCell;
@@ -503,16 +574,16 @@ internal sealed partial class MainForm
         };
         movementTab.Controls.Add(_movementsGrid);
 
-        var xmlTab = new TabPage("Anteprima XML") { BackColor = Color.FromArgb(15, 23, 42), Padding = new Padding(0) };
+        var xmlTab = new TabPage("Anteprima XML") { BackColor = Theme.EditorFill, Padding = new Padding(0) };
         _xmlPreview.Dock = DockStyle.Fill;
         _xmlPreview.ReadOnly = true;
         _xmlPreview.BorderStyle = BorderStyle.None;
-        _xmlPreview.BackColor = Color.FromArgb(15, 23, 42);
-        _xmlPreview.ForeColor = Color.FromArgb(226, 232, 240);
-        _xmlPreview.Font = new Font("Cascadia Code", 9.3f);
+        _xmlPreview.BackColor = Theme.EditorFill;
+        _xmlPreview.ForeColor = Theme.EditorInk;
+        _xmlPreview.Font = Theme.Fonts.Mono;
         _xmlPreview.WordWrap = false;
         _xmlPreview.DetectUrls = false;
-        _xmlPreview.Margin = new Padding(0);
+        _xmlPreview.Margin = Padding.Empty;
         xmlTab.Controls.Add(_xmlPreview);
         _previewTabs.TabPages.Add(movementTab);
         _previewTabs.TabPages.Add(xmlTab);
@@ -538,132 +609,101 @@ internal sealed partial class MainForm
         };
         if (!readOnly && name == "code") column.MaxInputLength = 7;
         if (!readOnly && name == "reason") column.MaxInputLength = 3;
-        if (name is "hours" or "minutes") column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-        if (name is "code" or "reason") column.DefaultCellStyle.Font = new Font("Cascadia Code", 8.3f);
+        if (name is "hours" or "minutes")
+        {
+            column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+        }
+        if (name is "code" or "reason")
+        {
+            column.DefaultCellStyle.Font = Theme.Fonts.Code;
+            column.DefaultCellStyle.ForeColor = Theme.CodeInk;
+        }
         return column;
     }
 
     private Control BuildFooter()
     {
-        // Due colonne separate: lo stato occupa tutto lo spazio a sinistra con
-        // ellissi, il riepilogo AI resta a destra e non ci si sovrappongono mai.
+        // Regola sottile in alto e due colonne separate: lo stato occupa tutto
+        // lo spazio a sinistra con ellissi, il riepilogo AI resta a destra e i
+        // due testi non si sovrappongono mai.
         var footer = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Theme.Canvas,
+            Margin = Padding.Empty
+        };
+        footer.RowStyles.Add(new RowStyle(SizeType.Absolute, 1));
+        footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        footer.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Theme.Divider }, 0, 0);
+
+        var content = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = CanvasDark,
-            Padding = new Padding(14, 7, 14, 0),
-            BorderStyle = BorderStyle.FixedSingle
+            BackColor = Theme.Canvas,
+            Padding = new Padding(2, 0, 2, 0),
+            Margin = Padding.Empty
         };
-        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        content.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         _statusLabel.Dock = DockStyle.Fill;
         _statusLabel.AutoEllipsis = true;
         _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
         _statusLabel.Text = "●   Pronto  ·  Formato di esportazione: XML TRRIPW";
-        _statusLabel.Font = new Font("Segoe UI", 8.6f);
-        _statusLabel.ForeColor = MutedInk;
-        footer.Controls.Add(_statusLabel, 0, 0);
+        _statusLabel.Font = Theme.Fonts.Small;
+        _statusLabel.ForeColor = Theme.MutedInk;
+        content.Controls.Add(_statusLabel, 0, 0);
 
         _aiStatusLabel.AutoSize = false;
         _aiStatusLabel.Dock = DockStyle.Fill;
         _aiStatusLabel.TextAlign = ContentAlignment.MiddleRight;
         _aiStatusLabel.AutoEllipsis = true;
         _aiStatusLabel.Text = "AI locale opzionale";
-        _aiStatusLabel.Font = new Font("Segoe UI", 8.6f);
-        _aiStatusLabel.ForeColor = MutedInk;
-        footer.Controls.Add(_aiStatusLabel, 1, 0);
+        _aiStatusLabel.Font = Theme.Fonts.Small;
+        _aiStatusLabel.ForeColor = Theme.MutedInk;
+        content.Controls.Add(_aiStatusLabel, 1, 0);
+        footer.Controls.Add(content, 0, 1);
         return footer;
     }
-
-    private static Label CreateSectionLabel(string text) =>
-        new()
-        {
-            Text = text,
-            AutoSize = true,
-            Anchor = AnchorStyles.Left,
-            ForeColor = Color.FromArgb(100, 116, 139),
-            Font = new Font("Segoe UI", 8.2f, FontStyle.Bold),
-            Margin = new Padding(0, 1, 0, 2)
-        };
-
-    private static Panel CreateMetricTile(string caption, Label metric, Color accent, Color background)
-    {
-        var tile = new Panel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = background,
-            Margin = new Padding(0, 0, 8, 0),
-            Padding = new Padding(14, 12, 14, 12)
-        };
-        tile.Paint += (s, e) =>
-        {
-            var panel = (Panel)s;
-            var rect = new Rectangle(0, 0, panel.Width - 1, panel.Height - 1);
-            using (var pen = new Pen(Color.FromArgb(219, 234, 254), 1.5f))
-            {
-                e.Graphics.DrawRectangle(pen, rect);
-            }
-        };
-        tile.Controls.Add(new Label
-        {
-            Text = caption,
-            AutoSize = true,
-            Location = new Point(14, 12),
-            ForeColor = Color.FromArgb(107, 114, 128),
-            Font = new Font("Segoe UI", 7.8f, FontStyle.Bold)
-        });
-        metric.Text = "0";
-        metric.AutoSize = true;
-        metric.Location = new Point(14, 32);
-        metric.ForeColor = accent;
-        metric.Font = new Font("Segoe UI", 22, FontStyle.Bold);
-        tile.Controls.Add(metric);
-        return tile;
-    }
-
-    private static Label CreateStepDot(string text, bool active) =>
-        new()
-        {
-            Text = text,
-            Size = new Size(20, 20),
-            TextAlign = ContentAlignment.MiddleCenter,
-            BackColor = active ? Color.FromArgb(59, 130, 246) : Color.FromArgb(226, 232, 240),
-            ForeColor = active ? Color.White : Color.FromArgb(148, 163, 184),
-            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold)
-        };
 
     private void DrawPreviewTab(object? sender, DrawItemEventArgs args)
     {
         var selected = args.Index == _previewTabs.SelectedIndex;
         var bounds = args.Bounds;
-        var background = selected ? Surface : Color.FromArgb(248, 250, 254);
-        using var brush = new SolidBrush(background);
-        args.Graphics.FillRectangle(brush, bounds);
+        // Schede su fondo bianco, come la card: la striscia resta unita al
+        // contenuto e la selezione è data dalla sottolineatura.
+        using (var background = new SolidBrush(Theme.Surface))
+        {
+            args.Graphics.FillRectangle(background, bounds);
+        }
         var title = _previewTabs.TabPages[args.Index].Text;
-        var foreground = selected ? BrandBlue : MutedInk;
-        var font = selected ? new Font("Segoe UI", 9, FontStyle.Bold) : new Font("Segoe UI", 9);
         TextRenderer.DrawText(
             args.Graphics,
             title,
-            font,
+            selected ? Theme.Fonts.TabBold : Theme.Fonts.Tab,
             bounds,
-            foreground,
+            selected ? Theme.BrandInk : Theme.MutedInk,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         if (selected)
         {
-            using var underline = new SolidBrush(BrandBlue);
-            args.Graphics.FillRectangle(underline, bounds.X + 12, bounds.Bottom - 3, bounds.Width - 24, 3);
+            using var underline = new SolidBrush(Theme.Brand);
+            args.Graphics.FillRectangle(underline, bounds.X + 14, bounds.Bottom - 4, bounds.Width - 28, 3);
         }
-        using var separator = new Pen(Divider);
-        args.Graphics.DrawLine(separator, bounds.Right - 1, bounds.Top + 6, bounds.Right - 1, bounds.Bottom - 6);
+        else
+        {
+            using var separator = new Pen(Theme.Divider);
+            args.Graphics.DrawLine(separator, bounds.Right - 1, bounds.Top + 8, bounds.Right - 1, bounds.Bottom - 8);
+        }
     }
 
     private static void FormatMovementCell(object? sender, DataGridViewCellFormattingEventArgs args)
     {
-        if (sender is not DataGridView grid || args.RowIndex < 0)
+        if (sender is not DataGridView grid || args.RowIndex < 0 || args.ColumnIndex < 0)
         {
             return;
         }
@@ -675,18 +715,20 @@ internal sealed partial class MainForm
         var columnName = grid.Columns[args.ColumnIndex].Name;
         if (columnName == "code" || columnName == "reason")
         {
-            cellStyle.ForeColor = Color.FromArgb(30, 99, 159);
-            cellStyle.SelectionForeColor = Color.FromArgb(30, 99, 159);
-            cellStyle.Font = GridCodeFont;
+            cellStyle.Font = Theme.Fonts.Code;
+            cellStyle.ForeColor = Theme.CodeInk;
+            // Il testo di una cella selezionata deve restare leggibile: con lo
+            // stesso tono del fondo di selezione diventava invisibile.
+            cellStyle.SelectionForeColor = Theme.Ink;
         }
         else if (columnName == "date")
         {
-            cellStyle.ForeColor = Color.FromArgb(82, 102, 127);
+            cellStyle.ForeColor = Theme.DateInk;
         }
         else if (columnName is "hours" or "minutes")
         {
-            cellStyle.ForeColor = Color.FromArgb(25, 82, 71);
-            cellStyle.Font = GridNumberFont;
+            cellStyle.ForeColor = Theme.NumberInk;
+            cellStyle.Font = Theme.Fonts.Number;
         }
     }
 
@@ -698,15 +740,15 @@ internal sealed partial class MainForm
         }
 
         _isApplyingFilter = true;
-        var query = _previewSearch.Text.Trim();
+        var query = _previewSearch.Value.Trim();
         var visible = 0;
         try
         {
             foreach (DataGridViewRow row in _movementsGrid.Rows)
             {
                 var matches = query.Length == 0 ||
-                    new[] { "employee", "code", "date", "policy", "reason", "source" }
-                        .Any(column => CellText(row, column).Contains(query, StringComparison.CurrentCultureIgnoreCase));
+                    SearchableColumns.Any(column =>
+                        CellText(row, column).Contains(query, StringComparison.CurrentCultureIgnoreCase));
                 row.Visible = matches;
                 if (matches) visible++;
             }
@@ -734,21 +776,15 @@ internal sealed partial class MainForm
 
         if (_hasWarnings)
         {
-            _reviewStatusBadge.BackColor = Color.FromArgb(89, 62, 38);
-            _reviewStatusBadge.Controls[0].Text = "●   REVISIONE RICHIESTA";
-            _reviewStatusBadge.Controls[0].ForeColor = Color.FromArgb(255, 228, 183);
+            _reviewStatusBadge.SetStatus("●   REVISIONE RICHIESTA", Theme.PillWarningFill, Theme.PillWarningInk);
         }
         else if (!string.IsNullOrWhiteSpace(_xml))
         {
-            _reviewStatusBadge.BackColor = Color.FromArgb(35, 76, 70);
-            _reviewStatusBadge.Controls[0].Text = "●   ANTEPRIMA PRONTA";
-            _reviewStatusBadge.Controls[0].ForeColor = Color.FromArgb(205, 244, 228);
+            _reviewStatusBadge.SetStatus("●   ANTEPRIMA PRONTA", Theme.PillReadyFill, Theme.PillReadyInk);
         }
         else
         {
-            _reviewStatusBadge.BackColor = Color.FromArgb(38, 58, 81);
-            _reviewStatusBadge.Controls[0].Text = "●   PRONTO PER INIZIARE";
-            _reviewStatusBadge.Controls[0].ForeColor = Color.FromArgb(193, 213, 235);
+            _reviewStatusBadge.SetStatus("●   PRONTO PER INIZIARE", Theme.PillIdleFill, Theme.PillIdleInk);
         }
     }
 
@@ -760,7 +796,7 @@ internal sealed partial class MainForm
         var totalMinutes = movements.Sum(movement => movement.Hours * 60 + movement.Minutes);
         _previewTitleLabel.Text = "Revisione movimenti";
         _previewSubtitleLabel.Text =
-            $"{workers:N0} dipendenti    ·    {totalMinutes / 60:N0} h {totalMinutes % 60:D2} min assegnati    ·    CSV/Excel riga origine disponibile";
+            $"{workers:N0} dipendenti    ·    {totalMinutes / 60:N0} h {totalMinutes % 60:D2} min assegnati    ·    origine Excel disponibile";
         _previewTabs.TabPages[0].Text = $"Movimenti  ·  {movements.Count:N0}";
         _previewCountLabel.Text = $"{movements.Count:N0} movimenti   ·   tutti inclusi nell’XML";
         _previewSearch.Clear();
@@ -781,7 +817,7 @@ internal sealed partial class MainForm
         if (text.Length > highlightingLimit)
         {
             _xmlPreview.SelectAll();
-            _xmlPreview.SelectionColor = Color.FromArgb(226, 232, 240);
+            _xmlPreview.SelectionColor = Theme.EditorInk;
             _xmlPreview.Select(0, 0);
             return;
         }
@@ -789,24 +825,24 @@ internal sealed partial class MainForm
         var selectionStart = _xmlPreview.SelectionStart;
         _xmlPreview.SuspendLayout();
         _xmlPreview.SelectAll();
-        _xmlPreview.SelectionColor = Color.FromArgb(226, 232, 240);
+        _xmlPreview.SelectionColor = Theme.EditorInk;
         foreach (Match match in Regex.Matches(text, @"</?[\w:.-]+|/?>"))
         {
             _xmlPreview.Select(match.Index, match.Length);
-            _xmlPreview.SelectionColor = Color.FromArgb(129, 198, 255);
+            _xmlPreview.SelectionColor = Theme.EditorTag;
         }
         foreach (Match match in Regex.Matches(text, "\"[^\"]*\"|'[^']*'"))
         {
             _xmlPreview.Select(match.Index, match.Length);
-            _xmlPreview.SelectionColor = Color.FromArgb(167, 193, 97);
+            _xmlPreview.SelectionColor = Theme.EditorString;
         }
         foreach (Match match in Regex.Matches(text, @"(?<=>)[^<\r\n]+(?=<)"))
         {
             _xmlPreview.Select(match.Index, match.Length);
-            _xmlPreview.SelectionColor = Color.FromArgb(167, 243, 208);
+            _xmlPreview.SelectionColor = Theme.EditorValue;
         }
         _xmlPreview.Select(Math.Min(selectionStart, _xmlPreview.TextLength), 0);
-        _xmlPreview.SelectionColor = Color.FromArgb(226, 232, 240);
+        _xmlPreview.SelectionColor = Theme.EditorInk;
         _xmlPreview.ResumeLayout();
     }
 

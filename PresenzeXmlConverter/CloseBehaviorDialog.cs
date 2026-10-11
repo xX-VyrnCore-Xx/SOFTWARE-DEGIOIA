@@ -7,19 +7,6 @@ namespace PresenzeXmlConverter;
 internal sealed class CloseBehaviorDialog : Form
 {
     private readonly CheckBox _remember = new();
-    private bool _designScaled;
-
-    protected override void OnLoad(EventArgs e)
-    {
-        base.OnLoad(e);
-        var factor = DeviceDpi / 96f;
-        if (factor > 1.01f && !_designScaled)
-        {
-            _designScaled = true;
-            ClientSize = new Size((int)(ClientSize.Width * factor), (int)(ClientSize.Height * factor));
-            MainForm.ScaleLayoutStyles(this, factor);
-        }
-    }
 
     public CloseBehaviorDialog()
     {
@@ -29,65 +16,69 @@ internal sealed class CloseBehaviorDialog : Form
         MinimizeBox = false;
         MaximizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(468, 236);
-        Font = new Font("Segoe UI", 10);
+        ClientSize = new Size(470, 246);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
-        BackColor = Color.White;
+        Theme.StyleDialog(this);
+        BackColor = Theme.Surface;
 
-        Controls.Add(new Label
+        var root = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 5,
+            Padding = new Padding(22, 18, 22, 16),
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        Controls.Add(root);
+
+        root.Controls.Add(new Label
         {
             Text = "Come vuoi chiudere il programma?",
-            Font = new Font("Segoe UI", 13, FontStyle.Bold),
-            ForeColor = Color.FromArgb(15, 26, 40),
-            AutoSize = true,
-            Location = new Point(22, 18)
-        });
-        Controls.Add(new Label
-        {
-            Text = "Se resti in background ricevi una notifica quando una conversione termina,\r\nsenza tenere la finestra aperta.",
-            Font = new Font("Segoe UI", 9.2f),
-            ForeColor = Color.FromArgb(103, 120, 142),
-            AutoSize = true,
-            Location = new Point(22, 56)
-        });
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.Ink,
+            Font = Theme.Fonts.DialogTitle,
+            Margin = Padding.Empty
+        }, 0, 0);
 
-        var trayButton = new Button
+        root.Controls.Add(new Label
         {
-            Text = "Riduci in tray (notifiche attive)",
-            Size = new Size(424, 42),
-            Location = new Point(22, 104),
-            BackColor = Color.FromArgb(59, 130, 246),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
-            DialogResult = DialogResult.OK,
-            Font = new Font("Segoe UI", 9.7f, FontStyle.Bold),
-            Cursor = Cursors.Hand
-        };
-        trayButton.FlatAppearance.BorderSize = 0;
-        Controls.Add(trayButton);
+            Text = "Se resti in background ricevi una notifica quando una conversione termina,\nsenza tenere la finestra aperta.",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.TopLeft,
+            ForeColor = Theme.MutedInk,
+            Font = Theme.Fonts.Small,
+            Margin = Padding.Empty
+        }, 0, 1);
 
-        var exitButton = new Button
-        {
-            Text = "Esci definitivamente",
-            Size = new Size(424, 38),
-            Location = new Point(22, 152),
-            BackColor = Color.FromArgb(241, 245, 250),
-            ForeColor = Color.FromArgb(55, 75, 100),
-            FlatStyle = FlatStyle.Flat,
-            DialogResult = DialogResult.Abort,
-            Cursor = Cursors.Hand
-        };
-        exitButton.FlatAppearance.BorderColor = Color.FromArgb(229, 231, 235);
-        Controls.Add(exitButton);
+        var trayButton = Theme.CreateButton("Riduci in tray  ·  notifiche attive", Theme.ButtonTone.Primary);
+        trayButton.Dock = DockStyle.Fill;
+        trayButton.Margin = new Padding(0, 2, 0, 4);
+        trayButton.DialogResult = DialogResult.OK;
+        root.Controls.Add(trayButton, 0, 2);
+
+        var exitButton = Theme.CreateButton("Esci definitivamente", Theme.ButtonTone.Neutral);
+        exitButton.Dock = DockStyle.Fill;
+        exitButton.Margin = new Padding(0, 0, 0, 4);
+        exitButton.DialogResult = DialogResult.Abort;
+        root.Controls.Add(exitButton, 0, 3);
 
         _remember.Text = "Ricorda questa scelta (non chiedere più)";
         _remember.AutoSize = true;
         _remember.Checked = true;
-        _remember.Location = new Point(24, 202);
-        _remember.Font = new Font("Segoe UI", 8.8f);
-        _remember.ForeColor = Color.FromArgb(83, 100, 120);
-        Controls.Add(_remember);
+        _remember.Dock = DockStyle.Fill;
+        _remember.TextAlign = ContentAlignment.MiddleLeft;
+        _remember.ForeColor = Theme.InkSecondary;
+        _remember.Font = Theme.Fonts.Small;
+        _remember.Margin = Padding.Empty;
+        root.Controls.Add(_remember, 0, 4);
 
         AcceptButton = trayButton;
         CancelButton = exitButton;

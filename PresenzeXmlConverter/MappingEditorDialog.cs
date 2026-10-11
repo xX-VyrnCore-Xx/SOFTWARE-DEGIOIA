@@ -2,24 +2,10 @@ namespace PresenzeXmlConverter;
 
 internal sealed class MappingEditorDialog : Form
 {
-    private readonly DataGridView _employeesGrid = CreateGrid("Dipendente / nome Excel", "Codice ufficiale PAGHE");
-    private readonly DataGridView _policiesGrid = CreateGrid("Valore della colonna Policy", "Codice giustificativo PAGHE", "Proposta AI locale");
+    private readonly ThemedGrid _employeesGrid = CreateGrid("Dipendente / nome Excel", "Codice ufficiale PAGHE");
+    private readonly ThemedGrid _policiesGrid = CreateGrid("Valore della colonna Policy", "Codice giustificativo PAGHE", "Proposta AI locale");
     private readonly HashSet<string> _requiredEmployees;
     private readonly HashSet<string> _requiredPolicies;
-    private bool _designScaled;
-
-    protected override void OnLoad(EventArgs e)
-    {
-        base.OnLoad(e);
-        var factor = DeviceDpi / 96f;
-        if (factor > 1.01f && !_designScaled)
-        {
-            _designScaled = true;
-            Size = new Size((int)(Size.Width * factor), (int)(Size.Height * factor));
-            MinimumSize = new Size((int)(MinimumSize.Width * factor), (int)(MinimumSize.Height * factor));
-            MainForm.ScaleLayoutStyles(this, factor);
-        }
-    }
 
     public MappingEditorDialog(
         IReadOnlyDictionary<string, string> employeeMappings,
@@ -38,17 +24,18 @@ internal sealed class MappingEditorDialog : Form
         ShowInTaskbar = false;
         MinimumSize = new Size(760, 520);
         Size = new Size(900, 620);
-        Font = new Font("Segoe UI", 10);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        Theme.StyleDialog(this);
 
         var tabs = new TabControl
         {
             Dock = DockStyle.Fill,
-            Padding = new Point(14, 5)
+            Padding = new Point(14, 5),
+            BackColor = Theme.Surface
         };
-        var employeeTab = new TabPage("Dipendenti");
-        var policyTab = new TabPage("Giustificativi");
+        var employeeTab = new TabPage("Dipendenti") { BackColor = Theme.Surface, Padding = new Padding(7) };
+        var policyTab = new TabPage("Giustificativi") { BackColor = Theme.Surface, Padding = new Padding(7) };
         employeeTab.Controls.Add(_employeesGrid);
         policyTab.Controls.Add(_policiesGrid);
         tabs.TabPages.Add(employeeTab);
@@ -63,36 +50,27 @@ internal sealed class MappingEditorDialog : Form
         {
             Text = "I campi * sono obbligatori. Le proposte AI sono solo suggerimenti: controlla i codici prima di salvare.",
             Dock = DockStyle.Bottom,
-            Height = 28,
-            Padding = new Padding(12, 4, 0, 0),
-            ForeColor = Color.FromArgb(70, 82, 100)
+            Height = 30,
+            Padding = new Padding(14, 6, 0, 0),
+            BackColor = Theme.Canvas,
+            ForeColor = Theme.MutedInk,
+            Font = Theme.Fonts.Small
         };
         Controls.Add(requiredNote);
 
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Bottom,
-            Height = 54,
+            Height = 56,
             FlowDirection = FlowDirection.RightToLeft,
-            Padding = new Padding(10)
+            BackColor = Theme.Canvas,
+            Padding = new Padding(12)
         };
-        var save = new Button
-        {
-            Text = "Salva abbinamenti",
-            DialogResult = DialogResult.None,
-            Width = 170,
-            Height = 34,
-            BackColor = Color.FromArgb(19, 97, 160),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
-        };
-        var cancel = new Button
-        {
-            Text = "Annulla",
-            DialogResult = DialogResult.Cancel,
-            Width = 110,
-            Height = 34
-        };
+        var save = Theme.CreateButton("Salva abbinamenti", Theme.ButtonTone.Primary);
+        save.Size = new Size(180, 36);
+        var cancel = Theme.CreateButton("Annulla", Theme.ButtonTone.Neutral);
+        cancel.Size = new Size(120, 36);
+        cancel.DialogResult = DialogResult.Cancel;
         save.Click += (_, _) => SaveMappings();
         actions.Controls.Add(save);
         actions.Controls.Add(cancel);
@@ -104,20 +82,9 @@ internal sealed class MappingEditorDialog : Form
     public Dictionary<string, string> EmployeeMappings { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> PolicyMappings { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    private static DataGridView CreateGrid(string nameHeader, string codeHeader, string? suggestionHeader = null)
+    private static ThemedGrid CreateGrid(string nameHeader, string codeHeader, string? suggestionHeader = null)
     {
-        var grid = new DataGridView
-        {
-            Dock = DockStyle.Fill,
-            AllowUserToAddRows = false,
-            AllowUserToDeleteRows = false,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            BackgroundColor = Color.White,
-            BorderStyle = BorderStyle.None,
-            RowHeadersVisible = false,
-            SelectionMode = DataGridViewSelectionMode.CellSelect,
-            MultiSelect = false
-        };
+        var grid = new ThemedGrid();
         grid.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = nameHeader,
@@ -146,7 +113,7 @@ internal sealed class MappingEditorDialog : Form
     }
 
     private static void AddRows(
-        DataGridView grid,
+        ThemedGrid grid,
         IReadOnlyDictionary<string, string> mappings,
         IEnumerable<string> required,
         IReadOnlyDictionary<string, string>? suggestions = null)
@@ -170,12 +137,8 @@ internal sealed class MappingEditorDialog : Form
             if (required.Contains(name, StringComparer.OrdinalIgnoreCase))
             {
                 grid.Rows[rowIndex].Cells[0].Value = $"{name} *";
-                grid.Rows[rowIndex].Tag = name;
             }
-            else
-            {
-                grid.Rows[rowIndex].Tag = name;
-            }
+            grid.Rows[rowIndex].Tag = name;
         }
     }
 
@@ -207,7 +170,7 @@ internal sealed class MappingEditorDialog : Form
     }
 
     private bool TryReadMappings(
-        DataGridView grid,
+        ThemedGrid grid,
         IReadOnlySet<string> required,
         int maximumLength,
         string label,

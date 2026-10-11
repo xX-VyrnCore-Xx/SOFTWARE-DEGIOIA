@@ -7,13 +7,13 @@ internal sealed partial class MainForm : Form
 {
     private readonly LocalDatabase _database = new();
     private readonly LocalAiAssistant _ai = new();
-    private readonly TextBox _companyCode = new();
+    private readonly RoundedField _companyCode = new();
     private readonly Label _fileLabel = new();
     private readonly Label _statusLabel = new();
     private readonly Label _aiStatusLabel = new();
     private readonly Button _generateButton = new();
     private readonly Button _exportButton = new();
-    private readonly DataGridView _movementsGrid = new();
+    private readonly ThemedGrid _movementsGrid = new();
     private readonly RichTextBox _xmlPreview = new();
     private readonly TabControl _previewTabs = new();
     private readonly Icon _applicationIcon;
@@ -27,9 +27,6 @@ internal sealed partial class MainForm : Form
     private bool _forceClose;
     private string? _lastExportDirectory;
     private readonly NotifyIcon _trayIcon = new();
-    private bool _designScaled;
-    private Size _designSize;
-    private Size _designMinimumSize;
     private readonly System.Windows.Forms.Timer _xmlRefreshDebounce = new() { Interval = 350 };
 
     public MainForm()
@@ -40,17 +37,13 @@ internal sealed partial class MainForm : Form
         // e i caratteri crescono insieme, così niente testo più grande della sua scatola.
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
-        Font = new Font("Segoe UI", 10);
-        BackColor = Color.FromArgb(244, 247, 251);
+        Font = Theme.Fonts.Ui;
+        BackColor = Theme.Canvas;
         _applicationIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
         Icon = _applicationIcon;
 
         BuildLayout();
-        // Dimensioni di progetto a 96 DPI: servono per riscalare la finestra
-        // una sola volta, senza moltiplicare due volte ciò che l'AutoScale ha già toccato.
-        _designSize = Size;
-        _designMinimumSize = MinimumSize;
-        _companyCode.Text = _database.GetSetting("company-code") ?? string.Empty;
+        _companyCode.Value = _database.GetSetting("company-code") ?? string.Empty;
         _lastExportDirectory = _database.GetSetting("last-export-dir");
         _xmlRefreshDebounce.Tick += (_, _) =>
         {
@@ -65,20 +58,11 @@ internal sealed partial class MainForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
-        // Il font cresce con il DPI (i punti sono relativi), ma le posizioni e le
-        // righe assolute dei layout no: senza riscalare la geometria il contenuto
-        // esce dalle scatole. Qui scaliamo TUTTA la geometria di un fattore solo,
-        // poi riportiamo la finestra dentro lo schermo.
-        var factor = DeviceDpi / 96f;
-        if (factor > 1.01f && !_designScaled)
-        {
-            _designScaled = true;
-            Size = new Size((int)(_designSize.Width * factor), (int)(_designSize.Height * factor));
-            MinimumSize = new Size(
-                (int)(_designMinimumSize.Width * factor),
-                (int)(_designMinimumSize.Height * factor));
-            ScaleLayoutStyles(this, factor);
-        }
+        // La geometria viene già riscalata dal AutoScaleMode.Dpi della finestra
+        // (che scala bordi, righe dei layout e posizioni di tutti i controlli):
+        // una seconda scalatura manuale, come c'era in precedenza, gonfiava la
+        // finestra e le scatole a 125-150% lasciando invariati i font.
+        // Qui serve solo riportare la finestra dentro l'area di lavoro.
         FitToScreen();
     }
 
@@ -86,59 +70,6 @@ internal sealed partial class MainForm : Form
     {
         base.OnShown(e);
         FitToScreen();
-    }
-
-    internal static void ScaleLayoutStyles(Control root, float factor)
-    {
-        if (root is TableLayoutPanel table)
-        {
-            for (var index = 0; index < table.RowStyles.Count; index++)
-            {
-                var row = table.RowStyles[index];
-                if (row.SizeType == SizeType.Absolute)
-                {
-                    table.RowStyles[index] = new RowStyle(SizeType.Absolute, row.Height * factor);
-                }
-            }
-            for (var index = 0; index < table.ColumnStyles.Count; index++)
-            {
-                var column = table.ColumnStyles[index];
-                if (column.SizeType == SizeType.Absolute)
-                {
-                    table.ColumnStyles[index] = new ColumnStyle(SizeType.Absolute, column.Width * factor);
-                }
-            }
-        }
-        else if (root is DataGridView grid)
-        {
-            grid.ColumnHeadersHeight = (int)(grid.ColumnHeadersHeight * factor);
-            grid.RowHeadersWidth = (int)(grid.RowHeadersWidth * factor);
-            grid.RowTemplate.Height = (int)(grid.RowTemplate.Height * factor);
-        }
-        else if (root is TabControl tabs)
-        {
-            tabs.ItemSize = new Size((int)(tabs.ItemSize.Width * factor), (int)(tabs.ItemSize.Height * factor));
-            tabs.Padding = new Point((int)(tabs.Padding.X * factor), (int)(tabs.Padding.Y * factor));
-        }
-
-        foreach (Control child in root.Controls)
-        {
-            // I controlli ancorati/messi in dock vengono ridisegnati dal genitore:
-            // scalare qui servono solo quelli con posizione libera (titolo, badge,
-            // passi numerati, etichette delle metriche...).
-            if (child.Dock == DockStyle.None)
-            {
-                child.Location = new Point((int)(child.Location.X * factor), (int)(child.Location.Y * factor));
-                child.Size = new Size((int)(child.Size.Width * factor), (int)(child.Size.Height * factor));
-            }
-            if (child.MinimumSize != Size.Empty)
-            {
-                child.MinimumSize = new Size(
-                    (int)(child.MinimumSize.Width * factor),
-                    (int)(child.MinimumSize.Height * factor));
-            }
-            ScaleLayoutStyles(child, factor);
-        }
     }
 
     /// <summary>
@@ -324,7 +255,7 @@ internal sealed partial class MainForm : Form
             MessageBox.Show(this, "Importa prima un file Excel.", "File mancante", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        if (!TryValidateCode(_companyCode.Text, 6, "codice azienda", out var companyCode))
+        if (!TryValidateCode(_companyCode.Value, 6, "codice azienda", out var companyCode))
         {
             return;
         }
@@ -576,7 +507,7 @@ internal sealed partial class MainForm : Form
 
         try
         {
-            var companyCode = _companyCode.Text.Trim();
+            var companyCode = _companyCode.Value.Trim();
             if (_movements.Count > 0 && companyCode.Length is > 0 and <= 6)
             {
                 // Scrittura in streaming: più veloce e senza duplicare il file in memoria.
@@ -757,7 +688,7 @@ internal sealed partial class MainForm : Form
 
         try
         {
-            var companyCode = _companyCode.Text.Trim();
+            var companyCode = _companyCode.Value.Trim();
             if (companyCode.Length is 0 or > 6)
             {
                 throw new InvalidDataException("Il codice azienda deve contenere da 1 a 6 caratteri.");
@@ -817,7 +748,7 @@ internal sealed partial class MainForm : Form
 
     private void SaveCompanyCode()
     {
-        var value = _companyCode.Text.Trim();
+        var value = _companyCode.Value.Trim();
         if (value.Length is > 0 and <= 6)
         {
             _database.SaveSetting("company-code", value);
@@ -877,7 +808,7 @@ internal sealed partial class MainForm : Form
     private void SetStatus(string text, bool isWarning)
     {
         _statusLabel.Text = text;
-        _statusLabel.ForeColor = isWarning ? Color.FromArgb(170, 95, 20) : Color.FromArgb(88, 100, 116);
+        _statusLabel.ForeColor = isWarning ? Theme.WarningInk : Theme.InkSecondary;
     }
 
     /// <summary>
@@ -893,7 +824,7 @@ internal sealed partial class MainForm : Form
     private void SetAiStatus(string text, bool isReady)
     {
         _aiStatusLabel.Text = text;
-        _aiStatusLabel.ForeColor = isReady ? Color.FromArgb(29, 120, 76) : Color.FromArgb(115, 105, 90);
+        _aiStatusLabel.ForeColor = isReady ? Theme.SuccessInk : Theme.MutedInk;
     }
 
     private bool TryValidateCode(string value, int maximumLength, string label, out string normalized)
@@ -907,35 +838,10 @@ internal sealed partial class MainForm : Form
                 "Codice non valido",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
-            _companyCode.Focus();
+            _companyCode.FocusInput();
             return false;
         }
         return true;
-    }
-
-    private static Button CreateButton(string text, Color color, bool primary = false)
-    {
-        var button = new Button { Text = text };
-        StyleButton(button, color, primary);
-        return button;
-    }
-
-    private static void StyleButton(Button button, Color color, bool primary)
-    {
-        button.AutoSize = true;
-        button.MinimumSize = new Size(110, 34);
-        button.Padding = new Padding(12, 0, 12, 0);
-        button.Margin = new Padding(0);
-        button.BackColor = color;
-        button.ForeColor = primary ? Color.White : Color.FromArgb(55, 65, 81);
-        button.FlatStyle = FlatStyle.Flat;
-        button.FlatAppearance.BorderSize = 0;
-        button.FlatAppearance.MouseOverBackColor = primary
-            ? ControlPaint.Light(color, 0.15f)
-            : Color.FromArgb(226, 232, 240);
-        button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(color, 0.1f);
-        button.Font = new Font("Segoe UI", 9.7f, FontStyle.Bold);
-        button.Cursor = Cursors.Hand;
     }
 
     private static bool IsExpectedInputError(Exception exception)
