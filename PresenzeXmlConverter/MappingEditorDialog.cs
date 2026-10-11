@@ -28,18 +28,16 @@ internal sealed class MappingEditorDialog : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         Theme.StyleDialog(this);
 
-        var tabs = new TabControl
-        {
-            Dock = DockStyle.Fill,
-            Padding = new Point(14, 5),
-            BackColor = Theme.Surface
-        };
-        var employeeTab = new TabPage("Dipendenti") { BackColor = Theme.Surface, Padding = new Padding(7) };
-        var policyTab = new TabPage("Giustificativi") { BackColor = Theme.Surface, Padding = new Padding(7) };
-        employeeTab.Controls.Add(_employeesGrid);
-        policyTab.Controls.Add(_policiesGrid);
-        tabs.TabPages.Add(employeeTab);
-        tabs.TabPages.Add(policyTab);
+        // Schede disegnate in casa: la striscia del TabControl nativo resta
+        // grigia di sistema anche con il tema applicato.
+        var tabs = new ThemedTabControl { Dock = DockStyle.Fill, Margin = Padding.Empty };
+        var employeePage = new Panel { BackColor = Theme.Surface, Padding = new Padding(7), Margin = Padding.Empty };
+        var policyPage = new Panel { BackColor = Theme.Surface, Padding = new Padding(7), Margin = Padding.Empty };
+        employeePage.Controls.Add(_employeesGrid);
+        policyPage.Controls.Add(_policiesGrid);
+        tabs.AddPage("Dipendenti", employeePage);
+        tabs.AddPage("Giustificativi", policyPage);
+        tabs.SelectedIndex = 0;
         Controls.Add(tabs);
 
         AddRows(_employeesGrid, employeeMappings, _requiredEmployees);

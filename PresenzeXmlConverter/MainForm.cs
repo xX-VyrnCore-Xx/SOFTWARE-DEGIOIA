@@ -15,7 +15,7 @@ internal sealed partial class MainForm : Form
     private readonly Button _exportButton = new();
     private readonly ThemedGrid _movementsGrid = new();
     private readonly RichTextBox _xmlPreview = new();
-    private readonly TabControl _previewTabs = new();
+    private readonly ThemedTabControl _previewTabs = new();
     private readonly Icon _applicationIcon;
     private WorkbookInspection? _inspection;
     private IReadOnlyList<AttendanceRequest> _requests = Array.Empty<AttendanceRequest>();
@@ -773,10 +773,7 @@ internal sealed partial class MainForm : Form
         _xml = null;
         _xmlPreview.Clear();
         _movementsGrid.Rows.Clear();
-        if (_previewTabs.TabPages.Count > 0)
-        {
-            _previewTabs.TabPages[0].Text = "Movimenti  ·  0";
-        }
+        _previewTabs.SetPageText(0, "Movimenti  ·  0");
         _previewCountLabel.Text = _requests.Count == 0
             ? "In attesa di un file"
             : $"{_requests.Count:N0} richieste sorgente  ·  non ancora convertite";

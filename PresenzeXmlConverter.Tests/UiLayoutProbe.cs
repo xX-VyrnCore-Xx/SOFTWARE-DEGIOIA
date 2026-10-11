@@ -24,6 +24,8 @@ public class UiLayoutProbe
                 using var form = CreateMainForm();
                 form.Show();
                 Application.DoEvents();
+                form.PerformLayout();
+                Application.DoEvents();
                 DumpTree(form, report);
                 Render(form, imagePath, report);
             }
@@ -38,6 +40,85 @@ public class UiLayoutProbe
 
         File.WriteAllText(reportPath, report.ToString());
         Assert.Null(failure);
+    }
+
+    [Fact]
+    public void DumpDialogsReport()
+    {
+        var reportPath = Path.Combine(AppContext.BaseDirectory, "ui-dialogs-report.txt");
+        var report = new StringBuilder();
+        Exception? failure = null;
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                Render(new CloseBehaviorDialog(), "close-dialog.png", report, "CloseBehaviorDialog");
+                Render(
+                    new ColumnMappingDialog(
+                        new[] { "Nominativo", "Tipo assenza", "Dal", "Al", "Ore" },
+                        suggested: null),
+                    "mapping-dialog.png",
+                    report,
+                    "ColumnMappingDialog");
+                Render(
+                    new MappingEditorDialog(
+                        new Dictionary<string, string> { ["Rossi Mario"] = "0012", ["Bianchi Anna"] = "" },
+                        new Dictionary<string, string> { ["Ferie"] = "F01", ["Malattia"] = "" },
+                        new[] { "Bianchi Anna" },
+                        new[] { "Malattia" },
+                        new Dictionary<string, string> { ["Malattia"] = "M01" }),
+                    "codes-dialog.png",
+                    report,
+                    "MappingEditorDialog");
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        File.WriteAllText(reportPath, report.ToString());
+        Assert.Null(failure);
+    }
+
+    private static void Render(Form form, string imageName, StringBuilder report, string title)
+    {
+        using (form)
+        {
+            form.StartPosition = FormStartPosition.Manual;
+            form.Location = new Point(-4000, -4000);
+            form.Show();
+            Application.DoEvents();
+            form.PerformLayout();
+            Application.DoEvents();
+
+            report.AppendLine($"========== {title} ({form.Width}x{form.Height}) ==========");
+            DumpTree(form, report);
+
+            using var bitmap = new Bitmap(form.Width, form.Height, PixelFormat.Format24bppRgb);
+            form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+            bitmap.Save(Path.Combine(AppContext.BaseDirectory, imageName), ImageFormat.Png);
+
+            var total = 0;
+            var gray = 0;
+            for (var y = 0; y < bitmap.Height; y += 2)
+            {
+                for (var x = 0; x < bitmap.Width; x += 2)
+                {
+                    total++;
+                    if (IsSystemGray(bitmap.GetPixel(x, y)))
+                    {
+                        gray++;
+                    }
+                }
+            }
+            report.AppendLine($"  Grigio di sistema: {gray * 100.0 / total:0.00}%");
+            report.AppendLine();
+        }
     }
 
     private static Form CreateMainForm()
@@ -67,17 +148,14 @@ public class UiLayoutProbe
         var note = string.Empty;
         if (control is Label label && !label.AutoSize && label.Text.Length > 0)
         {
+            // Il Label a riga singola spezza comunque il testo: si misura con
+            // l'andare a capo per evitare falsi allarmi su etichette larghe.
             var measured = TextRenderer.MeasureText(
                 label.Text,
                 label.Font,
-                new Size(int.MaxValue, int.MaxValue),
-                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
-            if (measured.Width > label.ClientSize.Width + 1 && !label.AutoEllipsis)
-            {
-                fits = false;
-                note = $"TAGLIO ORIZZONTALE: testo {measured.Width}px in {label.ClientSize.Width}px";
-            }
-            if (measured.Height > label.ClientSize.Height + 1)
+                new Size(Math.Max(1, label.ClientSize.Width), int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.WordBreak);
+            if (measured.Height > label.ClientSize.Height + 2)
             {
                 fits = false;
                 note = $"TAGLIO VERTICALE: testo {measured.Height}px in {label.ClientSize.Height}px";
@@ -89,6 +167,7 @@ public class UiLayoutProbe
             $"[{bounds.X,5},{bounds.Y,5} {bounds.Width,4}x{bounds.Height,4}] " +
             $"dock={control.Dock,-7} vis={control.Visible,-5} " +
             $"font={control.Font.SizeInPoints:0.#}/{(control.Font.Bold ? "B" : "-")}{(fits ? "" : "  <<< " + note)} " +
+            $"back={control.BackColor.ToArgb() & 0xFFFFFF:X6} " +
             $"{Truncate(control.Text, 42)}");
 
         foreach (Control child in control.Controls)
@@ -119,13 +198,63 @@ public class UiLayoutProbe
         foreach (var pair in counts.OrderByDescending(pair => pair.Value).Take(14))
         {
             var percent = pair.Value * 100.0 / sampled;
-            report.AppendLine($"  {percent,6:0.00}%  RGB({pair.Value > 0 ? pair.Key.R : 0},{pair.Key.G},{pair.Key.B})");
+            report.AppendLine($"  {percent,6:0.00}%  RGB({pair.Key.R},{pair.Key.G},{pair.Key.B})");
         }
 
-        var systemGray = counts
-            .Where(pair => IsSystemGray(pair.Key))
-            .Sum(pair => pair.Value);
-        report.AppendLine($"  Grigio di sistema (non temizzato): {systemGray * 100.0 / sampled:0.00}%");
+        report.AppendLine("--- Scansione orizzontale y=290 (ogni 32px) ---");
+        for (var x = 280; x < bitmap.Width; x += 32)
+        {
+            var color = bitmap.GetPixel(x, 290);
+            report.AppendLine($"  x={x,5}  RGB({color.R},{color.G},{color.B})");
+        }
+        report.AppendLine("--- Scansione verticale x=1000 (ogni 8px) ---");
+        for (var y = 240; y < 360; y += 8)
+        {
+            var color = bitmap.GetPixel(1000, y);
+            report.AppendLine($"  y={y,5}  RGB({color.R},{color.G},{color.B})");
+        }
+
+        var grayPixels = new List<Point>();
+        for (var y = 0; y < bitmap.Height; y += 2)
+        {
+            for (var x = 0; x < bitmap.Width; x += 2)
+            {
+                if (IsSystemGray(bitmap.GetPixel(x, y)))
+                {
+                    grayPixels.Add(new Point(x, y));
+                }
+            }
+        }
+        if (grayPixels.Count > 0)
+        {
+            report.AppendLine($"  Grigio di sistema: {grayPixels.Count * 4 * 100.0 / sampled:0.00}%");
+            const int block = 64;
+            report.AppendLine("  Mappa dei blocchi con grigio (colonne da 64px, righe da 64px):");
+            for (var by = 0; by < bitmap.Height; by += block)
+            {
+                var line = new StringBuilder($"    y={by,4}  ");
+                for (var bx = 0; bx < bitmap.Width; bx += block)
+                {
+                    var inBlock = grayPixels.Count(point =>
+                        point.X >= bx && point.X < bx + block && point.Y >= by && point.Y < by + block);
+                    var blockPixels = (block / 2) * (block / 2);
+                    var ratio = inBlock * 100.0 / blockPixels;
+                    line.Append(ratio switch
+                    {
+                        > 90 => '#',
+                        > 60 => '+',
+                        > 30 => '=',
+                        > 5 => '.',
+                        _ => ' '
+                    });
+                }
+                report.AppendLine(line.ToString());
+            }
+        }
+        else
+        {
+            report.AppendLine("  Grigio di sistema: assente");
+        }
     }
 
     private static bool IsSystemGray(Color color) =>

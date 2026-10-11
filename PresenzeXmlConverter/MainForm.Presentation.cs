@@ -351,6 +351,7 @@ internal sealed partial class MainForm
             BackColor = background,
             Margin = Padding.Empty
         };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -508,22 +509,12 @@ internal sealed partial class MainForm
         return bar;
     }
 
-    private TabControl BuildPreview()
+    private ThemedTabControl BuildPreview()
     {
         _previewTabs.Dock = DockStyle.Fill;
-        _previewTabs.Appearance = TabAppearance.Normal;
-        _previewTabs.SizeMode = TabSizeMode.Fixed;
-        _previewTabs.ItemSize = new Size(156, 34);
-        _previewTabs.Font = Theme.Fonts.Tab;
-        _previewTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
-        _previewTabs.DrawItem += DrawPreviewTab;
-        _previewTabs.Padding = new Point(14, 5);
         _previewTabs.Margin = Padding.Empty;
-        // Senza un fondo esplicito la striscia delle schede resta del grigio
-        // di sistema e si stacca dalle card chiare.
-        _previewTabs.BackColor = Theme.Surface;
 
-        var movementTab = new TabPage("Movimenti  ·  0") { BackColor = Theme.Surface, Padding = new Padding(7) };
+        var movementPage = new Panel { BackColor = Theme.Surface, Padding = new Padding(7), Margin = Padding.Empty };
         _movementsGrid.RowHeadersVisible = true;
         _movementsGrid.RowHeadersWidth = 46;
         _movementsGrid.RowHeadersDefaultCellStyle.BackColor = RowHeaderFill;
@@ -572,9 +563,9 @@ internal sealed partial class MainForm
             _xmlRefreshDebounce.Stop();
             RefreshXmlFromPreview();
         };
-        movementTab.Controls.Add(_movementsGrid);
+        movementPage.Controls.Add(_movementsGrid);
 
-        var xmlTab = new TabPage("Anteprima XML") { BackColor = Theme.EditorFill, Padding = new Padding(0) };
+        var xmlPage = new Panel { BackColor = Theme.EditorFill, Padding = new Padding(0), Margin = Padding.Empty };
         _xmlPreview.Dock = DockStyle.Fill;
         _xmlPreview.ReadOnly = true;
         _xmlPreview.BorderStyle = BorderStyle.None;
@@ -584,9 +575,10 @@ internal sealed partial class MainForm
         _xmlPreview.WordWrap = false;
         _xmlPreview.DetectUrls = false;
         _xmlPreview.Margin = Padding.Empty;
-        xmlTab.Controls.Add(_xmlPreview);
-        _previewTabs.TabPages.Add(movementTab);
-        _previewTabs.TabPages.Add(xmlTab);
+        xmlPage.Controls.Add(_xmlPreview);
+        _previewTabs.AddPage("Movimenti  ·  0", movementPage);
+        _previewTabs.AddPage("Anteprima XML", xmlPage);
+        _previewTabs.SelectedIndex = 0;
         return _previewTabs;
     }
 
@@ -669,36 +661,6 @@ internal sealed partial class MainForm
         content.Controls.Add(_aiStatusLabel, 1, 0);
         footer.Controls.Add(content, 0, 1);
         return footer;
-    }
-
-    private void DrawPreviewTab(object? sender, DrawItemEventArgs args)
-    {
-        var selected = args.Index == _previewTabs.SelectedIndex;
-        var bounds = args.Bounds;
-        // Schede su fondo bianco, come la card: la striscia resta unita al
-        // contenuto e la selezione è data dalla sottolineatura.
-        using (var background = new SolidBrush(Theme.Surface))
-        {
-            args.Graphics.FillRectangle(background, bounds);
-        }
-        var title = _previewTabs.TabPages[args.Index].Text;
-        TextRenderer.DrawText(
-            args.Graphics,
-            title,
-            selected ? Theme.Fonts.TabBold : Theme.Fonts.Tab,
-            bounds,
-            selected ? Theme.BrandInk : Theme.MutedInk,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-        if (selected)
-        {
-            using var underline = new SolidBrush(Theme.Brand);
-            args.Graphics.FillRectangle(underline, bounds.X + 14, bounds.Bottom - 4, bounds.Width - 28, 3);
-        }
-        else
-        {
-            using var separator = new Pen(Theme.Divider);
-            args.Graphics.DrawLine(separator, bounds.Right - 1, bounds.Top + 8, bounds.Right - 1, bounds.Bottom - 8);
-        }
     }
 
     private static void FormatMovementCell(object? sender, DataGridViewCellFormattingEventArgs args)
@@ -797,7 +759,7 @@ internal sealed partial class MainForm
         _previewTitleLabel.Text = "Revisione movimenti";
         _previewSubtitleLabel.Text =
             $"{workers:N0} dipendenti    ·    {totalMinutes / 60:N0} h {totalMinutes % 60:D2} min assegnati    ·    origine Excel disponibile";
-        _previewTabs.TabPages[0].Text = $"Movimenti  ·  {movements.Count:N0}";
+        _previewTabs.SetPageText(0, $"Movimenti  ·  {movements.Count:N0}");
         _previewCountLabel.Text = $"{movements.Count:N0} movimenti   ·   tutti inclusi nell’XML";
         _previewSearch.Clear();
         UpdateWorkflowSummary();

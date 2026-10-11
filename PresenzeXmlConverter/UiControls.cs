@@ -71,7 +71,6 @@ internal sealed class RoundedField : Panel
         Height = 36;
         Padding = new Padding(12, 2, 12, 2);
 
-        _input.Dock = DockStyle.Fill;
         _input.BorderStyle = BorderStyle.None;
         _input.Font = Theme.Fonts.Ui;
         _input.BackColor = Theme.FieldFill;
@@ -82,12 +81,10 @@ internal sealed class RoundedField : Panel
         _input.LostFocus += (_, _) => Invalidate();
         Controls.Add(_input);
 
-        _placeholder.Dock = DockStyle.Fill;
         _placeholder.TextAlign = ContentAlignment.MiddleLeft;
         _placeholder.ForeColor = Theme.FaintInk;
         _placeholder.Font = _input.Font;
         _placeholder.BackColor = Theme.FieldFill;
-        _placeholder.Padding = Padding;
         _placeholder.AutoEllipsis = true;
         // Un clic sul testo guida deve mettere il cursore nel campo.
         _placeholder.MouseDown += (_, _) => _input.Focus();
@@ -144,6 +141,19 @@ internal sealed class RoundedField : Panel
         remove => _input.TextChanged -= value;
     }
 
+    protected override void OnLayout(LayoutEventArgs levent)
+    {
+        base.OnLayout(levent);
+        // Un TextBox monoriga ha un'altezza naturale minore della scatola:
+        // allineando a mano testo e placeholder sulla stessa riga non c'è lo
+        // scarto di qualche pixel quando il campo passa da vuoto a compilato.
+        var innerHeight = _input.PreferredHeight;
+        var top = Math.Max(0, (ClientSize.Height - innerHeight) / 2);
+        var width = Math.Max(0, ClientSize.Width - Padding.Horizontal);
+        _input.SetBounds(Padding.Left, top, width, innerHeight);
+        _placeholder.SetBounds(Padding.Left, top, width, innerHeight);
+    }
+
     private void UpdatePlaceholder()
     {
         _placeholder.Visible = _input.Text.Length == 0 && !_input.Focused;
@@ -168,6 +178,130 @@ internal sealed class RoundedField : Panel
         // subito dove finirà ciò che sta scrivendo.
         using var pen = new Pen(_input.Focused ? Theme.Brand : Theme.DividerStrong, 1f);
         e.Graphics.DrawPath(pen, path);
+    }
+}
+
+/// <summary>
+/// Schede a pagina singola con barra disegnata in casa.
+/// La striscia del TabControl nativo viene dipinta dal controllo di Windows
+/// con il grigio di sistema ed ignora BackColor: qui barra, testo e
+/// sottolineatura di selezione usano la palette del tema.
+/// </summary>
+internal sealed class ThemedTabControl : Control
+{
+    private readonly Panel _strip = new() { Dock = DockStyle.Top, Height = 40 };
+    private readonly FlowLayoutPanel _flow = new()
+    {
+        Dock = DockStyle.Fill,
+        FlowDirection = FlowDirection.LeftToRight,
+        WrapContents = false,
+        Padding = new Padding(12, 0, 0, 0)
+    };
+    private readonly Panel _content = new() { Dock = DockStyle.Fill };
+    private readonly List<TabButton> _tabs = new();
+    private readonly List<Control> _pages = new();
+    private int _selectedIndex = -1;
+
+    public ThemedTabControl()
+    {
+        BackColor = Theme.Surface;
+        SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
+        _strip.BackColor = Theme.Surface;
+        _flow.BackColor = Theme.Surface;
+        _content.BackColor = Theme.Surface;
+        _strip.Controls.Add(_flow);
+        _strip.Controls.Add(new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 1,
+            BackColor = Theme.Divider
+        });
+        Controls.Add(_content);
+        Controls.Add(_strip);
+    }
+
+    public int SelectedIndex
+    {
+        get => _selectedIndex;
+        set => SelectTab(value);
+    }
+
+    public void AddPage(string title, Control page)
+    {
+        page.Dock = DockStyle.Fill;
+        page.Visible = false;
+        _content.Controls.Add(page);
+        _pages.Add(page);
+
+        var tab = new TabButton(title, _tabs.Count);
+        tab.Click += (_, _) => SelectTab(tab.Index);
+        _tabs.Add(tab);
+        _flow.Controls.Add(tab);
+    }
+
+    public void SetPageText(int index, string text)
+    {
+        if (index >= 0 && index < _tabs.Count)
+        {
+            _tabs[index].Text = text;
+        }
+    }
+
+    private void SelectTab(int index)
+    {
+        if (_pages.Count == 0)
+        {
+            return;
+        }
+        _selectedIndex = Math.Clamp(index, 0, _pages.Count - 1);
+        for (var position = 0; position < _tabs.Count; position++)
+        {
+            var active = position == _selectedIndex;
+            _tabs[position].Active = active;
+            _tabs[position].ForeColor = active ? Theme.BrandInk : Theme.MutedInk;
+            _tabs[position].Font = active ? Theme.Fonts.TabBold : Theme.Fonts.Tab;
+            _tabs[position].Invalidate();
+        }
+        for (var position = 0; position < _pages.Count; position++)
+        {
+            _pages[position].Visible = position == _selectedIndex;
+        }
+    }
+
+    /// <summary>Voce di barra: testo centrato verticalmente e sottolineatura attiva.</summary>
+    private sealed class TabButton : Button
+    {
+        public int Index { get; }
+        public bool Active { get; set; }
+
+        public TabButton(string text, int index)
+        {
+            Text = text;
+            Index = index;
+            AutoSize = true;
+            Height = 39;
+            Padding = new Padding(16, 0, 16, 0);
+            Margin = Padding.Empty;
+            TextAlign = ContentAlignment.MiddleCenter;
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            FlatAppearance.MouseOverBackColor = Theme.Sunken;
+            FlatAppearance.MouseDownBackColor = Theme.BrandLite;
+            BackColor = Theme.Surface;
+            ForeColor = Theme.MutedInk;
+            Font = Theme.Fonts.Tab;
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            if (Active)
+            {
+                using var underline = new SolidBrush(Theme.Brand);
+                e.Graphics.FillRectangle(underline, 12, Height - 3, Width - 24, 3);
+            }
+        }
     }
 }
 
