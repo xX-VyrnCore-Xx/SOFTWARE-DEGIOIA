@@ -4,7 +4,7 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.5.1.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.6.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
 Durante l'installazione il wizard chiede se installare anche l'AI locale (Ollama + modello `qwen2.5:1.5b`, circa 2 GB, opzionale e deselezionabile): la conversione funziona comunque senza.
 
@@ -83,7 +83,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.5.1.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.6.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).
@@ -91,6 +91,15 @@ La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`
 ⚠️ **Nota per chi cura la build**: il `PublishSingleFile` non include le librerie native, quindi `dist/app/e_sqlite3.dll` **deve** essere copiato dall'installer accanto a `PresenzeFlow.exe`. Senza quel file l'app non può aprire il database locale e termina all'avvio (ora con un messaggio d'errore esplicito invece di un silenzioso crash).
 
 Per rigenerare l'icona e le immagini della procedura guidata, esegui `.\assets\Create-BrandAssets.ps1`.
+
+## Novità v1.6.0
+
+- **Palette colori unica**: tutti i colori e i font di finestra e dialoghi sono definiti una sola volta (`Theme.cs`); finiti i blu diversi per lo stesso pulsante e i bordi di tono differente
+- **Pulsanti professionali**: stati hover, premuto e disabilitato coerenti; un pulsante disabilitato ora si vede disabilitato
+- **Niente più grigio di sistema**: la striscia delle schede (e quella del dialogo abbinamenti) è disegnata dall'app e segue il tema
+- **Campi di testo arrotondati** con bordo blu al focus e testo guida per codice azienda e ricerca
+- **Bug grafici corretti**: scalatura DPI doppia rimossa, testo non più tagliato, allineamento di placeholder e testo nei campi, ricerca larga e leggibile
+- **Test di regressione grafica**: la UI viene renderizzata e controllata pixel per pixel a ogni build (34 test)
 
 ## Novità v1.5.1
 

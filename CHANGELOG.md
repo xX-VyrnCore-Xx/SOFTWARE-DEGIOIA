@@ -4,7 +4,27 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.5.1] - Corrente
+## [1.6.0] - Corrente
+
+### 🎨 Interfaccia: palette unica e bug grafici risolti
+- **Tema unico** (`Theme.cs`): tutti i colori e i font sono definiti una sola volta e nominati per ruolo; finestra principale e i tre dialoghi usavano quattro blu diversi per lo stesso pulsante e bordi di tono differente
+- **Pulsanti con tutti gli stati**: hover, premuto **e disabilitato**; prima un pulsante disabilitato restava colorato e sembrava ancora premibile
+- **Niente più grigio di sistema**: la striscia delle schede del `TabControl` nativo veniva dipinta da Windows ignorando il tema (misurato: 2,5% dei pixel grigi non temizzati, ora 0,00%). Le schede sono disegnate dall'app e sono usate anche nel dialogo "Codici dipendenti e giustificativi", dove il TabControl compariva del colore di sistema
+- **Campo codice azienda e ricerca**: bordo arrotondato, bordo blu al focus e testo guida (placeholder) che sparisce alla digitazione; il tasto di ricerca era largo 100 px e il testo non si leggeva
+- **Bug di scalatura DPI rimossi**: `AutoScaleMode.Dpi` scala già tutta la geometria, quindi la seconda scalatura manuale gonfiava finestra e scatole a 125-150% lasciando invariati i font
+- **Allineamento campi**: testo e placeholder condividono la stessa scatola (prima lo scarto era di qualche pixel)
+- **Testo non più tagliato**: etichette dei passi, delle sezioni e del riepilogo in griglia; numeri di riga con la stessa famiglia monospaziata del resto
+- **Famiglia monospaziata automatica**: Cascadia Mono se presente, altrimenti Consolas (Cascadia non esiste su tutti i sistemi)
+- **Componenti condivisi**: `ThemedGrid` (doppio buffering, niente sfarfallio), `SurfacePanel` arrotondato configurabile, badge di stato e cerchini numerati disegnati in casa
+- **Pulizia**: rimossi colori e font duplicati in sei file, i font creati a ogni ridisegnamento della barra schede e la doppia gestione del DPI
+
+### ✅ Verifiche
+- **Test di regressione grafica**: la finestra e i dialoghi vengono renderizzati e verificati pixel per pixel (nessun colore di sistema non temizzato, nessun testo tagliato); 34 test totali, tutti verdi
+- Versione incrementata a 1.6.0
+
+---
+
+## [1.5.1] - Precedente
 
 ### 🚨 Correzione critica: l'app installata non si avviava
 - **Causa**: l'installer copiava nella cartella di destinazione **solo** `PresenzeFlow.exe`, ma il `PublishSingleFile` non include le librerie native: mancava `e_sqlite3.dll`. All'avvio `Microsoft.Data.Sqlite` falliva con `DllNotFoundException` e l'app terminava **istantaneamente, senza alcuna finestra**
