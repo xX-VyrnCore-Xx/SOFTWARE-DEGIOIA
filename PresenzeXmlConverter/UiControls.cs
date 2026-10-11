@@ -215,6 +215,69 @@ internal sealed class AccentBar : Control
 }
 
 /// <summary>
+/// Barra di avanzamento temizzata (sostituisce il ProgressBar nativo, che
+/// ignora il tema e mostra sempre la grigia di sistema). Traccia chiara e
+/// riempimento sfumato brand → accento, con angoli arrotondati.
+/// </summary>
+internal sealed class ProgressStrip : Control
+{
+    private int _percent;
+
+    public ProgressStrip()
+    {
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+        Height = 16;
+        BackColor = Theme.Sunken;
+    }
+
+    public int Value
+    {
+        get => _percent;
+        set
+        {
+            _percent = Math.Clamp(value, 0, 100);
+            Invalidate();
+        }
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var bounds = new Rectangle(0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
+        if (bounds.Width < 4 || bounds.Height < 4)
+        {
+            return;
+        }
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        var radius = Math.Max(4, bounds.Height / 2);
+        using (var track = Theme.RoundedRectangle(bounds, radius))
+        using (var trackBrush = new SolidBrush(Theme.Sunken))
+        {
+            e.Graphics.FillPath(trackBrush, track);
+        }
+
+        var filledWidth = (int)Math.Round(bounds.Width * (_percent / 100.0));
+        if (filledWidth < 4)
+        {
+            return;
+        }
+        var fillBounds = new Rectangle(0, 0, filledWidth, bounds.Height);
+        using var fillPath = Theme.RoundedRectangle(fillBounds, radius);
+        using var brush = new LinearGradientBrush(
+            bounds,
+            Theme.Brand,
+            Theme.Accent,
+            LinearGradientMode.Horizontal);
+        e.Graphics.FillPath(brush, fillPath);
+    }
+}
+
+/// <summary>
 /// Schede a pagina singola con barra disegnata in casa.
 /// La striscia del TabControl nativo viene dipinta dal controllo di Windows
 /// con il grigio di sistema ed ignora BackColor: qui barra, testo e

@@ -561,51 +561,56 @@ internal sealed partial class MainForm : Form
     {
         try
         {
-            if (!await _ai.IsAvailableAsync())
+            if (await _ai.IsAvailableAsync())
             {
-                var answer = MessageBox.Show(
-                    this,
-                    "Ollama non è installato o non è in esecuzione. Vuoi scaricare e avviare l’installer ufficiale? " +
-                    "Dopo l’installazione riapri questa configurazione per scaricare il modello. " +
-                    "Il servizio AI verrà usato solo in locale.",
-                    "Configurazione AI locale",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-                if (answer == DialogResult.Yes)
-                {
-                    SetAiStatus("Download installer Ollama in corso (oltre 1 GB)…", false);
-                    await DownloadAndRunOllamaInstallerAsync();
-                }
+                await EnsureModelAsync();
                 return;
             }
 
-            if (await _ai.HasModelAsync())
+            // Ollama non risponde. Se è già installato NON lo reinstalliamo:
+            // proviamo ad avviarlo e, al massimo, scarichiamo solo il modello.
+            if (IsOllamaInstalled())
             {
-                SetAiStatus($"AI locale pronta ({_ai.ActiveModel}).", true);
+                SetAiStatus("Ollama è installato: avvio del servizio locale…", false);
+                await StartOllamaAsync();
+                if (await _ai.IsAvailableAsync())
+                {
+                    await EnsureModelAsync();
+                    return;
+                }
                 MessageBox.Show(
                     this,
-                    $"Il modello locale {_ai.ActiveModel} è pronto. L’AI può proporre colonne e abbinamenti basati su mapping già configurati; i codici ufficiali restano sotto il tuo controllo.",
-                    "AI locale configurata",
+                    "Ollama risulta installato ma non risponde. Avvialo (menu Start → Ollama) e riprova: " +
+                    "il programma scaricherà solo il modello, senza reinstallare nulla.",
+                    "Configurazione AI locale",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
                 return;
             }
 
-            var download = MessageBox.Show(
+            var answer = MessageBox.Show(
                 this,
-                $"Scaricare il modello locale {LocalAiAssistant.DefaultModel}? È adatto a colonne e giustificativi e richiede poche risorse. Il download può richiedere alcuni minuti; le richieste Excel non vengono inviate a alcun server.",
-                "Scarica modello AI locale",
+                "Ollama non è installato. Vuoi scaricare e avviare l’installer ufficiale? " +
+                "Al termine il modello verrà scaricato automaticamente. Il servizio AI resta solo in locale.",
+                "Configurazione AI locale",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
-            if (download != DialogResult.Yes)
+            if (answer != DialogResult.Yes)
             {
                 return;
             }
 
-            SetAiStatus("Download del modello in corso…", false);
-            await _ai.DownloadModelAsync();
-            SetAiStatus($"AI locale pronta ({_ai.ActiveModel}).", true);
-            MessageBox.Show(this, "Modello locale installato correttamente.", "Configurazione completata", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            SetAiStatus("Download installer Ollama in corso (oltre 1 GB)…", false);
+            await DownloadAndRunOllamaInstallerAsync();
+            await StartOllamaAsync();
+            if (await _ai.IsAvailableAsync())
+            {
+                await EnsureModelAsync();
+            }
+            else
+            {
+                SetAiStatus("Ollama installato; avvialo e riprova per scaricare il modello.", false);
+            }
         }
         catch (Exception exception) when (exception is IOException or HttpRequestException or TaskCanceledException or
                                           System.Text.Json.JsonException or System.ComponentModel.Win32Exception or InvalidOperationException)
@@ -619,7 +624,102 @@ internal sealed partial class MainForm : Form
         }
     }
 
-    private static async Task DownloadAndRunOllamaInstallerAsync()
+    /// <summary>
+    /// Verifica che il modello sia presente e, se manca, lo scarica dopo conferma.
+    /// Non tocca Ollama: quando è già installato si scarica soltanto il modello.
+    /// </summary>
+    private async Task EnsureModelAsync()
+    {
+        if (await _ai.HasModelAsync())
+        {
+            SetAiStatus($"AI locale pronta ({_ai.ActiveModel}).", true);
+            MessageBox.Show(
+                this,
+                $"Il modello locale {_ai.ActiveModel} è pronto. L’AI può proporre colonne, abbinamenti e correzioni all’anteprima; i codici ufficiali restano sotto il tuo controllo.",
+                "AI locale configurata",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        var download = MessageBox.Show(
+            this,
+            $"Scaricare il modello locale {LocalAiAssistant.DefaultModel}? È adatto a colonne, giustificativi e chat e richiede poche risorse. " +
+            "Il download può richiedere alcuni minuti; i dati restano sul tuo PC.",
+            "Scarica modello AI locale",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+        if (download != DialogResult.Yes)
+        {
+            return;
+        }
+
+        SetAiStatus("Download del modello in corso…", false);
+        await _ai.DownloadModelAsync();
+        SetAiStatus($"AI locale pronta ({_ai.ActiveModel}).", true);
+        MessageBox.Show(this, "Modello locale installato correttamente.", "Configurazione completata", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    /// <summary>Ollama è installato? Controlla le posizioni per-utente e amministrative.</summary>
+    private static bool IsOllamaInstalled()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Ollama", "ollama.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Ollama", "ollama.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Ollama", "ollama.exe")
+        };
+        return candidates.Any(File.Exists);
+    }
+
+    /// <summary>
+    /// Avvia Ollama se è installato ma non in esecuzione, poi attende che il
+    /// servizio locale risponda (senza installare nulla).
+    /// </summary>
+    private async Task StartOllamaAsync()
+    {
+        var baseDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Programs",
+            "Ollama");
+        var application = Path.Combine(baseDirectory, "ollama app.exe");
+        var server = Path.Combine(baseDirectory, "ollama.exe");
+        try
+        {
+            if (File.Exists(application))
+            {
+                Process.Start(new ProcessStartInfo(application) { UseShellExecute = true });
+            }
+            else if (File.Exists(server))
+            {
+                Process.Start(new ProcessStartInfo(server)
+                {
+                    Arguments = "serve",
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
+            }
+            else
+            {
+                return;
+            }
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return;
+        }
+
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            await Task.Delay(1000);
+            if (await _ai.IsAvailableAsync())
+            {
+                return;
+            }
+        }
+    }
+
+    private async Task DownloadAndRunOllamaInstallerAsync()
     {
         const string installerUrl = "https://ollama.com/download/OllamaSetup.exe";
         var setupDirectory = Path.Combine(
@@ -649,11 +749,7 @@ internal sealed partial class MainForm : Form
         {
             throw new InvalidOperationException($"L’installer Ollama è terminato con codice {process.ExitCode}.");
         }
-        MessageBox.Show(
-            "Installazione di Ollama completata. Riapri “Configura AI locale” per scaricare il modello.",
-            "Installazione AI locale",
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information);
+        SetAiStatus("Ollama installato: scarico il modello AI locale…", false);
     }
 
     private async void UpdateAiStatusAsync()

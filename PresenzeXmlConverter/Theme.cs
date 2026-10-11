@@ -1,5 +1,4 @@
 using System.Drawing.Drawing2D;
-using System.Drawing.Text;
 
 namespace PresenzeXmlConverter;
 
@@ -124,15 +123,26 @@ internal static class Theme
         public static readonly Font Mono = new(MonoFamily, 9.3f);
         public static readonly Font MonoSmall = new(MonoFamily, 8.2f);
 
+        /// <summary>
+        /// Sceglie la prima famiglia monospaziata disponibile. Si prova a creare
+        /// direttamente la famiglia invece di enumerare TUTTI i font installati
+        /// (InstalledFontCollection): l'enumerazione è lenta e avveniva una volta
+        /// sola ma all'avvio, rallentando l'apertura della finestra.
+        /// </summary>
         private static string ResolveMonoFamily()
         {
-            using var installed = new InstalledFontCollection();
-            var available = new HashSet<string>(
-                installed.Families.Select(family => family.Name),
-                StringComparer.OrdinalIgnoreCase);
-            if (available.Contains("Cascadia Mono")) return "Cascadia Mono";
-            if (available.Contains("Consolas")) return "Consolas";
-            if (available.Contains("Cascadia Code")) return "Cascadia Code";
+            foreach (var candidate in new[] { "Cascadia Mono", "Consolas", "Cascadia Code" })
+            {
+                try
+                {
+                    using var family = new FontFamily(candidate);
+                    return candidate;
+                }
+                catch (ArgumentException)
+                {
+                    // Famiglia non installata: si passa alla successiva.
+                }
+            }
             return "Courier New";
         }
     }

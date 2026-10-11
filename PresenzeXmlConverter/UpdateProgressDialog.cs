@@ -7,7 +7,7 @@ namespace PresenzeXmlConverter;
 internal sealed class UpdateProgressDialog : Form
 {
     private readonly Label _status = new();
-    private readonly ProgressBar _bar = new();
+    private readonly ProgressStrip _bar = new();
     private readonly CancellationTokenSource _cancellation = new();
 
     /// <summary>Token da passare al download: annullato dal pulsante "Annulla".</summary>
@@ -61,10 +61,8 @@ internal sealed class UpdateProgressDialog : Form
         _status.Margin = Padding.Empty;
         root.Controls.Add(_status, 0, 1);
 
-        _bar.Dock = DockStyle.Fill;
-        _bar.Minimum = 0;
-        _bar.Maximum = 100;
-        _bar.Style = ProgressBarStyle.Continuous;
+        _bar.Dock = DockStyle.Top;
+        _bar.Height = 18;
         _bar.Margin = new Padding(0, 6, 0, 0);
         root.Controls.Add(_bar, 0, 2);
 

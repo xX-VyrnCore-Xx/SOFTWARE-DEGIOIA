@@ -34,3 +34,10 @@ desktop.ini
 *.tmp
 *.bak
 ~$*
+
+# --- Output generati da assets/Create-BrandAssets.ps1 (non servono al build) ---
+assets/PresenzeXmlConverter.png
+assets/WizardImage.png
+
+# --- Certificato di firma locale: NON committare mai il .pfx ---
+codesign/

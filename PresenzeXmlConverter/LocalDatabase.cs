@@ -100,16 +100,55 @@ internal sealed class LocalDatabase
         updateVersion.CommandText = "PRAGMA user_version = 1;";
         updateVersion.ExecuteNonQuery();
 
-        using var integrityCheck = connection.CreateCommand();
-        integrityCheck.CommandText = "PRAGMA quick_check;";
-        var integrityResult = Convert.ToString(
-            integrityCheck.ExecuteScalar(),
-            System.Globalization.CultureInfo.InvariantCulture);
-        if (!string.Equals(integrityResult, "ok", StringComparison.OrdinalIgnoreCase))
+        // Il controllo d'integrità è importante ma non serve a ogni avvio:
+        // viene eseguito la prima volta e poi al massimo una volta a settimana,
+        // così l'apertura dell'app resta rapida.
+        if (ShouldRunIntegrityCheck(connection))
         {
-            throw new InvalidDataException(
-                $"Il database PresenzeFlow non ha superato il controllo di integrità: {integrityResult}");
+            using var integrityCheck = connection.CreateCommand();
+            integrityCheck.CommandText = "PRAGMA quick_check;";
+            var integrityResult = Convert.ToString(
+                integrityCheck.ExecuteScalar(),
+                System.Globalization.CultureInfo.InvariantCulture);
+            if (!string.Equals(integrityResult, "ok", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"Il database PresenzeFlow non ha superato il controllo di integrità: {integrityResult}");
+            }
+            RecordIntegrityCheck(connection);
         }
+    }
+
+    private const string IntegrityCheckSetting = "integrity-check-at";
+
+    private static bool ShouldRunIntegrityCheck(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Value FROM Settings WHERE Key = $key;";
+        command.Parameters.AddWithValue("$key", IntegrityCheckSetting);
+        var raw = command.ExecuteScalar() as string;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return true;
+        }
+        return !DateTime.TryParse(
+                   raw,
+                   System.Globalization.CultureInfo.InvariantCulture,
+                   System.Globalization.DateTimeStyles.RoundtripKind,
+                   out var last) ||
+               DateTime.UtcNow - last > TimeSpan.FromDays(7);
+    }
+
+    private static void RecordIntegrityCheck(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO Settings (Key, Value) VALUES ($key, $value)
+            ON CONFLICT(Key) DO UPDATE SET Value = excluded.Value;
+            """;
+        command.Parameters.AddWithValue("$key", IntegrityCheckSetting);
+        command.Parameters.AddWithValue("$value", DateTime.UtcNow.ToString("O"));
+        command.ExecuteNonQuery();
     }
 
     private SqliteConnection OpenConnection()

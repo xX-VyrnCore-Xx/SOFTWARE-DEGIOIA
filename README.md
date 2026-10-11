@@ -6,7 +6,7 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.7.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
-Durante l'installazione il wizard chiede se installare anche l'AI locale (Ollama + modello `qwen2.5:1.5b`, circa 2 GB, opzionale e deselezionabile): la conversione funziona comunque senza.
+Durante l'installazione il wizard chiede se installare anche l'AI locale (Ollama + modello `qwen2.5:1.5b`, opzionale e deselezionabile): la conversione funziona comunque senza. Se **Ollama è già presente** viene scaricato soltanto il modello, senza reinstallare il motore. L'eseguibile e l'installer vengono **firmati** quando il certificato è configurato (vedi "Firma digitale"): un file firmato viene controllato più in fretta al primo avvio.
 
 **Primo avvio**: al primo lancio subito dopo l'installazione Windows Defender analizza l'eseguibile (circa 160 MB non firmato digitalmente) e la finestra può impare anche 15-20 secondi ad apparire; dai lanci successivi l'avvio è immediato (misurato: ~0,5 s). La firma digitale dell'eseguibile riduce ulteriormente questa attesa.
 
@@ -50,7 +50,7 @@ L'app usa un modello locale (`qwen2.5:1.5b` per impostazione predefinita) per tr
 2. **Proposta di abbinamenti** tra le etichette `Policy` e i giustificativi già configurati.
 3. **Assistente conversazionale** (scheda **Assistente AI** nell'area di revisione, oppure pulsante **Chatta con AI**): scrivi in italiano cosa vuoi correggere e l'app lo trasforma in modifiche controllate sui movimenti.
 
-Il modello può essere installato dal wizard di installazione oppure da **Configura AI locale**, che scarica l'installer ufficiale di Ollama e poi il modello. Se è già presente un altro modello compatibile (es. `qwen2.5:0.5b` o `3b`) viene usato automaticamente. Il runtime supera 1 GB e il modello richiede altro spazio; l'AI è opzionale.
+Il modello può essere installato dal wizard di installazione oppure da **Configura AI locale**, che scarica l'installer ufficiale di Ollama e poi il modello. Se **Ollama è già installato** (per esempio perché usato da altri programmi) né l'installer né il programma lo reinstallano: viene scaricato **solo il modello**; se il servizio non è attivo, l'app prova ad avviarlo e attende che risponda. Se è già presente un altro modello compatibile (es. `qwen2.5:0.5b` o `3b`) viene usato automaticamente. Il runtime supera 1 GB e il modello richiede altro spazio; l'AI è opzionale.
 
 ### Assistente AI: cosa può fare sul documento
 
@@ -162,6 +162,48 @@ Per usare un feed diverso (es. un mirror interno) imposta la preferenza `update-
 
 **Rete**: l'unico traffico verso Internet è il controllo delle Release su `api.github.com`, autenticato con il token locale. L'AI resta rigidamente in locale su `127.0.0.1:11434`.
 
+## Firma digitale (opzionale)
+
+L'eseguibile e l'installer possono essere **firmati**. La firma identifica l'editore e riduce l'attesa del primo avvio (Windows Defender controlla con più fiducia un eseguibile firmato).
+
+### Attivare la firma (una volta sola, su Windows)
+
+```powershell
+.\tools\New-CodeSigningCertificate.ps1
+```
+
+Lo script crea un **certificato di firma autofirmato** per l'azienda e prepara la cartella `codesign/` (esclusa da git, non committarla) con:
+
+- `PresenzeFlow-codesign.pfx.base64.txt` → da incollare nel secret GitHub **CODE_SIGNING_PFX_BASE64**
+- la **password** stampata dallo script → secret **CODE_SIGNING_PFX_PASSWORD**
+- `PresenzeFlow-codesign.cer` → certificato pubblico da rendere attendibile sui PC
+
+Il workflow di Release firma eseguibile e installer **solo se i due secret esistono**: senza certificato la build procede normalmente, non firmata.
+
+### Rendere attendibile il certificato sui PC
+
+Su ogni PC con l'app installata (per-utente, **senza privilegi di amministratore**):
+
+```bat
+certutil -addstore -user Root PresenzeFlow-codesign.cer
+certutil -addstore -user TrustedPublisher PresenzeFlow-codesign.cer
+```
+
+In azienda la stessa operazione si distribuisce con Criteri di gruppo; per rendere il certificato valido per **tutto il PC** si usano gli stessi comandi da prompt elevato **senza** `-user`.
+
+### Nota importante
+
+Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica l'installer da Internet: diventa attendibile solo sui PC dove il certificato pubblico è installato. Per una firma riconosciuta da tutti serve un certificato emesso da una CA pubblica (a pagamento) o un servizio di firma gestito. Senza firma l'app funziona comunque: Windows mostra solo l'avviso "editore sconosciuto" al primo avvio.
+
+## Novità v1.9.0
+
+- **Ollama già installato? Niente reinstallazione**: l'installer scarica solo il modello e l'app, se trova Ollama presente ma non attivo, prova ad avviarlo e attende che risponda
+- **Installazione più rapida**: compressione a livello "normal" (decompressione più veloce e meno memoria), passi di Ollama saltati quando non servono
+- **Apertura più rapida**: il font monospaziato viene scelto senza enumerare tutti i font di sistema e il controllo d'integrità del database viene eseguito una volta a settimana invece che a ogni avvio
+- **Firma digitale opzionale** (autofirmata aziendale) di eseguibile e installer, attivabile con due secret GitHub
+- **Grafica**: barra di avanzamento del download disegnata con il tema dell'app (niente grigio di sistema) e intestazione sfumata anche nella finestra "Novità"
+- **README aggiornato** all'ultima versione + rimosse la cronologia duplicata e i file generati non usati dal build
+
 ## Novità v1.8.0
 
 - **Aggiornamenti dalla Release GitHub** (repo privata): controllo silenzioso all'avvio, finestra con le novità e pulsanti Aggiorna ora / Più tardi
@@ -210,27 +252,3 @@ Per usare un feed diverso (es. un mirror interno) imposta la preferenza `update-
 - **Componenti UI potenziati**: Tab, pulsanti, metriche e griglia con design contemporaneo
 - **Syntax highlighting XML**: Colori ottimizzati per la leggibilità su dark mode
 - **Spacing e layout**: Spaziatura più elegante e professionale
-
-## Cronologia versioni
-
-**v1.4.0** (corrente)
-- UI/UX completamente ridisegnato con palette moderna
-- Miglioramenti ai componenti visivi e alle icone
-
-**v1.3.0**
-- Modello di analisi dati avanzato
-- Validazione e sicurezza del database migliorata
-- Controlli di integrità file ZIP e XML
-
-**v1.2.0**
-- Redesign completo della grafica
-- Layout responsive
-- Tema colori coordinato
-
-**v1.1.0**
-- Setup wizard personalizzato
-- Icona multi-risoluzione
-- Disinstallazione intelligente
-
-**v1.0**
-- Versione iniziale con funzionalità core

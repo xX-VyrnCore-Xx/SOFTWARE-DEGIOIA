@@ -30,7 +30,7 @@ internal sealed class ReleaseNotesDialog : Form
             Margin = Padding.Empty
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 84));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
         Controls.Add(root);
@@ -39,13 +39,16 @@ internal sealed class ReleaseNotesDialog : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 2,
+            RowCount = 3,
             BackColor = Theme.Canvas,
             Margin = Padding.Empty
         };
         heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 6));
         heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         heading.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        heading.Controls.Add(new AccentBar { Dock = DockStyle.Fill, Margin = Padding.Empty }, 0, 0);
 
         heading.Controls.Add(new Label
         {
@@ -55,7 +58,7 @@ internal sealed class ReleaseNotesDialog : Form
             ForeColor = Theme.Ink,
             Font = Theme.Fonts.CardTitle,
             Margin = Padding.Empty
-        }, 0, 0);
+        }, 0, 1);
 
         heading.Controls.Add(new Label
         {
@@ -65,7 +68,7 @@ internal sealed class ReleaseNotesDialog : Form
             ForeColor = Theme.MutedInk,
             Font = Theme.Fonts.Small,
             Margin = Padding.Empty
-        }, 0, 1);
+        }, 0, 2);
         root.Controls.Add(heading, 0, 0);
 
         var notesPanel = new SurfacePanel

@@ -93,6 +93,38 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Prepara il certificato di firma (se configurato)
+        id: signing
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.CODE_SIGNING_PFX_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PFX_BASE64)) {
+            Write-Host 'Firma digitale non configurata: la build procede senza firma.'
+            "enabled=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP 'codesign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+          $password = ConvertTo-SecureString $env:PFX_PASSWORD -AsPlainText -Force
+          $certificate = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $pfx -Force
+          if (-not $certificate.HasPrivateKey) { throw 'Il certificato importato non ha la chiave privata.' }
+          "SIGN_CERT_THUMBPRINT=$($certificate.Thumbprint)" >> $env:GITHUB_ENV
+          "enabled=true" >> $env:GITHUB_OUTPUT
+          Write-Host "Certificato pronto per la firma (scade il $($certificate.NotAfter.ToString('yyyy-MM-dd')))."
+
+      - name: Rendi disponibile signtool
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          $pattern = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin\*\x64\signtool.exe'
+          $tool = Get-ChildItem $pattern | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1
+          if (-not $tool) { throw 'signtool.exe non trovato sul runner: firma impossibile.' }
+          $tool.DirectoryName | Out-File $env:GITHUB_PATH -Append -Encoding utf8
+          Write-Host "signtool: $($tool.FullName)"
+
       - name: Test
         run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release
 
@@ -125,10 +157,27 @@ jobs:
           "path=$iscc" >> $env:GITHUB_OUTPUT
           Write-Host "Uso $iscc"
 
+      - name: Firma l'eseguibile
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          $exe = 'dist\app\PresenzeFlow.exe'
+          signtool.exe sign /sha1 $env:SIGN_CERT_THUMBPRINT /s My /fd sha256 /td sha256 /tr http://timestamp.digicert.com "$exe"
+          Write-Host 'Eseguibile firmato.'
+
       - name: Compila l'installer
         shell: pwsh
         run: |
-          & '${{ steps.iscc.outputs.path }}' Installer.iss
+          $arguments = @('Installer.iss')
+          if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
+            # Inno usa questo comando per firmare l'installer e il disinstallatore.
+            $signCommand = "signtool.exe sign /sha1 $env:SIGN_CERT_THUMBPRINT /s My /fd sha256 /td sha256 /tr http://timestamp.digicert.com `$f"
+            $arguments = @('-dEnableSigning=1', "-sci=$signCommand") + $arguments
+            Write-Host 'L''installer verrà firmato.'
+          } else {
+            Write-Host 'L''installer verrà prodotto senza firma.'
+          }
+          & '${{ steps.iscc.outputs.path }}' @arguments
           $installer = "dist\PresenzeFlow-Setup-${{ needs.prepare.outputs.version }}.exe"
           if (-not (Test-Path $installer)) { throw "Installer non generato: $installer" }
           Get-Item $installer | Select-Object Name, Length

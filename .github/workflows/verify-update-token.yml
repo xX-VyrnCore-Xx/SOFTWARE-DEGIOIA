@@ -1,0 +1,73 @@
+# Verifica manuale del token usato dall'APP per leggere le Release.
+#
+# ATTENZIONE: i "secret" di GitHub sono visibili SOLO dentro i workflow di
+# Actions, mai all'app installata sui PC. Questo workflow serve a controllare
+# che il token funzioni davvero (permesso "Contents: Read-only" su una repo
+# privata) PRIMA di distribuirlo ai PC, dove va messo nella variabile
+# d'ambiente PRESENZEFLOW_GITHUB_TOKEN oppure nel file github.token.
+#
+# Il secret deve chiamarsi PRESENZEFLOW_GITHUB_TOKEN (stesso nome della
+# variabile d'ambiente letta dall'app).
+name: Verifica token aggiornamenti
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Controlla il token di lettura
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verifica il token
+        env:
+          TOKEN: ${{ secrets.PRESENZEFLOW_GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${TOKEN:-}" ]; then
+            echo "::error::Il secret PRESENZEFLOW_GITHUB_TOKEN non è configurato. Crealo in Settings → Secrets and variables → Actions con lo stesso nome (token fine-grained con permesso Contents: Read-only)."
+            exit 1
+          fi
+
+          endpoint="https://api.github.com/repos/${{ github.repository }}/releases/latest"
+          status=$(curl -sS -o response.json -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "User-Agent: PresenzeFlow-Token-Check" \
+            "$endpoint")
+          echo "GitHub ha risposto: HTTP $status"
+
+          case "$status" in
+            200)
+              echo "OK: token valido e con accesso in lettura."
+              echo "Ultima Release: $(jq -r '.tag_name' response.json)"
+              echo "Asset pubblicati: $(jq -r '[.assets[].name] | join(", ")' response.json)"
+              ;;
+            401)
+              echo "::error::Token non valido o scaduto (HTTP 401)."
+              exit 1
+              ;;
+            403)
+              echo "::error::Token valido ma senza il permesso necessario: serve Contents → Read-only (HTTP 403)."
+              exit 1
+              ;;
+            404)
+              echo "::error::Repository o Release non visibili con questo token: verifica che il token sia limitato a questo repository e abbia Contents → Read-only (HTTP 404)."
+              exit 1
+              ;;
+            *)
+              echo "::error::Risposta inattesa da GitHub (HTTP $status)."
+              exit 1
+              ;;
+          esac
+
+      - name: Ricorda dove serve il token
+        run: |
+          echo "Token verificato solo per Actions."
+          echo "Per l'aggiornamento in-app lo STESSO token va impostato su ogni PC:"
+          echo "  - variabile d'ambiente PRESENZEFLOW_GITHUB_TOKEN, oppure"
+          echo "  - file %LOCALAPPDATA%\\DeGioia\\PresenzeXmlConverter\\github.token"

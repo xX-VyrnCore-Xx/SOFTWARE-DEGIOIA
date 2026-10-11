@@ -4,7 +4,29 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.8.0] - Corrente
+## [1.9.0] - Corrente
+
+### ⚡ Installazione e avvio più veloci
+- **Ollama già installato**: l'installer salta download e installazione del motore (`Check: OllamaMissing`) e scarica **solo il modello**; anche l'app, se trova Ollama installato ma non attivo, prova ad avviarlo e attende che risponda, senza reinstallare nulla
+- **Compressione `lzma2/normal`** al posto del default `max`: decompressione più rapida e minor memoria durante l'installazione
+- **Apertura più rapida**: il font monospaziato viene risolto provando le famiglie disponibili, senza enumerare tutti i font di sistema (`InstalledFontCollection`); il controllo d'integrità del database viene eseguito al primo avvio e poi al massimo una volta a settimana
+
+### 🔐 Firma digitale (opzionale)
+- Nuovo `tools/New-CodeSigningCertificate.ps1`: crea il certificato di firma autofirmato e prepara i secret per il workflow
+- Il workflow firma eseguibile e installer con `signtool` + `SignTool` di Inno (`SignedUninstaller=yes`) **solo se** i secret `CODE_SIGNING_PFX_BASE64` / `CODE_SIGNING_PFX_PASSWORD` sono configurati; altrimenti la build resta valida e non firmata
+- README con le istruzioni per rendere attendibile il certificato sui PC (`certutil -addstore -user Root/TrustedPublisher`) e nota onesta: un'autofirma non elimina l'avviso SmartScreen per chi scarica da Internet
+
+### 🎨 Grafica
+- Nuova barra di avanzamento temizzata (`ProgressStrip`): niente più grigio di sistema nel download dell'aggiornamento
+- Intestazione sfumata (`AccentBar`) anche nella finestra "Novità"
+
+### 🧹 Repository più pulita
+- Rimossi i file generati e non usati dal build (`assets/PresenzeXmlConverter.png`, `assets/WizardImage.png`, `assets/Branding.svg`) e la sezione "Cronologia versioni" duplicata nel README
+- `.gitignore` aggiornato: output di `Create-BrandAssets.ps1` e cartella `codesign/` (mai commitare il certificato)
+
+---
+
+## [1.8.0] - Precedente
 
 ### 🔄 Aggiornamenti dalle Release GitHub (repository privata)
 - **Controllo automatico all'avvio** (ritardato di qualche secondo, silenzioso) dell'ultima Release; se c'è una versione più recente compare una finestra con le novità e **Aggiorna ora** / **Più tardi**

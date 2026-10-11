@@ -1,5 +1,5 @@
 #define AppName "PresenzeFlow"
-#define AppVersion "1.8.0"
+#define AppVersion "1.9.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 
@@ -12,6 +12,16 @@
 #endif
 
 [Setup]
+; Firma digitale: viene attivata solo quando il workflow passa -dEnableSigning=1
+; insieme a un certificato configurato (secret CODE_SIGNING_PFX_BASE64).
+; Senza certificato l'installer viene prodotto non firmato, senza errori.
+#ifdef EnableSigning
+SignTool=ci
+SignedUninstaller=yes
+#else
+SignedUninstaller=no
+#endif
+
 AppId={{5D1D02CA-FE8F-4B86-9AF0-4B4F70A1F509}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -26,7 +36,10 @@ WizardImageFile=assets\WizardImage.bmp
 WizardSmallImageFile=assets\WizardSmallImage.bmp
 OutputDir=dist
 OutputBaseFilename=PresenzeFlow-Setup-{#AppVersion}
-Compression=lzma2
+; Livello "normal" invece del default "max": l'installazione decomprime più
+; velocemente (dizionario più piccolo) e consuma meno memoria, a fronte di un
+; installer leggermente più grande. È un compromesso scelto per la velocità.
+Compression=lzma2/normal
 SolidCompression=yes
 WizardStyle=modern
 WizardSizePercent=120
@@ -45,7 +58,7 @@ Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Crea un collegamento sul desktop"; GroupDescription: "Collegamenti aggiuntivi:"; Flags: unchecked
-Name: "ai"; Description: "Installa l'AI locale (Ollama + modello qwen2.5:1.5b, circa 2 GB, richiede connessione)"; GroupDescription: "Funzionalità opzionali:"; Flags: unchecked
+Name: "ai"; Description: "Installa l'AI locale (Ollama se assente + modello qwen2.5:1.5b, circa 1-2 GB, richiede connessione)"; GroupDescription: "Funzionalità opzionali:"; Flags: unchecked
 
 [Messages]
 SelectTasksLabel2=Seleziona le funzionalità opzionali da installare. L'AI locale NON è obbligatoria: la conversione funziona comunque senza.
@@ -68,10 +81,13 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "
 ; 1) scarica l'installer ufficiale di Ollama, 2) lo esegue in modalità silenziosa,
 ; 3) scarica il modello qwen2.5:1.5b. In caso di errore l'installazione prosegue:
 ; l'AI resta comunque configurabile dal programma.
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Invoke-WebRequest -Uri 'https://ollama.com/download/OllamaSetup.exe' -OutFile '{tmp}\OllamaSetup.exe'"""; StatusMsg: "Scaricamento di Ollama (oltre 1 GB, può richiedere alcuni minuti)…"; Tasks: ai; Flags: runascurrentuser waituntilterminated
-Filename: "{tmp}\OllamaSetup.exe"; Parameters: "/VERYSILENT /NORESTART /SP-"; StatusMsg: "Installazione di Ollama in corso…"; Tasks: ai; Flags: runascurrentuser waituntilterminated shellexec
+; Se Ollama è GIÀ installato questi due passi vengono saltati (Check: OllamaMissing):
+; nessuna reinstallazione, si scarica soltanto il modello.
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Invoke-WebRequest -Uri 'https://ollama.com/download/OllamaSetup.exe' -OutFile '{tmp}\OllamaSetup.exe'"""; StatusMsg: "Scaricamento di Ollama (oltre 1 GB, può richiedere alcuni minuti)…"; Tasks: ai; Check: OllamaMissing; Flags: runascurrentuser waituntilterminated
+Filename: "{tmp}\OllamaSetup.exe"; Parameters: "/VERYSILENT /NORESTART /SP-"; StatusMsg: "Installazione di Ollama in corso…"; Tasks: ai; Check: OllamaMissing; Flags: runascurrentuser waituntilterminated shellexec
 ; "ollama pull" avvia automaticamente il server locale se non è ancora attivo.
-Filename: "{localappdata}\Programs\Ollama\ollama.exe"; Parameters: "pull qwen2.5:1.5b"; StatusMsg: "Scaricamento del modello AI locale qwen2.5:1.5b (circa 1 GB)…"; Tasks: ai; Flags: runascurrentuser waituntilterminated
+; skipifdoesntexist evita un errore se Ollama non fosse disponibile.
+Filename: "{localappdata}\Programs\Ollama\ollama.exe"; Parameters: "pull qwen2.5:1.5b"; StatusMsg: "Scaricamento del modello AI locale qwen2.5:1.5b (circa 1 GB)…"; Tasks: ai; Flags: runascurrentuser waituntilterminated skipifdoesntexist
 ; skipifsilent volutamente assente: dopo un aggiornamento silenzioso (avviato
 ; dall'app) PresenzeFlow si riapre da solo e mostra la finestra "Novità".
 Filename: "{app}\{#AppExeName}"; Description: "Avvia {#AppName}"; WorkingDir: "{app}"; Flags: postinstall nowait
@@ -82,6 +98,22 @@ var
   ReviewCheckBox: TNewCheckBox;
   RemoveLocalData: Boolean;
   RemoveAiModel: Boolean;
+
+{ Ollama è installato se esiste l'eseguibile nella posizione per-utente o in
+  Program Files (installazioni amministrative). }
+function OllamaInstalled(): Boolean;
+begin
+  Result :=
+    FileExists(ExpandConstant('{localappdata}\Programs\Ollama\ollama.exe')) or
+    FileExists(ExpandConstant('{pf}\Ollama\ollama.exe')) or
+    FileExists(ExpandConstant('{pf32}\Ollama\ollama.exe'));
+end;
+
+{ Usata come Check dei passi di download/installazione di Ollama. }
+function OllamaMissing(): Boolean;
+begin
+  Result := not OllamaInstalled();
+end;
 
 procedure InitializeWizard;
 var
