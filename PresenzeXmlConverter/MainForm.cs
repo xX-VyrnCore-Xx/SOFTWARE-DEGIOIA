@@ -61,6 +61,7 @@ internal sealed partial class MainForm : Form
         _lastSourceDirectory = _database.GetSetting("last-source-dir");
         LoadChatHistory();
         ShowChatWelcome();
+        InitializeUpdates();
         SetupTrayIcon();
         UpdateButtons();
         UpdateAiStatusAsync();
@@ -147,6 +148,7 @@ internal sealed partial class MainForm : Form
         _trayIcon.Text = "PresenzeFlow";
         var menu = new ContextMenuStrip();
         menu.Items.Add("Apri PresenzeFlow", null, (_, _) => RestoreFromTray());
+        AddUpdateCommands(menu);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Esci definitivamente", null, (_, _) =>
         {

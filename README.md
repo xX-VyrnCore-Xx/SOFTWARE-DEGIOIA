@@ -66,7 +66,7 @@ Un filtro senza campi vale "tutti i movimenti". Esempi di richieste: *"metti le 
 
 Ogni modifica viene mostrata nel riquadro della conversazione con l'esito (quanti movimenti aggiornati, rimossi o ignorati) e l'anteprima/XML si rigenerano subito. Se l'AI propone un codice non configurato, la modifica viene scartata e viene segnalato. La conversazione è salvata nel database locale e viene ripristinata al riavvio (puoi azzerarla con **Nuova chat**).
 
-**Comunicazioni e privacy**: Il programma comunica solo con `127.0.0.1:11434` (modello locale). Per le attività 1 e 2 invia esclusivamente intestazioni, etichette `Policy` e mapping già configurati, mai nominativi o righe del foglio. Per l'assistente conversazionale invia al modello locale il **riepilogo dell'anteprima corrente** (dipendenti, codici, date e giustificativi): serve a capire cosa correggere e **non esce mai dal tuo PC**. Nessun dato viene inviato a servizi esterni. L'AI non può introdurre codici ufficiali nuovi: i suggerimenti vanno verificati e confermati.
+**Comunicazioni e privacy**: Il programma comunica con `127.0.0.1:11434` (modello locale) e, separatamente, con `api.github.com` solo per il controllo degli aggiornamenti (vedi la sezione "Aggiornamenti automatici"). Per le attività 1 e 2 invia esclusivamente intestazioni, etichette `Policy` e mapping già configurati, mai nominativi o righe del foglio. Per l'assistente conversazionale invia al modello locale il **riepilogo dell'anteprima corrente** (dipendenti, codici, date e giustificativi): serve a capire cosa correggere e **non esce mai dal tuo PC**. Nessun dato viene inviato a servizi esterni. L'AI non può introdurre codici ufficiali nuovi: i suggerimenti vanno verificati e confermati.
 
 ## Dati e tracciato
 
@@ -134,6 +134,42 @@ git push origin main --follow-tags
 ```
 
 Il tag è facoltativo: basta il push su `main` e il workflow crea da sé il tag `vX.Y.Z` e la Release corrispondente. Se la Release esiste già, il workflow non la duplica.
+
+## Aggiornamenti automatici (Release GitHub)
+
+PresenzeFlow controlla le Release pubblicate sul proprio repository GitHub e propone di aggiornarsi. **Il repository è privato**, quindi ogni richiesta va autenticata con un token di sola lettura.
+
+### Attivare il controllo (una volta per PC)
+
+1. Su GitHub crea un **fine-grained personal access token** con un solo permesso: **Contents → Read-only**, limitato al repository `xX-VyrnCore-Xx/SOFTWARE-DEGIOIA`.
+2. Rendilo disponibile in uno dei due modi:
+   - **variabile d'ambiente** `PRESENZEFLOW_GITHUB_TOKEN`;
+   - oppure file **`%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\github.token`** contenente solo il token.
+
+Il token **non è mai incluso nell'eseguibile** e non viene mai scritto nel database: resta nella configurazione del PC. Senza token il controllo automatico è inattivo e compare un messaggio che spiega come configurarlo.
+
+### Come funziona
+
+- **All'avvio**, dopo qualche secondo, l'app controlla in silenzio l'ultima Release.
+- Se esiste una versione più recente, mostra una finestra con **le novità** e i pulsanti **Aggiorna ora** / **Più tardi** (un aggiornamento rimandato non viene riproposto a ogni avvio, ma resta disponibile dal tray).
+- **Aggiorna ora**: l'installer viene scaricato con barra di avanzamento e **verificato con il checksum SHA-256** pubblicato nella Release. Poi l'app si chiude, l'installer aggiorna e **PresenzeFlow si riapre da solo**.
+- **Dopo l'aggiornamento** viene mostrata automaticamente la finestra **Novità** con il riepilogo delle modifiche (le note sono salvate in locale, quindi funzionano anche senza rete).
+- Dal menu dell'icona in tray: **Cerca aggiornamenti…** e **Novità di questa versione**.
+
+Per disattivare il controllo automatico (mantenendo quello manuale) imposta la preferenza `auto-update-check` a `false` nel database locale.
+
+Per usare un feed diverso (es. un mirror interno) imposta la preferenza `update-endpoint` con l'URL completo dell'API della Release.
+
+**Rete**: l'unico traffico verso Internet è il controllo delle Release su `api.github.com`, autenticato con il token locale. L'AI resta rigidamente in locale su `127.0.0.1:11434`.
+
+## Novità v1.8.0
+
+- **Aggiornamenti dalla Release GitHub** (repo privata): controllo silenzioso all'avvio, finestra con le novità e pulsanti Aggiorna ora / Più tardi
+- **Download verificato**: installer scaricato con barra di avanzamento e **checksum SHA-256** (pubblicato nella Release e verificato prima di installare)
+- **Aggiornamento guidato**: installazione silenziosa, riavvio automatico dell'app e finestra **Novità** con il riepilogo delle modifiche dopo l'aggiornamento
+- **Token di sola lettura** letto da `PRESENZEFLOW_GITHUB_TOKEN` o dal file `github.token`: mai incorporato nell'eseguibile
+- **Voci nel menu tray**: "Cerca aggiornamenti…" e "Novità di questa versione"
+- **13 nuovi test** per l'interpretazione dei tag, il confronto versioni e il checksum
 
 ## Novità v1.7.0
 

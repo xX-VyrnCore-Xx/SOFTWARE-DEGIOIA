@@ -4,7 +4,27 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.7.0] - Corrente
+## [1.8.0] - Corrente
+
+### 🔄 Aggiornamenti dalle Release GitHub (repository privata)
+- **Controllo automatico all'avvio** (ritardato di qualche secondo, silenzioso) dell'ultima Release; se c'è una versione più recente compare una finestra con le novità e **Aggiorna ora** / **Più tardi**
+- **Download verificato**: l'installer viene scaricato con barra di avanzamento e controllato con il **checksum SHA-256** pubblicato nella Release
+- **Installazione guidata**: avvio dell'installer in modalità silenziosa, chiusura dell'app e **riavvio automatico** a fine installazione
+- **Finestra "Novità"** mostrata automaticamente dopo l'aggiornamento, con le note salvate in locale (funziona anche senza rete); voci **Cerca aggiornamenti…** e **Novità di questa versione** nel menu dell'icona in tray
+- **Adattamento alla repo privata**: le chiamate all'API usano un token di sola lettura letto da `PRESENZEFLOW_GITHUB_TOKEN` o dal file `github.token` (mai incorporato nell'eseguibile); gli asset vengono scaricati tramite l'API con `Accept: application/octet-stream`
+- **Messaggi chiari** per token mancante/non valido, nessuna Release e versione non riconoscibile
+- Nuova preferenza `auto-update-check` (controllo automatico on/off) e `update-endpoint` (feed alternativo)
+
+### 🚀 Rilasci automatici
+- Il workflow ora pubblica anche il **checksum** `PresenzeFlow-Setup-X.Y.Z.exe.sha256` accanto all'installer
+- L'installer riapre PresenzeFlow anche dopo un'installazione silenziosa (aggiornamento in-app)
+
+### ✅ Verifiche
+- **13 nuovi test** su interpretazione dei tag, confronto versioni (componenti mancanti normalizzati) e verifica SHA-256: 59 test di logica totali, tutti verdi
+
+---
+
+## [1.7.0] - Precedente
 
 ### 💬 Assistente AI conversazionale che agisce sul documento
 - Nuova scheda **Assistente AI** nell'area di revisione (e pulsante **Chatta con AI**): conversazione in italiano con il modello locale

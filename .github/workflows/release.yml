@@ -133,6 +133,15 @@ jobs:
           if (-not (Test-Path $installer)) { throw "Installer non generato: $installer" }
           Get-Item $installer | Select-Object Name, Length
 
+      - name: Calcola il checksum SHA-256 dell'installer
+        shell: pwsh
+        run: |
+          $installer = "dist\PresenzeFlow-Setup-${{ needs.prepare.outputs.version }}.exe"
+          $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+          $name = Split-Path $installer -Leaf
+          "$hash  $name" | Set-Content -Path "$installer.sha256" -Encoding ascii -NoNewline
+          Get-Content "$installer.sha256"
+
       - name: Crea la Release GitHub
         uses: softprops/action-gh-release@v3
         with:
@@ -141,4 +150,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: dist/PresenzeFlow-Setup-*.exe
+          # L'app scarica l'installer e ne verifica il checksum SHA-256.
+          files: |
+            dist/PresenzeFlow-Setup-*.exe
+            dist/PresenzeFlow-Setup-*.exe.sha256

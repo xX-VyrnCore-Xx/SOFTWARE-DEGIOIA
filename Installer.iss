@@ -1,5 +1,5 @@
 #define AppName "PresenzeFlow"
-#define AppVersion "1.7.0"
+#define AppVersion "1.8.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 
@@ -72,7 +72,9 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Com
 Filename: "{tmp}\OllamaSetup.exe"; Parameters: "/VERYSILENT /NORESTART /SP-"; StatusMsg: "Installazione di Ollama in corso…"; Tasks: ai; Flags: runascurrentuser waituntilterminated shellexec
 ; "ollama pull" avvia automaticamente il server locale se non è ancora attivo.
 Filename: "{localappdata}\Programs\Ollama\ollama.exe"; Parameters: "pull qwen2.5:1.5b"; StatusMsg: "Scaricamento del modello AI locale qwen2.5:1.5b (circa 1 GB)…"; Tasks: ai; Flags: runascurrentuser waituntilterminated
-Filename: "{app}\{#AppExeName}"; Description: "Avvia {#AppName}"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
+; skipifsilent volutamente assente: dopo un aggiornamento silenzioso (avviato
+; dall'app) PresenzeFlow si riapre da solo e mostra la finestra "Novità".
+Filename: "{app}\{#AppExeName}"; Description: "Avvia {#AppName}"; WorkingDir: "{app}"; Flags: postinstall nowait
 
 [Code]
 var
