@@ -8,6 +8,8 @@ namespace PresenzeXmlConverter;
 /// </summary>
 internal sealed partial class MainForm
 {
+    private readonly ToolTip _sheetTooltip = new();
+
     /// <summary>Apre le impostazioni e applica quello che l'utente ha salvato.</summary>
     private void OpenSettings()
     {
@@ -155,14 +157,32 @@ internal sealed partial class MainForm
     private void UpdateSheetButton()
     {
         var hasFile = _inspection is not null && _sourcePath is not null;
-        _sheetButton.Enabled = !_isBusy && hasFile && _sheetNames.Count > 1;
-        _sheetButton.Text = !hasFile
-            ? "Foglio: nessun file importato"
-            : _sheetNames.Count > 1
-                ? $"Foglio: {_inspection!.SheetName}   ▾   ({_sheetNames.Count} fogli)"
-                : $"Foglio: {_inspection!.SheetName}";
+        _sheetButton.Enabled = !_isBusy && hasFile;
+        if (!hasFile)
+        {
+            _sheetButton.Text = "Foglio: nessun file importato";
+            _sheetTooltip.SetToolTip(_sheetButton, "Importa un file Excel per scegliere il foglio da leggere.");
+            return;
+        }
+
+        // Il nome del foglio può essere lungo: nell'etichetta viene abbreviato,
+        // mentre nel suggerimento resta quello completo con i conteggi.
+        var name = _inspection!.SheetName;
+        var shortName = name.Length <= 22 ? name : name[..21] + "…";
+        var workers = _requests.Select(request => request.EmployeeName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+        _sheetButton.Text = _sheetNames.Count > 1
+            ? $"Foglio: {shortName}   ▾   ({_sheetNames.Count} fogli)"
+            : $"Foglio: {shortName}";
+        _sheetTooltip.SetToolTip(
+            _sheetButton,
+            _sheetNames.Count > 1
+                ? $"Foglio letto: {name}\n{_requests.Count:N0} richieste · {workers:N0} dipendenti\nClic per leggere un altro foglio del file."
+                : $"Foglio letto: {name}\n{_requests.Count:N0} richieste · {workers:N0} dipendenti");
     }
 
+    /// <summary>Menu dei fogli del file: uno per foglio più la scelta automatica.</summary>
     private void ShowSheetMenu()
     {
         if (_sourcePath is null || _sheetNames.Count == 0)
@@ -180,8 +200,11 @@ internal sealed partial class MainForm
             item.Click += async (_, _) => await SwitchSheetAsync(captured);
             menu.Items.Add(item);
         }
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Individua il foglio migliore", null, async (_, _) => await SwitchSheetAsync(null));
+        if (_sheetNames.Count > 1)
+        {
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("Individua il foglio migliore", null, async (_, _) => await SwitchSheetAsync(null));
+        }
         menu.Show(_sheetButton, new Point(0, _sheetButton.Height));
     }
 

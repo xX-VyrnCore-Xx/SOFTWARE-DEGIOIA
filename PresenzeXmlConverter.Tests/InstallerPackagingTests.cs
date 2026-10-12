@@ -13,14 +13,16 @@ public class InstallerPackagingTests
     public void InstallerShipsNativeSqliteLibraryRequiredForStartup()
     {
         var repositoryRoot = FindRepositoryRoot();
-        if (repositoryRoot is null)
+        var script = ReadInstallerScript();
+        if (repositoryRoot is null || script is null)
         {
             // Cartella repo non disponibile in questo ambiente: niente da verificare.
             return;
         }
 
-        var script = File.ReadAllText(Path.Combine(repositoryRoot, "Installer.iss"));
-        Assert.Contains(@"; Source: ""dist\app\e_sqlite3.dll""", script, StringComparison.Ordinal);
+        // La libreria nativa deve essere copiata accanto all'eseguibile:
+        // il single-file publish non la include.
+        Assert.Contains(@"Source: ""dist\app\e_sqlite3.dll""; DestDir: ""{app}""", script, StringComparison.Ordinal);
 
         var publishDirectory = Path.Combine(repositoryRoot, "dist", "app");
         if (Directory.Exists(publishDirectory))
@@ -265,9 +267,16 @@ public class InstallerPackagingTests
 
     private static string? ReadInstallerScript()
     {
-        var repositoryRoot = FindRepositoryRoot();
-        return repositoryRoot is null ? null : File.ReadAllText(Path.Combine(repositoryRoot, "Installer.iss"));
+        var path = Path.Combine(FindRepositoryRoot() ?? string.Empty, "Installer.iss");
+        return File.Exists(path) ? NormalizeLineEndings(File.ReadAllText(path)) : null;
     }
+
+    /// <summary>
+    /// Il checkout su Windows può avere fine riga CRLF mentre le verifiche
+    /// confrontano testo su più righe ("\n[Code]\n"): qui si normalizza a LF.
+    /// </summary>
+    private static string NormalizeLineEndings(string text) =>
+        text.Replace("\r\n", "\n").Replace("\r", "\n");
 
     private static string? FindRepositoryRoot()
     {

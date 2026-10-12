@@ -12,7 +12,6 @@ internal sealed partial class MainForm
     /// <summary>Indice della scheda "Controlli" fra le pagine dell'area di revisione.</summary>
     private const int ReviewTabIndex = 2;
 
-    private readonly Label _sourceInfoLabel = new();
     private readonly Label _requestMetricLabel = new();
     private readonly Label _employeeMetricLabel = new();
     private readonly Label _previewTitleLabel = new();
@@ -70,29 +69,50 @@ internal sealed partial class MainForm
             Padding = new Padding(20, 18, 20, 18),
             Margin = new Padding(0, 0, 16, 0)
         };
-        var setup = new TableLayoutPanel
+        // La card scorre quando la finestra è bassa: senza scorrimento la tabella
+        // comprime le righe fisse e i testi finiscono tagliati (capita sui runner
+        // CI e sui portatili 1366x768 con il 125% di scala).
+        var setupScroll = new Panel
         {
             Dock = DockStyle.Fill,
+            AutoScroll = true,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        // Le altezze delle righe sono dichiarate tutte insieme: la somma diventa
+        // l'altezza del pannello, così nessuna riga viene compressa quando la
+        // finestra è bassa (la card scorre, non schiaccia i testi).
+        int[] setupRows =
+        [
+            46, // titolo
+            24, // sezione 01
+            44, // codice azienda
+            24, // sezione 02
+            46, // importa file
+            28, // nome file
+            28, // foglio del file
+            88, // metriche (il numero grande ha bisogno di ~41 px)
+            40, // codici e giustificativi
+            40, // AI locale e impostazioni
+            56, // passi del flusso
+            50  // genera anteprima
+        ];
+        var setup = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = setupRows.Sum(),
             ColumnCount = 1,
-            RowCount = 13,
+            RowCount = setupRows.Length,
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
         setup.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));   // titolo
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));   // sezione 01
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));   // codice azienda
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));   // sezione 02
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));   // importa file
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));   // nome file
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));   // dettagli file
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));   // metriche
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // codici e giustificativi
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // AI locale e impostazioni
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));   // scelta del foglio
-        setup.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // passi del flusso
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));   // genera anteprima
-        setupCard.Controls.Add(setup);
+        foreach (var rowHeight in setupRows)
+        {
+            setup.RowStyles.Add(new RowStyle(SizeType.Absolute, rowHeight));
+        }
+        setupScroll.Controls.Add(setup);
+        setupCard.Controls.Add(setupScroll);
         workspace.Controls.Add(setupCard, 0, 0);
 
         var title = new Label
@@ -142,13 +162,16 @@ internal sealed partial class MainForm
         _fileLabel.Margin = Padding.Empty;
         setup.Controls.Add(_fileLabel, 0, 5);
 
-        _sourceInfoLabel.Dock = DockStyle.Fill;
-        _sourceInfoLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _sourceInfoLabel.Text = "Seleziona un file Excel da analizzare.";
-        _sourceInfoLabel.Font = Theme.Fonts.Small;
-        _sourceInfoLabel.ForeColor = Theme.MutedInk;
-        _sourceInfoLabel.Margin = new Padding(1, 0, 0, 4);
-        setup.Controls.Add(_sourceInfoLabel, 0, 6);
+        // Foglio in uso: mostra il nome e, quando il file ne ha più di uno,
+        // permette di passare a un altro senza reimportare il file.
+        _sheetButton.Text = "Foglio: nessun file importato";
+        Theme.StyleButton(_sheetButton, Theme.ButtonTone.Neutral, compact: true);
+        _sheetButton.Dock = DockStyle.Fill;
+        _sheetButton.TextAlign = ContentAlignment.MiddleLeft;
+        _sheetButton.Enabled = false;
+        _sheetButton.Margin = new Padding(0, 1, 0, 1);
+        _sheetButton.Click += (_, _) => ShowSheetMenu();
+        setup.Controls.Add(_sheetButton, 0, 6);
 
         var metrics = new TableLayoutPanel
         {
@@ -196,25 +219,14 @@ internal sealed partial class MainForm
         aiRow.Controls.Add(settingsButton, 1, 0);
         setup.Controls.Add(aiRow, 0, 9);
 
-        // Scelta del foglio: l'analisi automatica indovina il foglio giusto, ma
-        // un file con più fogli simili va comunque poter essere corretto a mano.
-        _sheetButton.Text = "Foglio: nessun file importato";
-        Theme.StyleButton(_sheetButton, Theme.ButtonTone.Neutral, compact: true);
-        _sheetButton.Dock = DockStyle.Fill;
-        _sheetButton.TextAlign = ContentAlignment.MiddleLeft;
-        _sheetButton.Enabled = false;
-        _sheetButton.Margin = new Padding(0, 2, 0, 2);
-        _sheetButton.Click += (_, _) => ShowSheetMenu();
-        setup.Controls.Add(_sheetButton, 0, 10);
-
-        setup.Controls.Add(BuildWorkflowSteps(), 0, 11);
+        setup.Controls.Add(BuildWorkflowSteps(), 0, 10);
 
         _generateButton.Text = "Genera anteprima   →";
         _generateButton.Dock = DockStyle.Fill;
         _generateButton.Margin = new Padding(0, 4, 0, 0);
         Theme.StyleButton(_generateButton, Theme.ButtonTone.Positive);
         _generateButton.Click += (_, _) => GeneratePreview();
-        setup.Controls.Add(_generateButton, 0, 12);
+        setup.Controls.Add(_generateButton, 0, 11);
 
         var reviewCard = new SurfacePanel
         {
@@ -563,7 +575,7 @@ internal sealed partial class MainForm
         toolbar.Controls.Add(_previewCountLabel, 0, 0);
 
         _previewSearch.Size = new Size(220, 32);
-        _previewSearch.Placeholder = "Cerca: nome, codice, data, causale…";
+        _previewSearch.Placeholder = "Cerca nei movimenti";
         _previewSearch.Margin = new Padding(0, 0, 10, 0);
         _previewSearch.TextChanged += (_, _) => FilterMovements();
 
@@ -849,9 +861,7 @@ internal sealed partial class MainForm
             .Count();
         _requestMetricLabel.Text = _requests.Count.ToString("N0");
         _employeeMetricLabel.Text = workers.ToString("N0");
-        _sourceInfoLabel.Text = _inspection is null
-            ? "In attesa di un file Excel."
-            : $"{_inspection.SheetName}   ·   {_requests.Count:N0} richieste · {workers:N0} dipendenti";
+        UpdateSheetButton();
 
         if (_hasWarnings)
         {
