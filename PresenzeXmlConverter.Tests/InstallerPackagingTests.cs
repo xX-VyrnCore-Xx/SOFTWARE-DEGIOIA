@@ -391,6 +391,34 @@ public class InstallerPackagingTests
     }
 
     /// <summary>
+    /// I commenti del Pascal Script NON si annidano: il commento finisce alla prima
+    /// graffa chiusa. Un commento che cita una costante fra graffe (per esempio la
+    /// cartella temporanea) chiude il commento in anticipo e il resto del testo
+    /// diventa codice: la compilazione dell'installer si ferma con "'BEGIN' expected".
+    /// È accaduto davvero (due commenti della 1.10.0) e nessuno se ne era accorto
+    /// perché la release si fermava prima su un altro errore.
+    /// </summary>
+    [Fact]
+    public void InstallerCodeCommentsDoNotNest()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        var codeStart = script.IndexOf("[Code]", StringComparison.Ordinal);
+        var code = codeStart >= 0 ? script.Substring(codeStart) : script;
+        // I numeri di riga devono riferirsi al file, non al frammento [Code].
+        var lineOffset = codeStart > 0 ? script.Substring(0, codeStart).Count(c => c == '\n') : 0;
+        var problems = FindNestedComments(code, lineOffset);
+        Assert.True(
+            problems.Count == 0,
+            "Commenti annidati nella sezione [Code]:" + Environment.NewLine +
+            string.Join(Environment.NewLine, problems));
+    }
+
+    /// <summary>
     /// Tipi del Pascal Script di Inno Setup 6, ricavati dalle fonti ufficiali della
     /// 6.7 (tipi, enumerazioni e classi registrati dal compilatore). 'HKEY' NON è fra
     /// questi: in Inno Setup 6 le chiavi di registro sono costanti Integer e un
@@ -495,6 +523,119 @@ public class InstallerPackagingTests
         {
             used.Add(value);
         }
+    }
+
+    private enum CommentScanState
+    {
+        Code,
+        BraceComment,
+        ParenComment,
+        LineComment,
+        StringLiteral,
+    }
+
+    /// <summary>
+    /// Percorre il testo tenendo traccia di stringhe e commenti e restituisce i
+    /// commenti in cui ne compare un altro (graffe o "(*" dentro un commento).
+    /// </summary>
+    private static List<string> FindNestedComments(string text, int lineOffset)
+    {
+        var problems = new List<string>();
+        var state = CommentScanState.Code;
+        var line = 1 + lineOffset;
+        var startLine = line;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            var next = i + 1 < text.Length ? text[i + 1] : '\0';
+            switch (state)
+            {
+                case CommentScanState.Code:
+                    if (c == '{')
+                    {
+                        state = CommentScanState.BraceComment;
+                        startLine = line;
+                    }
+                    else if (c == '/' && next == '/')
+                    {
+                        state = CommentScanState.LineComment;
+                        i++;
+                    }
+                    else if (c == '(' && next == '*')
+                    {
+                        state = CommentScanState.ParenComment;
+                        startLine = line;
+                        i++;
+                    }
+                    else if (c == '\'')
+                    {
+                        state = CommentScanState.StringLiteral;
+                    }
+                    break;
+
+                case CommentScanState.BraceComment:
+                    if (c == '}')
+                    {
+                        state = CommentScanState.Code;
+                    }
+                    else if (c == '{')
+                    {
+                        problems.Add($"riga {line}: graffa aperta dentro il commento iniziato a riga {startLine} -> {Snippet(text, i)}");
+                    }
+                    break;
+
+                case CommentScanState.ParenComment:
+                    if (c == '*' && next == ')')
+                    {
+                        state = CommentScanState.Code;
+                        i++;
+                    }
+                    else if (c == '(' && next == '*')
+                    {
+                        problems.Add($"riga {line}: commento (* annidato dentro quello iniziato a riga {startLine} -> {Snippet(text, i)}");
+                    }
+                    break;
+
+                case CommentScanState.LineComment:
+                    if (c == '\n')
+                    {
+                        state = CommentScanState.Code;
+                    }
+                    break;
+
+                case CommentScanState.StringLiteral:
+                    if (c == '\'')
+                    {
+                        if (next == '\'')
+                        {
+                            i++;
+                        }
+                        else
+                        {
+                            state = CommentScanState.Code;
+                        }
+                    }
+                    break;
+            }
+
+            if (c == '\n')
+            {
+                line++;
+            }
+        }
+
+        return problems;
+    }
+
+    private static string Snippet(string text, int index)
+    {
+        var end = text.IndexOf('\n', index);
+        if (end < 0)
+        {
+            end = text.Length;
+        }
+        var snippet = text.Substring(index, end - index).Trim();
+        return snippet.Length > 70 ? snippet.Substring(0, 70) : snippet;
     }
 
     /// <summary>

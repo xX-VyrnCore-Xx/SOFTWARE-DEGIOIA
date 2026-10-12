@@ -548,8 +548,11 @@ begin
   RefreshAiPage(nil);
 end;
 
+// Nota: nei commenti delimitati da graffe non se ne possono annidare altre: il
+// commento finisce alla PRIMA graffa chiusa e il resto del testo diventerebbe
+// codice. Per questo la cartella temporanea si scrive a parole, non come costante.
 { Un tentativo di download con barra di avanzamento: restituisce True se il file
-  è stato scaricato in {tmp}. }
+  è stato scaricato nella cartella temporanea dell'installazione. }
 function TryDownloadOllama(const AttemptNumber: Integer): Boolean;
 begin
   Result := False;
@@ -649,8 +652,8 @@ begin
     Result := False;
 end;
 
-{ Il download in {tmp} viene eseguito qui: siamo già nella fase "Installazione",
-  quindi la finestra mostra l'avanzamento e l'utente vede che sta lavorando. }
+{ Il download nella cartella temporanea viene eseguito qui: siamo già nella fase
+  "Installazione", quindi la finestra mostra l'avanzamento e l'utente vede che sta lavorando. }
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   SetupPath: String;
