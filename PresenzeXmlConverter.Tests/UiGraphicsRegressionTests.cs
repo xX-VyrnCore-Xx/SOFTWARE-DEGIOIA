@@ -27,15 +27,30 @@ public class UiGraphicsRegressionTests
             form.PerformLayout();
             Application.DoEvents();
             var clipped = CollectClippedLabels(form, report);
+            // Due controlli nella stessa cella di una tabella si sovrappongono e
+            // scompaginano le altezze delle righe: qui vengono segnalati subito.
+            var overlaps = CollectCellOverlaps(form, report);
             var gray = GrayRatio(Render(form));
+            // Diagnostica nel messaggio di errore: se il layout viene compresso
+            // serve sapere con quale schermo e quale finestra è successo.
+            report.AppendLine(
+                $"Diagnostica: finestra {form.ClientSize.Width}x{form.ClientSize.Height}, " +
+                $"schermo {Screen.PrimaryScreen?.Bounds.Width}x{Screen.PrimaryScreen?.Bounds.Height}, " +
+                $"area di lavoro {Screen.FromControl(form).WorkingArea.Width}x{Screen.FromControl(form).WorkingArea.Height}, " +
+                $"scala del sistema {form.DeviceDpi} dpi.");
             form.Dispose();
-            return (clipped, gray, report.ToString());
+            return (clipped: clipped, overlaps: overlaps, gray: gray, report: report.ToString());
         });
         if (result is null)
         {
             return;
         }
-        Assert.True(string.IsNullOrEmpty(result.Value.clipped), result.Value.clipped);
+        Assert.True(
+            string.IsNullOrEmpty(result.Value.clipped),
+            result.Value.clipped + Environment.NewLine + result.Value.report);
+        Assert.True(
+            string.IsNullOrEmpty(result.Value.overlaps),
+            result.Value.overlaps + Environment.NewLine + result.Value.report);
         Assert.True(
             result.Value.gray < 0.002,
             $"Colori di sistema non temizzati nel rendering ({result.Value.gray:P2}). {result.Value.report}");
@@ -81,7 +96,7 @@ public class UiGraphicsRegressionTests
                 }
                 Assert.True(string.IsNullOrEmpty(clipped), clipped);
             }
-            return (clipped, gray, report.ToString());
+            return (clipped: clipped, gray: gray, report: report.ToString());
         });
         if (result is null)
         {
@@ -94,10 +109,10 @@ public class UiGraphicsRegressionTests
             $"Colori di sistema non temizzati nei dialoghi ({result.Value.gray:P2}). {result.Value.report}");
     }
 
-    private static (string clipped, double gray, string report)? RunOnStaThread(
-        Func<(string clipped, double gray, string report)> probe)
+    private static T? RunOnStaThread<T>(Func<T> probe)
+        where T : struct
     {
-        var result = default((string clipped, double gray, string report));
+        var result = default(T);
         Exception? failure = null;
         var thread = new Thread(() =>
         {
@@ -145,6 +160,77 @@ public class UiGraphicsRegressionTests
         return gray * 1.0 / total;
     }
 
+    /// <summary>
+    /// Contenitore e cella del controllo: nel messaggio di errore fa capire subito
+    /// se la colpa è di una riga troppo bassa, di una cella occupata o di un
+    /// contenitore rimpicciolito.
+    /// </summary>
+    private static string DescribeParent(Control control)
+    {
+        if (control.Parent is not Control parent)
+        {
+            return string.Empty;
+        }
+        var details = $" Contenitore {parent.GetType().Name} {parent.ClientSize.Width}x{parent.ClientSize.Height}";
+        if (parent is TableLayoutPanel table)
+        {
+            var row = table.GetRow(control);
+            var column = table.GetColumn(control);
+            var style = row >= 0 && row < table.RowStyles.Count ? table.RowStyles[row] : null;
+            details += style is null
+                ? $" cella ({column},{row}) fuori dalle righe dichiarate"
+                : $" cella ({column},{row}) riga {style.SizeType} {style.Height} su {table.RowStyles.Count} righe";
+        }
+        if (parent.Parent is Control grandparent)
+        {
+            details += $" dentro {grandparent.GetType().Name} {grandparent.ClientSize.Width}x{grandparent.ClientSize.Height}";
+        }
+        return details;
+    }
+
+    /// <summary>
+    /// Controlli diversi nella stessa cella di una tabella: è un errore di layout
+    /// che si vede solo a schermo (controlli sovrapposti) e che sballa anche le
+    /// altezze delle righe.
+    /// </summary>
+    private static string CollectCellOverlaps(Control root, StringBuilder report)
+    {
+        var problems = new List<string>();
+        WalkCells(root, problems);
+        foreach (var problem in problems.Take(5))
+        {
+            report.AppendLine(problem);
+        }
+        return string.Join(Environment.NewLine, problems);
+    }
+
+    private static void WalkCells(Control control, List<string> problems)
+    {
+        if (control is TableLayoutPanel table)
+        {
+            foreach (var cell in table.Controls
+                         .Cast<Control>()
+                         .GroupBy(child => table.GetCellPosition(child))
+                         .Where(group => group.Count() > 1))
+            {
+                problems.Add(
+                    $"Più controlli nella stessa cella ({cell.Key.Column},{cell.Key.Row}): " +
+                    string.Join(" + ", cell.Select(DescribeControl)) + ".");
+            }
+        }
+        foreach (Control child in control.Controls)
+        {
+            WalkCells(child, problems);
+        }
+    }
+
+    private static string DescribeControl(Control control) => control switch
+    {
+        Label label => $"etichetta \"{label.Text}\"",
+        Button button => $"pulsante \"{button.Text}\"",
+        _ => control.GetType().Name
+    };
+
     /// <summary>Ritua le etichette il cui testo non sta nella propria scatola.</summary>
     private static string CollectClippedLabels(Control root, StringBuilder report)
     {
@@ -169,7 +255,8 @@ public class UiGraphicsRegressionTests
             if (measured.Height > label.ClientSize.Height + 2)
             {
                 problems.Add(
-                    $"Testo tagliato in “{label.Text}”: servono {measured.Height}px, la scatola è {label.ClientSize.Height}px.");
+                    $"Testo tagliato in “{label.Text}”: servono {measured.Height}px, la scatola è {label.ClientSize.Height}px." +
+                    DescribeParent(label));
             }
         }
         foreach (Control child in control.Controls)

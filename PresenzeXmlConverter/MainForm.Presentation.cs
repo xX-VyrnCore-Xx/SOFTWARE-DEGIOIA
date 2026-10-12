@@ -12,6 +12,55 @@ internal sealed partial class MainForm
     /// <summary>Indice della scheda "Controlli" fra le pagine dell'area di revisione.</summary>
     private const int ReviewTabIndex = 2;
 
+    /// <summary>
+    /// Larghezza del contenuto della card di sinistra: la colonna è fissa (282 px)
+    /// meno margine e spaziatura interna della card.
+    /// </summary>
+    private const int SetupContentWidth = 226;
+
+    /// <summary>
+    /// Aggiunge una riga all'impilamento verticale della card con l'altezza
+    /// dichiarata. Il margine è quello della riga: l'altezza utile è la parte
+    /// che resta.
+    /// </summary>
+    private static void AddSetupRow(Control stack, Control control, int height, Padding margin = default)
+    {
+        control.Dock = DockStyle.None;
+        control.Margin = margin;
+        control.Size = new Size(
+            Math.Max(0, SetupContentWidth - margin.Horizontal),
+            Math.Max(0, height - margin.Vertical));
+        stack.Controls.Add(control);
+    }
+
+    /// <summary>
+    /// Adatta l'impilamento alla card: le larghezze seguono lo spazio visibile,
+    /// le altezze restano quelle dichiarate riga per riga. Un FlowLayoutPanel
+    /// TopDown non ridimensiona mai i figli, quindi nessuna riga può essere
+    /// compressa e nessun testo viene tagliato quando la finestra è bassa.
+    /// </summary>
+    private static void SyncSetupStack(Control container, FlowLayoutPanel stack)
+    {
+        var width = container.ClientSize.Width;
+        if (width <= 0)
+        {
+            return;
+        }
+        foreach (Control child in stack.Controls)
+        {
+            var childWidth = Math.Max(0, width - child.Margin.Horizontal);
+            if (child.Width != childWidth)
+            {
+                child.Width = childWidth;
+            }
+        }
+        var height = stack.PreferredSize.Height;
+        if (stack.Width != width || stack.Height != height)
+        {
+            stack.Size = new Size(width, height);
+        }
+    }
+
     private readonly Label _requestMetricLabel = new();
     private readonly Label _employeeMetricLabel = new();
     private readonly Label _previewTitleLabel = new();
@@ -69,9 +118,11 @@ internal sealed partial class MainForm
             Padding = new Padding(20, 18, 20, 18),
             Margin = new Padding(0, 0, 16, 0)
         };
-        // La card scorre quando la finestra è bassa: senza scorrimento la tabella
-        // comprime le righe fisse e i testi finiscono tagliati (capita sui runner
-        // CI e sui portatili 1366x768 con il 125% di scala).
+        // La card scorre quando la finestra è bassa. L'impilamento verticale è un
+        // FlowLayoutPanel TopDown con altezze esplicite per ogni riga: il flusso
+        // non ridimensiona MAI i figli, quindi le righe non possono essere
+        // compresse e i testi non finiscono tagliati (sui runner CI e sui
+        // portatili con lo schermo basso una tabella a righe fisse si schiacciava).
         var setupScroll = new Panel
         {
             Dock = DockStyle.Fill,
@@ -79,60 +130,36 @@ internal sealed partial class MainForm
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
-        // Le altezze delle righe sono dichiarate tutte insieme: la somma diventa
-        // l'altezza del pannello, così nessuna riga viene compressa quando la
-        // finestra è bassa (la card scorre, non schiaccia i testi).
-        int[] setupRows =
-        [
-            46, // titolo
-            24, // sezione 01
-            44, // codice azienda
-            24, // sezione 02
-            46, // importa file
-            28, // nome file
-            28, // foglio del file
-            88, // metriche (il numero grande ha bisogno di ~41 px)
-            40, // codici e giustificativi
-            40, // AI locale e impostazioni
-            56, // passi del flusso
-            50  // genera anteprima
-        ];
-        var setup = new TableLayoutPanel
+        var setup = new FlowLayoutPanel
         {
-            Dock = DockStyle.Top,
-            Height = setupRows.Sum(),
-            ColumnCount = 1,
-            RowCount = setupRows.Length,
+            Location = new Point(0, 0),
+            Size = new Size(SetupContentWidth, 1),
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoScroll = false,
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
-        setup.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        foreach (var rowHeight in setupRows)
-        {
-            setup.RowStyles.Add(new RowStyle(SizeType.Absolute, rowHeight));
-        }
         setupScroll.Controls.Add(setup);
+        // La larghezza segue la card, le altezze restano quelle dichiarate qui sotto.
+        setupScroll.Layout += (_, _) => SyncSetupStack(setupScroll, setup);
         setupCard.Controls.Add(setupScroll);
         workspace.Controls.Add(setupCard, 0, 0);
 
         var title = new Label
         {
             Text = "Nuova conversione",
-            Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Theme.Ink,
-            Font = Theme.Fonts.CardTitle,
-            Margin = Padding.Empty
+            Font = Theme.Fonts.CardTitle
         };
-        setup.Controls.Add(title, 0, 0);
+        AddSetupRow(setup, title, 46);
 
-        setup.Controls.Add(CreateSectionRow("01   AZIENDA ZUCCHETTI", "fino a 6 caratteri"), 0, 1);
+        AddSetupRow(setup, CreateSectionRow("01   AZIENDA ZUCCHETTI", "fino a 6 caratteri"), 24);
         _companyCode.MaxLength = 6;
-        _companyCode.Dock = DockStyle.Fill;
         _companyCode.InputFont = Theme.Fonts.Field;
         _companyCode.CharacterCasing = CharacterCasing.Upper;
         _companyCode.Placeholder = "es. ABC123";
-        _companyCode.Margin = new Padding(0, 2, 0, 8);
         _companyCode.TextChanged += (_, _) =>
         {
             InvalidatePreview();
@@ -143,35 +170,29 @@ internal sealed partial class MainForm
             _companyCodeSaveDebounce.Start();
         };
         _companyCode.Leave += (_, _) => SaveCompanyCode();
-        setup.Controls.Add(_companyCode, 0, 2);
+        AddSetupRow(setup, _companyCode, 44, new Padding(0, 2, 0, 8));
 
-        setup.Controls.Add(CreateSectionRow("02   FILE SORGENTE", "formato .xlsx"), 0, 3);
+        AddSetupRow(setup, CreateSectionRow("02   FILE SORGENTE", "formato .xlsx"), 24);
         var importButton = Theme.CreateButton("SELEZIONA FILE EXCEL", Theme.ButtonTone.Primary);
-        importButton.Dock = DockStyle.Fill;
-        importButton.Margin = new Padding(0, 2, 0, 8);
         importButton.Click += async (_, _) => await ImportWorkbookAsync();
-        setup.Controls.Add(importButton, 0, 4);
+        AddSetupRow(setup, importButton, 46, new Padding(0, 2, 0, 8));
 
-        _fileLabel.Dock = DockStyle.Fill;
         _fileLabel.AutoSize = false;
         _fileLabel.AutoEllipsis = true;
         _fileLabel.TextAlign = ContentAlignment.MiddleLeft;
         _fileLabel.Text = "Nessun file selezionato";
         _fileLabel.Font = Theme.Fonts.SmallBold;
         _fileLabel.ForeColor = Theme.InkSecondary;
-        _fileLabel.Margin = Padding.Empty;
-        setup.Controls.Add(_fileLabel, 0, 5);
+        AddSetupRow(setup, _fileLabel, 28);
 
         // Foglio in uso: mostra il nome e, quando il file ne ha più di uno,
         // permette di passare a un altro senza reimportare il file.
         _sheetButton.Text = "Foglio: nessun file importato";
         Theme.StyleButton(_sheetButton, Theme.ButtonTone.Neutral, compact: true);
-        _sheetButton.Dock = DockStyle.Fill;
         _sheetButton.TextAlign = ContentAlignment.MiddleLeft;
         _sheetButton.Enabled = false;
-        _sheetButton.Margin = new Padding(0, 1, 0, 1);
         _sheetButton.Click += (_, _) => ShowSheetMenu();
-        setup.Controls.Add(_sheetButton, 0, 6);
+        AddSetupRow(setup, _sheetButton, 28, new Padding(0, 1, 0, 1));
 
         var metrics = new TableLayoutPanel
         {
@@ -179,20 +200,18 @@ internal sealed partial class MainForm
             ColumnCount = 2,
             RowCount = 1,
             BackColor = Theme.Surface,
-            Margin = new Padding(0, 2, 0, 2)
+            Margin = Padding.Empty
         };
         metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         metrics.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         metrics.Controls.Add(CreateMetricTile("RICHIESTE", _requestMetricLabel, Theme.BrandInk, Theme.BrandSoft), 0, 0);
         metrics.Controls.Add(CreateMetricTile("DIPENDENTI", _employeeMetricLabel, Theme.SuccessInk, Theme.SuccessSoft), 1, 0);
-        setup.Controls.Add(metrics, 0, 7);
+        AddSetupRow(setup, metrics, 88, new Padding(0, 2, 0, 2));
 
         var mappingButton = Theme.CreateButton("Codici e giustificativi", Theme.ButtonTone.Neutral);
-        mappingButton.Dock = DockStyle.Fill;
-        mappingButton.Margin = new Padding(0, 3, 0, 3);
         mappingButton.Click += (_, _) => EditMappings();
-        setup.Controls.Add(mappingButton, 0, 8);
+        AddSetupRow(setup, mappingButton, 40, new Padding(0, 3, 0, 3));
 
         var aiRow = new TableLayoutPanel
         {
@@ -210,23 +229,24 @@ internal sealed partial class MainForm
         aiButton.Dock = DockStyle.Fill;
         aiButton.Margin = new Padding(0, 3, 4, 3);
         aiButton.Click += async (_, _) => await ConfigureAiAsync();
-        setup.Controls.Add(aiButton, 0, 0);
+        aiRow.Controls.Add(aiButton, 0, 0);
 
         var settingsButton = Theme.CreateButton("Impostazioni", Theme.ButtonTone.Neutral, compact: true);
         settingsButton.Dock = DockStyle.Fill;
         settingsButton.Margin = new Padding(4, 3, 0, 3);
         settingsButton.Click += (_, _) => OpenSettings();
         aiRow.Controls.Add(settingsButton, 1, 0);
-        setup.Controls.Add(aiRow, 0, 9);
+        AddSetupRow(setup, aiRow, 40);
 
-        setup.Controls.Add(BuildWorkflowSteps(), 0, 10);
+        AddSetupRow(setup, BuildWorkflowSteps(), 82, new Padding(0, 8, 0, 4));
 
         _generateButton.Text = "Genera anteprima   →";
-        _generateButton.Dock = DockStyle.Fill;
-        _generateButton.Margin = new Padding(0, 4, 0, 0);
         Theme.StyleButton(_generateButton, Theme.ButtonTone.Positive);
         _generateButton.Click += (_, _) => GeneratePreview();
-        setup.Controls.Add(_generateButton, 0, 11);
+        AddSetupRow(setup, _generateButton, 50, new Padding(0, 4, 0, 0));
+        // Prima misura esplicita: l'aggiunta dei figli non fa scattare il Layout
+        // del pannello scrollabile, quindi la dimensione va calcolata qui.
+        SyncSetupStack(setupScroll, setup);
 
         var reviewCard = new SurfacePanel
         {
@@ -455,7 +475,9 @@ internal sealed partial class MainForm
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        // Riga fissa e non percentuale: con una riga percentuale il numero grande
+        // veniva compresso a pochi pixel quando la card aveva meno spazio.
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
 
         layout.Controls.Add(new Label
         {
@@ -492,14 +514,14 @@ internal sealed partial class MainForm
         steps.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30));
         steps.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         steps.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 10));
-        steps.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-        steps.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        steps.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        steps.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
 
         var importStep = new StepBadge("1", true) { Dock = DockStyle.Top, Margin = new Padding(0, 2, 0, 0) };
         steps.Controls.Add(importStep, 0, 0);
         steps.Controls.Add(new Label
         {
-            Text = "Importa il foglio e verifica i codici",
+            Text = "Importa il file e i codici",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Theme.BrandInk,

@@ -151,7 +151,14 @@ internal sealed class RoundedField : Panel
         var top = Math.Max(0, (ClientSize.Height - innerHeight) / 2);
         var width = Math.Max(0, ClientSize.Width - Padding.Horizontal);
         _input.SetBounds(Padding.Left, top, width, innerHeight);
-        _placeholder.SetBounds(Padding.Left, top, width, innerHeight);
+        // Il testo guida occupa l'altezza intera del campo (un pixel di margine
+        // per non coprire il bordo disegnato a mano): così non viene tagliato
+        // quando la riga di testo è più alta del TextBox monoriga.
+        _placeholder.SetBounds(
+            Padding.Left,
+            1,
+            width,
+            Math.Max(innerHeight, ClientSize.Height - 2));
     }
 
     private void UpdatePlaceholder()
