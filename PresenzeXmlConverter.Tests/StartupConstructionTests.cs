@@ -23,7 +23,11 @@ public class StartupConstructionTests
 
         foreach (var file in Directory.GetFiles(Path.Combine(root, "PresenzeXmlConverter"), "MainForm*.cs"))
         {
-            var source = File.ReadAllText(file);
+            // Contano solo le righe di codice: commenti e documentazione possono
+            // citare il difetto per spiegarlo.
+            var source = string.Join(
+                "\n",
+                File.ReadAllLines(file).Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal)));
             var offenders = Regex.Matches(source, @"Trace\?\.Measure\(");
             Assert.True(
                 offenders.Count == 0,

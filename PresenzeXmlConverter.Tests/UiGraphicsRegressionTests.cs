@@ -165,8 +165,10 @@ public class UiGraphicsRegressionTests
                 $"Diagnostica: finestra {form.ClientSize.Width}x{form.ClientSize.Height}, " +
                 $"{form.SectionCount} sezioni, area di lavoro " +
                 $"{Screen.FromControl(form).WorkingArea.Width}x{Screen.FromControl(form).WorkingArea.Height}.");
+            var sectionCount = form.SectionCount;
             form.Dispose();
             return (
+                sections: sectionCount,
                 clipped: string.Join(Environment.NewLine, problems),
                 overlaps: string.Join(Environment.NewLine, overlaps),
                 gray,
@@ -177,6 +179,13 @@ public class UiGraphicsRegressionTests
         {
             return;
         }
+        // Un test che non disegna nulla non verifica nulla: con la finestra vuota
+        // (interfaccia mai costruita) il ciclo sulle sezioni non girava e il test
+        // risultava verde. Le sezioni devono esserci tutte e quattro.
+        Assert.True(
+            result.Value.sections >= 4,
+            $"La finestra ha {result.Value.sections} sezioni invece di 4: l'interfaccia non è stata costruita. " +
+            result.Value.report);
         Assert.True(
             string.IsNullOrEmpty(result.Value.clipped),
             result.Value.clipped + Environment.NewLine + result.Value.report);

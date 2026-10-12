@@ -32,13 +32,11 @@ internal sealed partial class MainForm
     private const int ExportXmlButtonWidth = 100;
 
     /// <summary>
-    /// Larghezza della fascia di azioni dell'area di revisione: la somma dei
-    /// margini dei tre comandi. La colonna è dichiarata di questa misura, così i
-    /// comandi non possono finire fuori dallo spazio disponibile (con la colonna
-    /// in percentuale il campo di ricerca veniva tagliato).
+    /// Altezza della fascia sopra l'anteprima: due righe (conteggio e comandi) più
+    /// i margini della barra. Con una riga sola il conteggio ("In attesa di un
+    /// file") restava con ~40 px di larghezza e il testo andava a capo, tagliato.
     /// </summary>
-    private const int PreviewActionsWidth =
-        SearchFieldWidth + 10 + CopyXmlButtonWidth + 6 + ExportXmlButtonWidth + 6;
+    private const int PreviewToolbarRow = 76;
 
     /// <summary>
     /// Larghezza del contenuto della card di sinistra: la colonna è fissa (300 px)
@@ -378,7 +376,7 @@ internal sealed partial class MainForm
             Margin = Padding.Empty
         };
         reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
-        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, PreviewToolbarRow));
         reviewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         reviewCard.Controls.Add(reviewLayout);
 
@@ -679,7 +677,9 @@ internal sealed partial class MainForm
         _previewSubtitleLabel.Text = "Importa un foglio Excel per visualizzare e controllare i movimenti.";
         _previewSubtitleLabel.AutoSize = false;
         _previewSubtitleLabel.Location = new Point(0, 34);
-        _previewSubtitleLabel.Height = 22;
+        // Due righe di testo piccolo: nell'area di revisione stretta (barra di
+        // navigazione + card di sinistra) la frase non sta sempre su una riga sola.
+        _previewSubtitleLabel.Height = 32;
         _previewSubtitleLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         _previewSubtitleLabel.Font = Theme.Fonts.Small;
         _previewSubtitleLabel.ForeColor = Theme.MutedInk;
@@ -701,16 +701,17 @@ internal sealed partial class MainForm
         var toolbar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
+            ColumnCount = 1,
+            RowCount = 2,
             BackColor = Theme.Sunken,
             Margin = Padding.Empty
         };
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, PreviewActionsWidth));
-        // Riga percentuale esplicita: senza una riga dichiarata la tabella usa un
-        // default che non combacia con l'altezza reale e i figli escono fuori.
-        toolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        // Righe dichiarate esplicitamente: senza, la tabella usa un default che non
+        // combacia con l'altezza reale e i figli escono fuori. Il conteggio sta
+        // sopra, a tutta larghezza; i comandi sotto, ciascuno con la sua misura.
+        toolbar.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+        toolbar.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
 
         _previewCountLabel.Text = "In attesa di un file";
         _previewCountLabel.Dock = DockStyle.Fill;
@@ -764,7 +765,7 @@ internal sealed partial class MainForm
         toolbarActions.Controls.Add(_exportButton);
         toolbarActions.Controls.Add(_copyXmlButton);
         toolbarActions.Controls.Add(_previewSearch);
-        toolbar.Controls.Add(toolbarActions, 1, 0);
+        toolbar.Controls.Add(toolbarActions, 0, 1);
         bar.Controls.Add(toolbar);
         return bar;
     }
@@ -789,6 +790,12 @@ internal sealed partial class MainForm
         _movementsGrid.Columns.Add(CreateGridColumn("hours", "Ore", 47, false));
         _movementsGrid.Columns.Add(CreateGridColumn("minutes", "Min", 44, false));
         _movementsGrid.Columns.Add(CreateGridColumn("source", "Riga Excel", 67, true));
+        // Con la barra di navigazione l'area di revisione è stretta: la barra di
+        // scorrimento orizzontale nativa è grigia di sistema (fuori tema), quindi non
+        // la si usa. Quando le colonne non entrano si nascondono le meno importanti
+        // (Riga Excel, poi Richiesta originale); restano nel dato e nell'XML.
+        _movementsGrid.ScrollBars = ScrollBars.Vertical;
+        _movementsGrid.Resize += (_, _) => AdaptMovementColumns();
         _movementsGrid.RowPostPaint += (_, args) =>
         {
             var bounds = new Rectangle(
@@ -846,6 +853,46 @@ internal sealed partial class MainForm
         _previewTabs.AddPage("Controlli", BuildReviewPanel());
         _previewTabs.SelectedIndex = 0;
         return _previewTabs;
+    }
+
+    /// <summary>
+    /// Mostra le colonne facoltative solo se c'è posto per le larghezze minime di
+    /// tutte quelle visibili: così non compare mai la barra orizzontale nativa.
+    /// </summary>
+    private void AdaptMovementColumns()
+    {
+        var grid = _movementsGrid;
+        if (grid.ClientSize.Width < 50 || grid.Columns.Count == 0)
+        {
+            return;
+        }
+        var optional = new[] { "policy", "source" };
+        var available = grid.ClientSize.Width - SystemInformation.VerticalScrollBarWidth;
+        var required = grid.RowHeadersVisible ? grid.RowHeadersWidth : 0;
+        foreach (DataGridViewColumn column in grid.Columns)
+        {
+            if (!optional.Contains(column.Name) && column.Visible)
+            {
+                required += column.MinimumWidth;
+            }
+        }
+        foreach (var name in optional)
+        {
+            var column = grid.Columns[name];
+            if (column is null)
+            {
+                continue;
+            }
+            var fits = required + column.MinimumWidth <= available;
+            if (fits)
+            {
+                required += column.MinimumWidth;
+            }
+            if (column.Visible != fits)
+            {
+                column.Visible = fits;
+            }
+        }
     }
 
     private static DataGridViewTextBoxColumn CreateGridColumn(

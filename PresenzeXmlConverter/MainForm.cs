@@ -101,9 +101,8 @@ internal sealed partial class MainForm : Form
 
     /// <summary>
     /// Esegue una fase di avvio, misurandola solo se la diagnostica è attiva.
-    /// L'azione gira SEMPRE: con <c>Trace?.Measure(...)</c> un tracciamento
-    /// spento (il caso normale) saltava anche l'azione, lasciando la finestra
-    /// vuota.
+    /// L'azione gira SEMPRE: con l'operatore condizionale sul tracciamento, spento
+    /// nel caso normale, saltava anche l'azione e la finestra restava vuota.
     /// </summary>
     private static void MeasureStartup(string phase, Action action)
     {
