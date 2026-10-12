@@ -1,7 +1,12 @@
 #define AppName "PresenzeFlow"
-#define AppVersion "1.13.0"
+#define AppVersion "1.14.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
+
+; Mutex tenuto aperto dall'app (vedi AppIdentity.cs): permette a un
+; aggiornamento di riconoscere l'esecuzione in corso e di chiudere il
+; programma in modo ordinato, invece di fallire sui file in uso.
+#define AppMutex "DeGioia.PresenzeFlow.Setup"
 
 ; Versione minima di Windows: .NET 8 non funziona su Windows 7/8.1. Meglio un
 ; messaggio chiaro in fase di installazione che un'app che non parte.
@@ -37,6 +42,7 @@ SignedUninstaller=no
 AppId={{5D1D02CA-FE8F-4B86-9AF0-4B4F70A1F509}
 AppName={#AppName}
 AppVersion={#AppVersion}
+AppMutex={#AppMutex}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
 AppComments=PresenzeFlow: conversione locale di fogli presenze Excel in XML TRRIPW per Zucchetti.

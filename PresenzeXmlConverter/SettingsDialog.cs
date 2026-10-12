@@ -46,7 +46,9 @@ internal sealed class SettingsDialog : Form
         // I due pulsanti del token servono già mentre si costruisce la scheda
         // degli aggiornamenti: vanno creati prima del layout.
         _verifyTokenButton = Theme.CreateButton("Verifica e salva token", Theme.ButtonTone.Positive, compact: true);
+        _verifyTokenButton.AccessibleName = "Verifica e salva il token GitHub";
         _clearTokenButton = Theme.CreateButton("Rimuovi token", Theme.ButtonTone.Neutral, compact: true);
+        _clearTokenButton.AccessibleName = "Rimuovi il token GitHub";
 
         Text = "Impostazioni di PresenzeFlow";
         StartPosition = FormStartPosition.CenterParent;
@@ -162,9 +164,13 @@ internal sealed class SettingsDialog : Form
         save.Size = new Size(190, SettingsPageLayout.ActionButtonHeight);
         save.Margin = new Padding(8, 0, 0, 0);
         save.Click += (_, _) => TryCommit();
+        save.AccessibleName = "Salva impostazioni";
+        save.AccessibleDescription = "Applica e chiude la finestra delle impostazioni.";
         var cancel = Theme.CreateButton("Annulla", Theme.ButtonTone.Neutral);
         cancel.Size = new Size(130, SettingsPageLayout.ActionButtonHeight);
         cancel.DialogResult = DialogResult.Cancel;
+        cancel.AccessibleName = "Annulla";
+        cancel.AccessibleDescription = "Chiude senza salvare le impostazioni.";
         actions.Controls.Add(save);
         actions.Controls.Add(cancel);
         footer.Controls.Add(actions, 0, 1);
@@ -230,6 +236,7 @@ internal sealed class SettingsDialog : Form
         _hours.InputFont = Theme.Fonts.Field;
         _hours.Placeholder = "es. 8  oppure  7,5";
         _hours.Value = Options.HoursPerDay.ToString("0.##", CultureInfo.CurrentCulture);
+        _hours.Input.AccessibleName = "Ore di una giornata standard";
         _hours.Margin = new Padding(0, 2, 0, 8);
         body.Controls.Add(_hours, 0, 2);
 
@@ -239,6 +246,7 @@ internal sealed class SettingsDialog : Form
         _saturdays.ForeColor = Theme.InkSecondary;
         _saturdays.Font = Theme.Fonts.Small;
         _saturdays.Checked = Options.IncludeSaturdays;
+        _saturdays.AccessibleName = "Considera lavorativo il sabato";
         _saturdays.Margin = Padding.Empty;
         body.Controls.Add(_saturdays, 0, 3);
 
@@ -253,6 +261,7 @@ internal sealed class SettingsDialog : Form
         _holidays.Font = Theme.Fonts.Small;
         _holidays.Text = GenerationSettings.FormatHolidays(Options.ExtraHolidays, _referenceYear)
             .Replace(", ", Environment.NewLine);
+        _holidays.AccessibleName = "Chiusure aziendali aggiuntive";
         _holidays.Margin = Padding.Empty;
         // Cornice temizzata al posto del bordo grigio di sistema della casella. La
         // barra di scorrimento nativa resterebbe grigia anche qui: il campo mostra
@@ -289,6 +298,7 @@ internal sealed class SettingsDialog : Form
         _model.InputFont = Theme.Fonts.Field;
         _model.Placeholder = LocalAiAssistant.DefaultModel;
         _model.Value = PreferredModel ?? string.Empty;
+        _model.Input.AccessibleName = "Modello AI locale preferito";
         _model.Margin = new Padding(0, 2, 0, 8);
         body.Controls.Add(_model, 0, 2);
 
@@ -310,6 +320,7 @@ internal sealed class SettingsDialog : Form
         _autoCheck.ForeColor = Theme.InkSecondary;
         _autoCheck.Font = Theme.Fonts.Small;
         _autoCheck.Checked = AutoUpdateCheck;
+        _autoCheck.AccessibleName = "Cerca aggiornamenti automaticamente";
         _autoCheck.Margin = Padding.Empty;
         body.Controls.Add(_autoCheck, 0, 1);
 
@@ -321,6 +332,7 @@ internal sealed class SettingsDialog : Form
         _token.Placeholder = "github_pat_… oppure ghp_…";
         _token.Input.UseSystemPasswordChar = true;
         _token.Input.Text = UpdateService.ResolveToken() ?? string.Empty;
+        _token.Input.AccessibleName = "Token GitHub delle Release";
         _token.Margin = new Padding(0, 2, 0, 8);
         body.Controls.Add(_token, 0, 3);
 

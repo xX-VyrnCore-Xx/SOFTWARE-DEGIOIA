@@ -251,6 +251,8 @@ internal sealed partial class MainForm
         _companyCode.InputFont = Theme.Fonts.Field;
         _companyCode.CharacterCasing = CharacterCasing.Upper;
         _companyCode.Placeholder = "es. ABC123";
+        _companyCode.Input.AccessibleName = "Codice azienda ufficiale PAGHE";
+        Describe(_companyCode, "Codice azienda Zucchetti", "Codice azienda/ente PAGHE Infinity, fino a 6 caratteri.");
         _companyCode.TextChanged += (_, _) =>
         {
             InvalidatePreview();
@@ -266,6 +268,10 @@ internal sealed partial class MainForm
         AddSetupRow(setup, CreateSectionRow("02   FILE SORGENTE", "formato .xlsx"), SetupCardLayout.SectionRow);
         var importButton = Theme.CreateButton("SELEZIONA FILE EXCEL", Theme.ButtonTone.Primary);
         importButton.Click += async (_, _) => await ImportWorkbookAsync();
+        Describe(
+            importButton,
+            "Seleziona file Excel",
+            "Apre un foglio .xlsx da convertire in XML TRRIPW. Puoi anche trascinare il file sulla finestra.");
         AddSetupRow(setup, importButton, SetupCardLayout.ImportRow, new Padding(0, 2, 0, 8));
 
         _fileLabel.AutoSize = false;
@@ -283,6 +289,7 @@ internal sealed partial class MainForm
         _sheetButton.TextAlign = ContentAlignment.MiddleLeft;
         _sheetButton.Enabled = false;
         _sheetButton.Click += (_, _) => ShowSheetMenu();
+        _sheetButton.AccessibleName = "Foglio di lavoro letto";
         AddSetupRow(setup, _sheetButton, SetupCardLayout.SheetRow);
 
         var metrics = new TableLayoutPanel
@@ -321,6 +328,7 @@ internal sealed partial class MainForm
         mappingButton.Margin = new Padding(0, 3, 4, 3);
         mappingButton.Click += (_, _) => EditMappings();
         _tooltips.SetToolTip(mappingButton, "Codici PAGHE e giustificativi delle assenze (es. Ferie → F01)");
+        mappingButton.AccessibleName = "Codici PAGHE e giustificativi";
         actions.Controls.Add(mappingButton, 0, 0);
 
         var aiButton = Theme.CreateButton("AI locale", Theme.ButtonTone.Neutral, compact: true);
@@ -328,6 +336,7 @@ internal sealed partial class MainForm
         aiButton.Margin = new Padding(4, 3, 0, 3);
         aiButton.Click += async (_, _) => await ConfigureAiAsync();
         _tooltips.SetToolTip(aiButton, "Installa o aggiorna il motore AI locale (facoltativo)");
+        aiButton.AccessibleName = "AI locale";
         actions.Controls.Add(aiButton, 1, 0);
         AddSetupRow(setup, actions, SetupCardLayout.ActionsRow);
 
@@ -343,6 +352,7 @@ internal sealed partial class MainForm
         _generateButton.Text = "Genera anteprima   →";
         Theme.StyleButton(_generateButton, Theme.ButtonTone.Positive);
         _generateButton.Click += (_, _) => GeneratePreview();
+        Describe(_generateButton, "Genera anteprima XML", "Genera i movimenti giornalieri e l'anteprima XML (Ctrl+G).");
         AddSetupRow(setup, _generateButton, SetupCardLayout.GenerateRow, new Padding(0, 4, 0, 0));
         // Prima misura esplicita: l'aggiunta dei figli non fa scattare il Layout
         // del pannello scrollabile, quindi la dimensione va calcolata qui.
@@ -474,16 +484,20 @@ internal sealed partial class MainForm
         headerSettings.Size = new Size(124, 28);
         headerSettings.Margin = new Padding(6, 0, 0, 0);
         headerSettings.Click += (_, _) => OpenSettings();
+        Describe(headerSettings, "Impostazioni", "Regole di conversione, modello AI locale e aggiornamenti (Ctrl+,).");
         var headerUpdates = Theme.CreateButton("Aggiornamenti", Theme.ButtonTone.Neutral, compact: true);
         headerUpdates.Size = new Size(124, 28);
         headerUpdates.Margin = Padding.Empty;
         headerUpdates.Click += async (_, _) => await CheckForUpdatesAsync(userInitiated: true);
+        Describe(headerUpdates, "Controlla aggiornamenti", "Verifica subito se è disponibile una nuova versione.");
         headerActions.Controls.Add(headerSettings);
         headerActions.Controls.Add(headerUpdates);
         headerSide.Controls.Add(headerActions, 0, 0);
 
         _reviewStatusBadge.Dock = DockStyle.Fill;
         _reviewStatusBadge.Margin = Padding.Empty;
+        _reviewStatusBadge.AccessibleName = "Stato dell'anteprima";
+        _reviewStatusBadge.AccessibleRole = AccessibleRole.StaticText;
         headerSide.Controls.Add(_reviewStatusBadge, 0, 1);
         body.Controls.Add(headerSide, 2, 0);
 
@@ -700,6 +714,11 @@ internal sealed partial class MainForm
         _previewSearch.Size = new Size(SearchFieldWidth, 32);
         _previewSearch.Placeholder = "Cerca nei movimenti";
         _previewSearch.Margin = new Padding(0, 0, 10, 0);
+        _previewSearch.Input.AccessibleName = "Cerca nei movimenti";
+        Describe(
+            _previewSearch,
+            "Cerca nei movimenti",
+            "Filtra i movimenti: più parole in qualsiasi ordine, senza accenti né maiuscole (Ctrl+F).");
         _previewSearch.TextChanged += (_, _) => FilterMovements();
 
         // Nessuna spaziatura interna: campo e pulsanti sono alti quanto la fascia,
@@ -721,12 +740,14 @@ internal sealed partial class MainForm
         _copyXmlButton.Size = new Size(CopyXmlButtonWidth, 32);
         _copyXmlButton.Margin = new Padding(6, 0, 0, 0);
         _copyXmlButton.Click += (_, _) => CopyXmlToClipboard();
+        Describe(_copyXmlButton, "Copia XML", "Copia l'anteprima XML negli appunti.");
 
         _exportButton.Text = "Scarica XML";
         Theme.StyleButton(_exportButton, Theme.ButtonTone.Primary, compact: true);
         _exportButton.Size = new Size(ExportXmlButtonWidth, 32);
         _exportButton.Margin = new Padding(6, 0, 0, 0);
         _exportButton.Click += (_, _) => ExportXml();
+        Describe(_exportButton, "Salva XML", "Salva il file XML TRRIPW nella cartella che scegli (Ctrl+S).");
 
         toolbarActions.Controls.Add(_exportButton);
         toolbarActions.Controls.Add(_copyXmlButton);
@@ -791,6 +812,10 @@ internal sealed partial class MainForm
             RefreshXmlFromPreview();
         };
         _movementsGrid.EmptyStateText = EmptyMovementsText;
+        _movementsGrid.AccessibleName = "Movimenti generati";
+        _movementsGrid.AccessibleDescription = "Movimenti giornalieri dell'anteprima: le colonne dei codici e delle ore sono modificabili.";
+        _xmlPreview.AccessibleName = "Anteprima XML TRRIPW";
+        _previewTabs.AccessibleName = "Area di revisione";
         movementPage.Controls.Add(_movementsGrid);
 
         var xmlPage = new Panel { BackColor = Theme.EditorFill, Padding = new Padding(0), Margin = Padding.Empty };

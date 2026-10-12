@@ -136,6 +136,59 @@ public class InstallerPackagingTests
         Assert.Contains("AiQualityRadio.Checked := True", script, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// App e installer devono usare lo STESSO mutex: l'app lo tiene aperto per
+    /// tutta l'esecuzione e [Setup] AppMutex lo cerca per capire se il programma
+    /// è in uso. Con due nomi diversi il controllo non troverebbe mai nulla e un
+    /// aggiornamento fallirebbe sui file in uso (o li toccherebbe sotto l'app
+    /// aperta, il caso peggiore).
+    /// </summary>
+    [Fact]
+    public void TheInstallerAndTheApplicationShareTheSameInstanceMutex()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var script = ReadInstallerScript();
+        if (repositoryRoot is null || script is null)
+        {
+            return;
+        }
+
+        var declared = Regex.Match(script, @"#define\s+AppMutex\s+""([^""]+)""").Groups[1].Value;
+        Assert.Equal(AppIdentity.MutexName, declared);
+        Assert.Contains("AppMutex={#AppMutex}", script, StringComparison.Ordinal);
+
+        // E l'app deve davvero tenere quel mutex aperto.
+        var program = File.ReadAllText(Path.Combine(repositoryRoot, "PresenzeXmlConverter", "Program.cs"));
+        Assert.Contains("AppIdentity.HoldSetupMutex()", program, StringComparison.Ordinal);
+        Assert.Contains("AppIdentity.Apply()", program, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Il manifesto non dichiarava le versioni di Windows supportate: senza,
+    /// Environment.OSVersion risponde 6.2 e la finestra non chiede mai gli angoli
+    /// arrotondati (che Windows 11 concede solo da build 22000). Inoltre i
+    /// percorsi lunghi devono essere ammessi per aprire i fogli in cartelle
+    /// profondamente annidate.
+    /// </summary>
+    [Fact]
+    public void TheWindowsManifestDeclaresSupportedOperatingSystemsAndLongPaths()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        if (repositoryRoot is null)
+        {
+            return;
+        }
+
+        var manifestPath = Path.Combine(repositoryRoot, "PresenzeXmlConverter", "app.manifest");
+        Assert.True(File.Exists(manifestPath), $"Manifesto non trovato: {manifestPath}");
+        var manifest = File.ReadAllText(manifestPath);
+
+        // GUID di Windows 10/11: da questo dipende la versione reale riportata dal sistema.
+        Assert.Contains("{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}", manifest, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("supportedOS", manifest, StringComparison.Ordinal);
+        Assert.Contains("longPathAware", manifest, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheInstallerRequiresASupportedWindowsAndLogsEveryInstallation()
     {

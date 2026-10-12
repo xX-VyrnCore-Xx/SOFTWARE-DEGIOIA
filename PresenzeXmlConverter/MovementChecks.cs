@@ -36,6 +36,13 @@ internal static class MovementChecks
 {
     private const int MaximumFindings = 120;
 
+    /// <summary>
+    /// Giustificativo riservato dal tracciato TRRIPW: PAGHE scarta un movimento
+    /// comunicato con questo codice. È comodo per neutralizzare una riga senza
+    /// toglierla dall'Excel, ma non produce ore: va segnalato.
+    /// </summary>
+    public const string DiscardReasonCode = "999";
+
     public static IReadOnlyList<MovementFinding> Review(
         IReadOnlyList<DailyMovement> movements,
         IReadOnlyDictionary<string, string> policyCodes,
@@ -120,6 +127,13 @@ internal static class MovementChecks
                 findings.Add(new MovementFinding(
                     MovementSeverity.Error,
                     $"{Label(movement)}: il codice “{movement.ReasonCode}” non è fra i giustificativi configurati."));
+            }
+            if (string.Equals(movement.ReasonCode, DiscardReasonCode, StringComparison.OrdinalIgnoreCase))
+            {
+                findings.Add(new MovementFinding(
+                    MovementSeverity.Note,
+                    $"{Label(movement)}: il {movement.Date:dd/MM/yyyy} usa il giustificativo " +
+                    $"{DiscardReasonCode}, che PAGHE scarta: quel giorno non riceverà ore."));
             }
             if (string.IsNullOrWhiteSpace(movement.EmployeeCode))
             {

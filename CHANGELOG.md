@@ -4,7 +4,29 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.13.0] - Corrente
+## [1.14.0] - Corrente
+
+### 🪟 Struttura Windows
+- **Il manifesto dichiara le versioni di Windows supportate**: mancava il blocco `supportedOS`, quindi Windows rispondeva a `Environment.OSVersion` con la versione "compatibile" 6.2. Il titolo scuro funzionava per tentativi, ma gli **angoli arrotondati di Windows 11** (concessi solo da build 22000) non venivano mai richiesti: la finestra restava a spigoli vivi pur essendo su Windows 11. Ora la build riportata dal sistema è quella reale
+- **Percorsi lunghi abilitati** (`longPathAware`): un foglio Excel in cartelle profondamente annidate si apre anche oltre il limite di 260 caratteri
+- **Identità Windows unica** (`AppIdentity`): l'AppUserModelID `DeGioia.PresenzeFlow` viene comunicato al processo *prima* che nasca la finestra, così finestra, notifiche nell'area di notifica e collegamento bloccato sono la stessa applicazione nella barra delle applicazioni
+- **Mutex condiviso con l'installer**: l'app tiene aperto il mutex `DeGioia.PresenzeFlow.Setup` e `Installer.iss` lo dichiara in `[Setup] AppMutex`; un aggiornamento riconosce così l'esecuzione in corso e chiude il programma in modo ordinato, invece di fallire sui file in uso. Un test impedisce che i due nomi divergano
+
+### 🧾 Tracciato Zucchetti
+- **Limiti del tracciato in un unico posto**: `TrriPwXmlWriter` dichiara le lunghezze documentate (codice azienda 6, codice dipendente 7, giustificativo 3, ore 0-99, minuti 0-59, massimo 250.000 movimenti per file) e le applica al valore. Generazione e scrittura non possono più usare limiti diversi da quelli del documento Zucchetti
+- **Errori che dicono chi correggere**: un codice fuori misura ora nomina il dipendente e la richiesta — *"Il codice PAGHE di “Rossi Mario” deve contenere da 1 a 7 caratteri"* — invece di parlare di "un codice"; anche ore e minuti fuori limite indicano persona e data del movimento
+- **Giustificativo 999 segnalato**: il tracciato riserva il codice 999 ai movimenti che PAGHE deve scartare. Usarlo è legittimo (neutralizza una riga senza toglierla dall'Excel), ma la scheda **Controlli** ora lo dice come NOTA — "quel giorno non riceverà ore" — invece di lasciarlo passare in silenzio
+
+### ♿ UI/UX e accessibilità
+- **Nomi accessibili sui comandi**: pulsanti, campi, griglia, anteprima e schede hanno `AccessibleName`/`AccessibleDescription`: un lettore di schermo annuncia "Seleziona file Excel" invece di "pulsante". Le tre schede delle Impostazioni e le schede dell'area di revisione si presentano con il loro titolo
+- **Suggerimenti coerenti col nome**: gli stessi testi diventano il tooltip dei comandi dell'intestazione, del campo di ricerca, di *Copia XML*, *Salva XML*, *Genera anteprima* e *Seleziona file Excel*
+
+### ✅ Verifiche
+- **5 nuovi test di logica**: limiti del tracciato al confine esatto di ogni campo, messaggi di validazione che nominano il dipendente, nota sul giustificativo 999, mutex condiviso fra app e installer, manifesto con `supportedOS` e `longPathAware`
+
+---
+
+## [1.13.0] - Precedente
 
 ### 🖼️ Grafica: fuori i colori di sistema che restavano
 - **Il dialogo Impostazioni è diviso in tre schede** (**Conversione**, **AI locale**, **Aggiornamenti**): ogni scheda entra intera nella finestra, quindi non compare più la barra di scorrimento grigia di sistema che prima accompagnava sempre il dialogo (il contenuto era alto 802 px in uno spazio di 632)

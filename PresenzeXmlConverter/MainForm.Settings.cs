@@ -11,6 +11,19 @@ internal sealed partial class MainForm
     /// <summary>Suggerimenti condivisi dei comandi della finestra.</summary>
     private readonly ToolTip _tooltips = new();
 
+    /// <summary>
+    /// Dà un nome e una descrizione al controllo per le utilità di accessibilità
+    /// dei lettori di schermo e usa la stessa frase come suggerimento al
+    /// passaggio del mouse. Una scritta da sola non basta: i comandi icona
+    /// ("AI locale") non dicono cosa fanno a chi non vede il contesto.
+    /// </summary>
+    private void Describe(Control control, string name, string description)
+    {
+        control.AccessibleName = name;
+        control.AccessibleDescription = description;
+        _tooltips.SetToolTip(control, description);
+    }
+
     /// <summary>Apre le impostazioni e applica quello che l'utente ha salvato.</summary>
     private void OpenSettings()
     {

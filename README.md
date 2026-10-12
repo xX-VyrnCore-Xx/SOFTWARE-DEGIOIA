@@ -4,7 +4,7 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.13.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.14.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
 Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Minimo* `qwen2.5:0.5b` (~400 MB), *Rapido* `qwen2.5:1.5b` (~1 GB), *Consigliato* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Il modello consigliato è quello che l'app preferisce: entrambi partono da `qwen2.5:3b` perché è il più affidabile nell'abbinare colonne e codici. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
 
@@ -95,6 +95,8 @@ SQLite è configurato con:
 - Data in formato `aaaa-mm-gg`
 - Ore e minuti
 
+Il giustificativo `999` è riservato dal tracciato: **PAGHE scarta** il movimento comunicato con quel codice (l'app lo segnala nella scheda **Controlli**).
+
 Prima del primo utilizzo produttivo, verifica un XML di prova nell'ambiente Zucchetti: i codici, le abilitazioni e le configurazioni di importazione dipendono dall'installazione PAGHE aziendale.
 
 ## Scorciatoie da tastiera
@@ -121,7 +123,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6.3 o successivo, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.13.0.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.14.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).
@@ -241,6 +243,13 @@ In azienda la stessa operazione si distribuisce con Criteri di gruppo; per rende
 ### Nota importante
 
 Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica l'installer da Internet: diventa attendibile solo sui PC dove il certificato pubblico è installato. Per una firma riconosciuta da tutti serve un certificato emesso da una CA pubblica (a pagamento) o un servizio di firma gestito. Senza firma l'app funziona comunque: Windows mostra solo l'avviso "editore sconosciuto" al primo avvio. La verifica nel workflow non pretende una catena attendibile sul runner (il certificato è autofirmato): controlla firma, hash e impronta del certificato.
+
+## Novità v1.14.0
+
+- **Struttura Windows**: il manifesto dichiara le versioni di Windows supportate (senza, `Environment.OSVersion` risponde 6.2 e gli **angoli arrotondati di Windows 11** non venivano mai richiesti) e abilita i **percorsi lunghi**; l'app comunica a Windows la propria **identità** (`AppUserModelID`) prima di creare la finestra, così barra delle applicazioni, notifiche e collegamento bloccato sono la stessa applicazione; l'app tiene aperto un **mutex condiviso con l'installer** (`[Setup] AppMutex`), quindi un aggiornamento chiude l'app in modo ordinato invece di fallire sui file in uso
+- **Tracciato Zucchetti**: le lunghezze documentate dei campi stanno in un unico posto e vengono applicate al valore (codice azienda 6, dipendente 7, giustificativo 3, ore 0-99, minuti 0-59); gli errori di validazione **nominano il dipendente e la richiesta** da correggere; il **giustificativo 999** (che PAGHE scarta) è segnalato nella scheda **Controlli** come NOTA
+- **UI/UX e accessibilità**: nomi e descrizioni accessibili su pulsanti, campi, griglia, anteprima e schede (un lettore di schermo annuncia "Seleziona file Excel", non "pulsante"), con gli stessi testi usati come suggerimenti
+- **5 nuovi test di logica** su limiti del tracciato, messaggi di validazione, giustificativo 999, mutex app/installer e manifesto Windows
 
 ## Novità v1.13.0
 

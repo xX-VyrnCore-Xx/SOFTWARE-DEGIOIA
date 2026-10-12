@@ -376,6 +376,57 @@ public class ConversionTests
         Assert.Equal("30", (string?)movement.Element("NumMinuti"));
     }
 
+    /// <summary>
+    /// I limiti del tracciato stanno in un unico posto e vengono applicati al
+    /// valore, non a occhio: qui si controlla il confine esatto di ogni campo
+    /// documentato (codice azienda 6, dipendente 7, giustificativo 3, ore 99,
+    /// minuti 59). Un limite sbagliato qui fa rifiutare un file valido da PAGHE.
+    /// </summary>
+    [Fact]
+    public void XmlWriterEnforcesTheDocumentedTracciatoLimits()
+    {
+        Assert.Equal("TRRIPW", TrriPwXmlWriter.RootElement);
+        var company = new string('A', TrriPwXmlWriter.MaxCompanyCodeLength);
+        var movement = new DailyMovement(
+            "Rossi Mario",
+            new string('1', TrriPwXmlWriter.MaxEmployeeCodeLength),
+            "Ferie",
+            new string('9', TrriPwXmlWriter.MaxReasonCodeLength),
+            new DateTime(2026, 5, 12),
+            TrriPwXmlWriter.MaxHoursPerMovement,
+            TrriPwXmlWriter.MaxMinutesPerMovement);
+
+        // Al limite: il documento viene prodotto.
+        Assert.Contains("TRRIPW", TrriPwXmlWriter.Create(company, [movement]));
+
+        // Un carattere oltre il limite: rifiutato.
+        Assert.Throws<InvalidDataException>(() =>
+            TrriPwXmlWriter.Create(company + "A", [movement]));
+        Assert.Throws<InvalidDataException>(() =>
+            TrriPwXmlWriter.Create(company, [movement with { EmployeeCode = movement.EmployeeCode + "1" }]));
+        Assert.Throws<InvalidDataException>(() =>
+            TrriPwXmlWriter.Create(company, [movement with { ReasonCode = movement.ReasonCode + "9" }]));
+        Assert.Throws<InvalidDataException>(() =>
+            TrriPwXmlWriter.Create(company, [movement with { Hours = TrriPwXmlWriter.MaxHoursPerMovement + 1 }]));
+        Assert.Throws<InvalidDataException>(() =>
+            TrriPwXmlWriter.Create(company, [movement with { Minutes = TrriPwXmlWriter.MaxMinutesPerMovement + 1 }]));
+    }
+
+    /// <summary>
+    /// L'errore di validazione deve dire QUALE dipendente correggere: la griglia
+    /// mostra i nominativi, non le posizioni, e un messaggio generico costringe a
+    /// cercare a mano la riga sbagliata.
+    /// </summary>
+    [Fact]
+    public void XmlValidationErrorsNameTheEmployeeToFix()
+    {
+        var exception = Assert.Throws<InvalidDataException>(() => TrriPwXmlWriter.Create(
+            "AZ001",
+            [new DailyMovement("Rossi Mario", "12345678", "Ferie", "01", new DateTime(2026, 5, 12), 8, 0)]));
+
+        Assert.Contains("Rossi Mario", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void XmlWriterRejectsInvalidCodesAndEmptyMovementSets()
     {

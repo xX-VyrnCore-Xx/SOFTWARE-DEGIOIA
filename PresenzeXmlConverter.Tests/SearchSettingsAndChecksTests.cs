@@ -384,6 +384,40 @@ public class SearchSettingsAndChecksTests
             finding => finding.Message.Contains("nel foglio 8h 00m", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Il tracciato TRRIPW riserva il giustificativo 999 ai movimenti che PAGHE
+    /// deve scartare: usarne uno è legittimo (neutralizza una riga senza toglierla
+    /// dall'Excel) ma non produce ore, quindi va detto.
+    /// </summary>
+    [Fact]
+    public void MovementsUsingTheDiscardCodeAreReportedAsNotes()
+    {
+        var movements = new[]
+        {
+            new DailyMovement(
+                "Rossi Mario",
+                "0012345",
+                "Ferie",
+                MovementChecks.DiscardReasonCode,
+                new DateTime(2026, 5, 12),
+                8,
+                0)
+        };
+
+        var findings = MovementChecks.Review(
+            movements,
+            new Dictionary<string, string> { ["Ferie"] = MovementChecks.DiscardReasonCode },
+            ["Rossi Mario"],
+            null,
+            null);
+
+        Assert.Equal("999", MovementChecks.DiscardReasonCode);
+        var note = findings.Single(finding => finding.Severity == MovementSeverity.Note);
+        Assert.Contains(MovementChecks.DiscardReasonCode, note.Message, StringComparison.Ordinal);
+        Assert.Contains("PAGHE", note.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(findings, finding => finding.Severity == MovementSeverity.Error);
+    }
+
     [Fact]
     public void EmptyMovementSetsAreReportedAsErrors()
     {

@@ -9,6 +9,14 @@ static class Program
     {
         ApplicationConfiguration.Initialize();
 
+        // Identità Windows: la barra delle applicazioni, le notifiche del tray e
+        // i collegamenti bloccati usano lo stesso nome del prodotto. Il mutex
+        // tiene traccia dell'esecuzione e permette all'installer di riconoscere
+        // l'app aperta durante un aggiornamento. Entrambi vivono quanto il
+        // processo: il mutex viene tenuto aperto per tutta Main.
+        AppIdentity.Apply();
+        using var setupMutex = AppIdentity.HoldSetupMutex();
+
         // Nessun errore deve restare silenzioso: se l'avvio o un evento dell'interfaccia
         // falliscono, l'utente vede un messaggio leggibile invece di un'app che "non parte".
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);

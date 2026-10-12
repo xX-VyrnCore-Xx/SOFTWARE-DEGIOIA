@@ -6,6 +6,35 @@ namespace PresenzeXmlConverter;
 
 internal static class TrriPwXmlWriter
 {
+    /* --------------------- Limiti del tracciato TRRIPW --------------------- *
+     * Il documento Zucchetti (Paghe Infinity, "Interfaccia rilevazione
+     * presenze - tracciati record") fissa la lunghezza di ogni campo: il codice
+     * azienda è di 6 caratteri, quello dipendente di 7, il giustificativo di 3,
+     * e ore e minuti sono campi numerici di 2 cifre. I limiti stanno qui, in un
+     * unico posto, perché la generazione e la scrittura dell'XML non possano
+     * usare valori diversi da quelli dichiarati nel tracciato. */
+
+    /// <summary>Elemento radice del documento.</summary>
+    public const string RootElement = "TRRIPW";
+
+    /// <summary>CodAziendaUfficiale: fino a 6 caratteri.</summary>
+    public const int MaxCompanyCodeLength = 6;
+
+    /// <summary>CodDipendenteUfficiale: fino a 7 caratteri.</summary>
+    public const int MaxEmployeeCodeLength = 7;
+
+    /// <summary>CodGiustificativoUfficiale: fino a 3 caratteri.</summary>
+    public const int MaxReasonCodeLength = 3;
+
+    /// <summary>NumOre: campo numerico di 2 cifre (0-99).</summary>
+    public const int MaxHoursPerMovement = 99;
+
+    /// <summary>NumMinuti: campo numerico di 2 cifre (0-59).</summary>
+    public const int MaxMinutesPerMovement = 59;
+
+    /// <summary>Numero massimo di movimenti in un singolo file.</summary>
+    public const int MaxMovementsPerFile = 250_000;
+
     public static void SaveFile(string path, string xml)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -100,14 +129,16 @@ internal static class TrriPwXmlWriter
         IReadOnlyList<DailyMovement> movements)
     {
         ArgumentNullException.ThrowIfNull(movements);
-        companyCode = ValidateCode(companyCode, 6, "codice azienda");
+        companyCode = ValidateCode(companyCode, MaxCompanyCodeLength, "codice azienda");
         if (movements.Count == 0)
         {
             throw new InvalidDataException("Non è possibile generare un XML senza movimenti.");
         }
-        if (movements.Count > 250_000)
+        if (movements.Count > MaxMovementsPerFile)
         {
-            throw new InvalidDataException("Il numero di movimenti supera il limite di 250.000 record per file XML.");
+            throw new InvalidDataException(
+                $"Il numero di movimenti ({movements.Count:N0}) supera il limite di " +
+                $"{MaxMovementsPerFile:N0} record per file XML.");
         }
 
         var normalizedMovements = new DailyMovement[movements.Count];
@@ -115,19 +146,37 @@ internal static class TrriPwXmlWriter
         {
             var movement = movements[index];
             ArgumentNullException.ThrowIfNull(movement);
+            // Il nominativo si ripulisce prima di comporre i messaggi: un errore
+            // sui codici deve poter dire a chi appartiene la riga, non solo che
+            // "un codice" è lungo. Il codice dipendente è quello che l'utente
+            // corregge in griglia, quindi il messaggio lo identifica per nome.
+            var employeeName = movement.EmployeeName?.Trim() ?? string.Empty;
             normalizedMovements[index] = movement with
             {
-                EmployeeCode = ValidateCode(movement.EmployeeCode, 7, "codice dipendente"),
-                ReasonCode = ValidateCode(movement.ReasonCode, 3, "codice giustificativo"),
-                EmployeeName = movement.EmployeeName?.Trim() ?? string.Empty
+                EmployeeName = employeeName,
+                EmployeeCode = ValidateCode(
+                    movement.EmployeeCode,
+                    MaxEmployeeCodeLength,
+                    Describe("codice PAGHE", employeeName)),
+                ReasonCode = ValidateCode(
+                    movement.ReasonCode,
+                    MaxReasonCodeLength,
+                    Describe($"codice giustificativo della richiesta “{movement.Policy}”", employeeName))
             };
         }
         ValidateEmployeeCodes(normalizedMovements);
-        if (normalizedMovements.Any(movement =>
-                movement.Hours is < 0 or > 99 ||
-                movement.Minutes is < 0 or > 59))
+        var outOfRange = normalizedMovements.FirstOrDefault(movement =>
+            movement.Hours is < 0 or > MaxHoursPerMovement ||
+            movement.Minutes is < 0 or > MaxMinutesPerMovement);
+        if (outOfRange is not null)
         {
-            throw new InvalidDataException("Ore e minuti devono rientrare nei limiti del tracciato TRRIPW.");
+            var subject = outOfRange.EmployeeName.Length == 0
+                ? "un movimento"
+                : $"“{outOfRange.EmployeeName}”";
+            throw new InvalidDataException(
+                $"Ore e minuti di {subject} ({outOfRange.Date:dd/MM/yyyy}) " +
+                $"non rientrano nei limiti del tracciato TRRIPW " +
+                $"(ore 0-{MaxHoursPerMovement}, minuti 0-{MaxMinutesPerMovement}).");
         }
         return (companyCode, normalizedMovements);
     }
@@ -144,7 +193,7 @@ internal static class TrriPwXmlWriter
     private static void WriteDocument(XmlWriter writer, string companyCode, IReadOnlyList<DailyMovement> normalizedMovements)
     {
         writer.WriteStartDocument();
-        writer.WriteStartElement("TRRIPW");
+        writer.WriteStartElement(RootElement);
         foreach (var employeeGroup in normalizedMovements
                      .GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase)
                      .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
@@ -172,6 +221,13 @@ internal static class TrriPwXmlWriter
         writer.WriteEndElement();
         writer.WriteEndDocument();
     }
+
+    /// <summary>
+    /// Compone il nome del campo nei messaggi di errore, aggiungendo il
+    /// dipendente quando è noto: "codice PAGHE di “Mario Rossi”".
+    /// </summary>
+    private static string Describe(string field, string employeeName) =>
+        employeeName.Length == 0 ? field : $"{field} di “{employeeName}”";
 
     private static string ValidateCode(string? value, int maximumLength, string fieldName)
     {

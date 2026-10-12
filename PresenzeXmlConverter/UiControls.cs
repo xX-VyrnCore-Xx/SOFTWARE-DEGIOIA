@@ -351,6 +351,7 @@ internal sealed class ThemedTabControl : Control
     public ThemedTabControl()
     {
         BackColor = Theme.Surface;
+        AccessibleRole = AccessibleRole.PageTabList;
         SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
         _strip.BackColor = Theme.Surface;
         _flow.BackColor = Theme.Surface;
@@ -384,6 +385,12 @@ internal sealed class ThemedTabControl : Control
 
         var tab = new TabButton(title, _tabs.Count);
         tab.Click += (_, _) => SelectTab(tab.Index);
+        // Il nome accessibile della voce resta allineato alla sua scritta: la
+        // barra è disegnata a mano e senza questo un lettore di schermo
+        // annuncerebbe solo "pulsante".
+        tab.AccessibleName = title;
+        tab.AccessibleRole = AccessibleRole.PageTab;
+        tab.AccessibleDescription = $"Mostra la scheda \u201c{title}\u201d.";
         _tabs.Add(tab);
         _flow.Controls.Add(tab);
     }
@@ -393,6 +400,8 @@ internal sealed class ThemedTabControl : Control
         if (index >= 0 && index < _tabs.Count)
         {
             _tabs[index].Text = text;
+            _tabs[index].AccessibleName = text;
+            _tabs[index].AccessibleDescription = $"Mostra la scheda \u201c{text}\u201d.";
         }
     }
 
