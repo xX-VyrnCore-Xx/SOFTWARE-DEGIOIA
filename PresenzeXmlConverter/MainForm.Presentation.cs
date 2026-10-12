@@ -790,6 +790,12 @@ internal sealed partial class MainForm
         _movementsGrid.Columns.Add(CreateGridColumn("hours", "Ore", 47, false));
         _movementsGrid.Columns.Add(CreateGridColumn("minutes", "Min", 44, false));
         _movementsGrid.Columns.Add(CreateGridColumn("source", "Riga Excel", 67, true));
+        // Con la barra di navigazione l'area di revisione è stretta: la barra di
+        // scorrimento orizzontale nativa è grigia di sistema (fuori tema), quindi non
+        // la si usa. Quando le colonne non entrano si nascondono le meno importanti
+        // (Riga Excel, poi Richiesta originale); restano nel dato e nell'XML.
+        _movementsGrid.ScrollBars = ScrollBars.Vertical;
+        _movementsGrid.Resize += (_, _) => AdaptMovementColumns();
         _movementsGrid.RowPostPaint += (_, args) =>
         {
             var bounds = new Rectangle(
@@ -847,6 +853,46 @@ internal sealed partial class MainForm
         _previewTabs.AddPage("Controlli", BuildReviewPanel());
         _previewTabs.SelectedIndex = 0;
         return _previewTabs;
+    }
+
+    /// <summary>
+    /// Mostra le colonne facoltative solo se c'è posto per le larghezze minime di
+    /// tutte quelle visibili: così non compare mai la barra orizzontale nativa.
+    /// </summary>
+    private void AdaptMovementColumns()
+    {
+        var grid = _movementsGrid;
+        if (grid.ClientSize.Width < 50 || grid.Columns.Count == 0)
+        {
+            return;
+        }
+        var optional = new[] { "policy", "source" };
+        var available = grid.ClientSize.Width - SystemInformation.VerticalScrollBarWidth;
+        var required = grid.RowHeadersVisible ? grid.RowHeadersWidth : 0;
+        foreach (DataGridViewColumn column in grid.Columns)
+        {
+            if (!optional.Contains(column.Name) && column.Visible)
+            {
+                required += column.MinimumWidth;
+            }
+        }
+        foreach (var name in optional)
+        {
+            var column = grid.Columns[name];
+            if (column is null)
+            {
+                continue;
+            }
+            var fits = required + column.MinimumWidth <= available;
+            if (fits)
+            {
+                required += column.MinimumWidth;
+            }
+            if (column.Visible != fits)
+            {
+                column.Visible = fits;
+            }
+        }
     }
 
     private static DataGridViewTextBoxColumn CreateGridColumn(
