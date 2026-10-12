@@ -290,6 +290,48 @@ public class InstallerPackagingTests
     }
 
     /// <summary>
+    /// La versione minima di Inno Setup dichiarata dal workflow deve bastare per
+    /// ogni funzionalità realmente usata dallo script. Non è un dettaglio: la
+    /// 1.11.0 è rimasta non pubblicata perché la compilazione si fermava su un
+    /// tipo inesistente, e la guardia di versione era tarata su 6.1 mentre lo
+    /// script richiede la 6.3 (ShowBaseNameInsteadOfUrl e x64compatible).
+    /// </summary>
+    [Fact]
+    public void ReleaseWorkflowMinimumInnoVersionCoversEveryFeatureTheScriptUses()
+    {
+        var workflow = ReadReleaseWorkflow();
+        var script = ReadInstallerScript();
+        if (workflow is null || script is null)
+        {
+            return;
+        }
+
+        var match = Regex.Match(workflow, @"\$minor\s+-lt\s+(\d+)");
+        Assert.True(match.Success, "Il workflow non dichiara una versione minima di Inno Setup ($minor -lt N).");
+        var requiredMinor = int.Parse(match.Groups[1].Value);
+
+        // Funzionalità dello script -> minor di Inno Setup 6 che le introduce.
+        // CreateDownloadPage è della 6.1; ShowBaseNameInsteadOfUrl e
+        // ArchitecturesAllowed=x64compatible sono della 6.3.
+        if (script.Contains("CreateDownloadPage", StringComparison.Ordinal))
+        {
+            Assert.True(requiredMinor >= 1, "CreateDownloadPage richiede Inno Setup 6.1 o successivo.");
+        }
+        if (script.Contains("ShowBaseNameInsteadOfUrl", StringComparison.Ordinal))
+        {
+            Assert.True(
+                requiredMinor >= 3,
+                "ShowBaseNameInsteadOfUrl esiste da Inno Setup 6.3: la versione minima del workflow deve essere almeno 6.3.");
+        }
+        if (script.Contains("ArchitecturesAllowed=x64compatible", StringComparison.Ordinal))
+        {
+            Assert.True(
+                requiredMinor >= 3,
+                "ArchitecturesAllowed=x64compatible esiste da Inno Setup 6.3: la versione minima del workflow deve essere almeno 6.3.");
+        }
+    }
+
+    /// <summary>
     /// Tipi del Pascal Script di Inno Setup 6, ricavati dalle fonti ufficiali della
     /// 6.7 (tipi, enumerazioni e classi registrati dal compilatore). 'HKEY' NON è fra
     /// questi: in Inno Setup 6 le chiavi di registro sono costanti Integer e un

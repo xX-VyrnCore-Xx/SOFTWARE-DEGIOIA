@@ -44,10 +44,11 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 - **Campo di ricerca dell'area di revisione non più tagliato**: la fascia dei comandi ha la larghezza che le serve, il riepilogo prende lo spazio rimanente ed è lui a troncare con i puntini
 
 ### ✅ Verifiche
-- **146 test di logica, tutti verdi** (49 nuovi) su ricerca, impostazioni, controlli, generazione con le nuove opzioni, aiuti dell'AI e installer
+- **147 test di logica, tutti verdi** (50 nuovi) su ricerca, impostazioni, controlli, generazione con le nuove opzioni, aiuti dell'AI e installer
 - Nuovo test sul bilancio delle altezze della card (`SetupCardLayout`): a ogni dimensione di finestra consentita il contenuto deve entrare, altrimenti comparirebbe la barra di scorrimento di sistema
 - Nuova guardia sui **tipi del Pascal Script** della sezione `[Code]`: ogni tipo dichiarato deve esistere fra quelli registrati dal compilatore Inno Setup 6 (elenco nella versione 6.7), così un tipo inventato si vede nei test e non alla prima release. Il caso reale: `RootKey: HKEY` — in Inno Setup 6 le chiavi di registro sono costanti `Integer` e `HKEY` come tipo esiste solo da Inno Setup 7, quindi l'installer non compilava e la release non veniva pubblicata; i parametri sono ora `Integer`
-- Guardia sul workflow di release: la versione di Inno Setup deve arrivare dal **registro delle installazioni**, perché `ISCC.exe` dichiara `0.0.0.0` fra le proprie risorse e il controllo "6.1 o successivo" bloccava la pubblicazione senza compilare nulla; se la versione non è determinabile si prova a compilare lo stesso
+- Guardia sul workflow di release: la versione di Inno Setup deve arrivare dal **registro delle installazioni**, perché `ISCC.exe` dichiara `0.0.0.0` fra le proprie risorse e il controllo sulla versione bloccava la pubblicazione senza compilare nulla; se la versione non è determinabile si prova a compilare lo stesso
+- **Versione minima di Inno Setup corretta da 6.1 a 6.3**: lo script usa `CreateDownloadPage` (dalla 6.1) ma anche `ShowBaseNameInsteadOfUrl` e `ArchitecturesAllowed=x64compatible`, introdotti nella 6.3 — su una 6.1/6.2 la compilazione si fermerebbe a metà con un errore oscuro. Un test tiene ora allineate la versione minima dichiarata dal workflow e le funzionalità realmente usate dallo script
 - Nuove guardie statiche sull'installer: token fornibile all'installazione senza sovrascrivere quello esistente e modello consigliato coincidente con il predefinito dell'app
 
 ---

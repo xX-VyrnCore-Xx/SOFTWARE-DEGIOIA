@@ -155,13 +155,16 @@ jobs:
           }
           if (-not $iscc) { throw 'ISCC.exe non trovato: Inno Setup 6 non è installato sul runner.' }
 
-          # Installer.iss usa CreateDownloadPage (pagina di download di Ollama con
-          # barra di avanzamento), disponibile da Inno Setup 6.1: su una versione
-          # più vecchia lo script non compilerebbe, meglio un errore chiaro qui.
+          # Versione minima richiesta: Inno Setup 6.3, non 6.1. Lo script usa
+          # CreateDownloadPage (dalla 6.1) ma anche due funzionalità introdotte
+          # nella 6.3: la proprietà ShowBaseNameInsteadOfUrl della pagina di
+          # download e l'identificatore di architettura 'x64compatible' di
+          # ArchitecturesAllowed. Su una 6.1/6.2 lo script non compilerebbe:
+          # meglio un errore chiaro qui che un errore di sintassi a metà.
           # Attenzione: ISCC.exe NON dichiara la versione (le sue risorse dicono
           # 0.0.0.0), quindi la versione vera va cercata nel registro delle
           # installazioni; se non è determinabile si prosegue, perché a mancare
-          # CreateDownloadPage lo segnala ISCC stesso con un errore preciso.
+          # quelle funzionalità lo segnala ISCC stesso con un errore preciso.
           $version = $null
           $uninstallKeys = @(
             'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1',
@@ -200,15 +203,15 @@ jobs:
           }
 
           if (-not $version) {
-            Write-Warning 'Versione di Inno Setup non determinabile: proseguo (se CreateDownloadPage non è disponibile, ISCC lo segnala durante la compilazione).'
+            Write-Warning 'Versione di Inno Setup non determinabile: proseguo (se le funzionalità richieste non sono disponibili, ISCC lo segnala durante la compilazione).'
           } else {
             $parts = $version.Split('.')
             $major = 0
             $minor = 0
             [void][int]::TryParse($parts[0], [ref]$major)
             if ($parts.Count -ge 2) { [void][int]::TryParse($parts[1], [ref]$minor) }
-            if ($major -lt 6 -or ($major -eq 6 -and $minor -lt 1)) {
-              throw "Inno Setup $version trovato: la pagina di download di Ollama richiede Inno Setup 6.1 o successivo."
+            if ($major -lt 6 -or ($major -eq 6 -and $minor -lt 3)) {
+              throw "Inno Setup $version trovato: l'installer richiede Inno Setup 6.3 o successivo (ShowBaseNameInsteadOfUrl e ArchitecturesAllowed=x64compatible)."
             }
             Write-Host "Inno Setup $version"
           }
