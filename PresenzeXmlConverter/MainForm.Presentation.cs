@@ -521,7 +521,7 @@ internal sealed partial class MainForm
         steps.Controls.Add(importStep, 0, 0);
         steps.Controls.Add(new Label
         {
-            Text = "Importa il file e i codici",
+            Text = "Importa il file Excel",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Theme.BrandInk,
