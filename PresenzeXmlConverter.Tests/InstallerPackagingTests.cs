@@ -289,6 +289,113 @@ public class InstallerPackagingTests
         Assert.Contains("non determinabile", workflow, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Tipi del Pascal Script di Inno Setup 6, ricavati dalle fonti ufficiali della
+    /// 6.7 (tipi, enumerazioni e classi registrati dal compilatore). 'HKEY' NON è fra
+    /// questi: in Inno Setup 6 le chiavi di registro sono costanti Integer e un
+    /// parametro dichiarato 'HKEY' fa fallire la compilazione dell'installer con
+    /// "Unknown type 'HKEY'" (è già successo: da allora la release non veniva
+    /// pubblicata). Il tipo esiste solo da Inno Setup 7.
+    /// </summary>
+    private static readonly string[] InnoSetupSixTypes =
+    [
+        "AnsiString", "BOOL", "Boolean", "Byte",
+        "Cardinal", "Char", "Currency", "DWORD",
+        "DWORD_PTR", "Double", "Extended", "HRESULT",
+        "INT_PTR", "Int64", "IntPtr", "Integer",
+        "LongBool", "LongInt", "LongWord", "NativeInt",
+        "NativeUInt", "Pointer", "Real", "ShortInt",
+        "Single", "SmallInt", "String", "TArrayOfBoolean",
+        "TArrayOfChar", "TArrayOfGraphic", "TArrayOfInteger", "TArrayOfString",
+        "TBitmapButton", "TBitmapImage", "TComponent", "TCustomFolderTreeView",
+        "TDotNetVersion", "TDownloadWizardPage", "TExecOutput", "TExecWait",
+        "TExtractionWizardPage", "TFileTime", "TFindRec", "TFolderTreeView",
+        "THandle", "TInputDirWizardPage", "TInputFileWizardPage", "TInputOptionWizardPage",
+        "TInputQueryWizardPage", "TMsgBoxType", "TNewButton", "TNewCheckBox",
+        "TNewCheckListBox", "TNewComboBox", "TNewEdit", "TNewLinkLabel",
+        "TNewListBox", "TNewMemo", "TNewNotebook", "TNewNotebookPage",
+        "TNewPathEdit", "TNewProgressBar", "TNewRadioButton", "TNewStaticText",
+        "TObject", "TOnDownloadProgress", "TOnExtractionProgress", "TOnLog",
+        "TOutputMarqueeProgressWizardPage", "TOutputMsgMemoWizardPage", "TOutputMsgWizardPage", "TOutputProgressWizardPage",
+        "TPasswordEdit", "TPngImage", "TRichEditViewer", "TSetupForm",
+        "TSetupMessageID", "TSetupProcessorArchitecture", "TSetupStep", "TSplitType",
+        "TStartMenuFolderTreeView", "TStringList", "TStrings", "TUIStateForm",
+        "TUninstallProgressForm", "TUninstallStep", "TWindowsVersion", "TWizardForm",
+        "TWizardPage", "UINT", "UINT_PTR", "UInt64",
+        "Variant", "WideChar", "Word"
+    ];
+
+    /// <summary>
+    /// Guardia: ogni tipo usato nella sezione [Code] deve esistere nel Pascal Script
+    /// di Inno Setup 6. Qui non c'è un compilatore Inno, quindi è questa verifica a
+    /// intercettare subito un tipo inventato invece che al primo run della release.
+    /// </summary>
+    [Fact]
+    public void InstallerCodeUsesOnlyTypesThatInnoSetupSixKnows()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            // Cartella repo non disponibile in questo ambiente: niente da verificare.
+            return;
+        }
+
+        var codeStart = script.IndexOf("[Code]", StringComparison.Ordinal);
+        Assert.True(codeStart >= 0, "Sezione [Code] non trovata in Installer.iss.");
+        var code = script[codeStart..];
+
+        var used = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Funzioni e procedure: tipo di ritorno e tipo di ogni parametro.
+        foreach (Match match in Regex.Matches(
+                     code,
+                     @"^[ \t]*(?:function|procedure)\s+\w+\s*(?:\(([^)]*)\))?\s*(?::\s*([A-Za-z_]\w*))?\s*;",
+                     RegexOptions.Multiline))
+        {
+            AddUsedType(used, match.Groups[2].Value);
+            foreach (var parameter in match.Groups[1].Value.Split(';'))
+            {
+                var separator = parameter.IndexOf(':');
+                if (separator >= 0)
+                {
+                    AddUsedType(used, parameter[(separator + 1)..]);
+                }
+            }
+        }
+        // Variabili e costanti tipizzate dentro le sezioni var.
+        foreach (Match match in Regex.Matches(code, @"^[ \t]*\w+\s*:\s*([A-Za-z_][\w ]*?)\s*;", RegexOptions.Multiline))
+        {
+            AddUsedType(used, match.Groups[1].Value);
+        }
+
+        var unknown = used
+            .Where(type => !InnoSetupSixTypes.Contains(type, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.True(
+            unknown.Length == 0,
+            $"Tipi non riconosciuti dal Pascal Script di Inno Setup 6: {string.Join(", ", unknown)}. " +
+            "Usa i tipi realmente registrati dal compilatore (per le chiavi di registro: Integer).");
+    }
+
+    /// <summary>Registra il tipo usato, ignorando valori di default e 'array of'.</summary>
+    private static void AddUsedType(ISet<string> used, string type)
+    {
+        var value = type;
+        var defaultValue = value.IndexOf('=');
+        if (defaultValue >= 0)
+        {
+            value = value[..defaultValue];
+        }
+        value = value.Trim();
+        if (value.StartsWith("array of", StringComparison.OrdinalIgnoreCase))
+        {
+            value = value["array of".Length..].Trim();
+        }
+        if (Regex.IsMatch(value, @"^[A-Za-z_]\w*$"))
+        {
+            used.Add(value);
+        }
+    }
+
     private static string? ReadReleaseWorkflow()
     {
         var path = Path.Combine(FindRepositoryRoot() ?? string.Empty, ".github", "workflows", "release.yml");

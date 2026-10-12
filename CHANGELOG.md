@@ -44,8 +44,9 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 - **Campo di ricerca dell'area di revisione non più tagliato**: la fascia dei comandi ha la larghezza che le serve, il riepilogo prende lo spazio rimanente ed è lui a troncare con i puntini
 
 ### ✅ Verifiche
-- **145 test di logica, tutti verdi** (49 nuovi) su ricerca, impostazioni, controlli, generazione con le nuove opzioni, aiuti dell'AI e installer
+- **146 test di logica, tutti verdi** (49 nuovi) su ricerca, impostazioni, controlli, generazione con le nuove opzioni, aiuti dell'AI e installer
 - Nuovo test sul bilancio delle altezze della card (`SetupCardLayout`): a ogni dimensione di finestra consentita il contenuto deve entrare, altrimenti comparirebbe la barra di scorrimento di sistema
+- Nuova guardia sui **tipi del Pascal Script** della sezione `[Code]`: ogni tipo dichiarato deve esistere fra quelli registrati dal compilatore Inno Setup 6 (elenco nella versione 6.7), così un tipo inventato si vede nei test e non alla prima release. Il caso reale: `RootKey: HKEY` — in Inno Setup 6 le chiavi di registro sono costanti `Integer` e `HKEY` come tipo esiste solo da Inno Setup 7, quindi l'installer non compilava e la release non veniva pubblicata; i parametri sono ora `Integer`
 - Guardia sul workflow di release: la versione di Inno Setup deve arrivare dal **registro delle installazioni**, perché `ISCC.exe` dichiara `0.0.0.0` fra le proprie risorse e il controllo "6.1 o successivo" bloccava la pubblicazione senza compilare nulla; se la versione non è determinabile si prova a compilare lo stesso
 - Nuove guardie statiche sull'installer: token fornibile all'installazione senza sovrascrivere quello esistente e modello consigliato coincidente con il predefinito dell'app
 

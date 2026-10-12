@@ -147,8 +147,12 @@ begin
 end;
 
 { Legge la cartella di installazione di Ollama da una chiave Uninstall.
-  Serve per le installazioni fatte in cartelle personalizzate (OllamaSetup /DIR=). }
-function OllamaDirectoryFromRegistry(const RootKey: HKEY; const SubKeyPath: String): String;
+  Serve per le installazioni fatte in cartelle personalizzate (OllamaSetup /DIR=).
+  Nota: il tipo del parametro deve essere Integer, non HKEY. In Inno Setup 6 le
+  chiavi di registro sono costanti Integer (HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE,
+  ...) e 'HKEY' come tipo esiste solo da Inno Setup 7: dichiararlo qui fa fallire
+  la compilazione dell'installer con "Unknown type 'HKEY'". }
+function OllamaDirectoryFromRegistry(const RootKey: Integer; const SubKeyPath: String): String;
 var
   Names: TArrayOfString;
   Index: Integer;
@@ -178,7 +182,7 @@ begin
 end;
 
 { Esiste una voce di disinstallazione di Ollama in questa chiave? }
-function OllamaInUninstallKey(const RootKey: HKEY; const SubKeyPath: String): Boolean;
+function OllamaInUninstallKey(const RootKey: Integer; const SubKeyPath: String): Boolean;
 var
   Names: TArrayOfString;
   Index: Integer;
