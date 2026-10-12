@@ -30,7 +30,7 @@ public class UiGraphicsRegressionTests
             // Due controlli nella stessa cella di una tabella si sovrappongono e
             // scompaginano le altezze delle righe: qui vengono segnalati subito.
             var overlaps = CollectCellOverlaps(form, report);
-            var gray = GrayRatio(Render(form));
+            var gray = GrayReport(Render(form));
             // Diagnostica nel messaggio di errore: se il layout viene compresso
             // serve sapere con quale schermo e quale finestra è successo.
             report.AppendLine(
@@ -39,7 +39,7 @@ public class UiGraphicsRegressionTests
                 $"area di lavoro {Screen.FromControl(form).WorkingArea.Width}x{Screen.FromControl(form).WorkingArea.Height}, " +
                 $"scala del sistema {form.DeviceDpi} dpi.");
             form.Dispose();
-            return (clipped: clipped, overlaps: overlaps, gray: gray, report: report.ToString());
+            return (clipped: clipped, overlaps: overlaps, gray: gray.Ratio, regions: gray.Regions, report: report.ToString());
         });
         if (result is null)
         {
@@ -53,7 +53,8 @@ public class UiGraphicsRegressionTests
             result.Value.overlaps + Environment.NewLine + result.Value.report);
         Assert.True(
             result.Value.gray < 0.002,
-            $"Colori di sistema non temizzati nel rendering ({result.Value.gray:P2}). {result.Value.report}");
+            $"Colori di sistema non temizzati nel rendering ({result.Value.gray:P2}). " +
+            $"Aree grigie: {result.Value.regions}. {result.Value.report}");
     }
 
     [Fact]
@@ -64,6 +65,7 @@ public class UiGraphicsRegressionTests
             var report = new StringBuilder();
             var clipped = string.Empty;
             var gray = 0.0;
+            var grayRegions = string.Empty;
             foreach (var dialog in new Form[]
                      {
                          new CloseBehaviorDialog(),
@@ -91,12 +93,17 @@ public class UiGraphicsRegressionTests
                     Application.DoEvents();
                     dialog.PerformLayout();
                     clipped = CollectClippedLabels(dialog, report);
-                    gray = Math.Max(gray, GrayRatio(Render(dialog)));
+                    var snapshot = GrayReport(Render(dialog));
+                    if (snapshot.Ratio > gray)
+                    {
+                        gray = snapshot.Ratio;
+                        grayRegions = snapshot.Regions;
+                    }
                     dialog.Hide();
                 }
                 Assert.True(string.IsNullOrEmpty(clipped), clipped);
             }
-            return (clipped: clipped, gray: gray, report: report.ToString());
+            return (clipped: clipped, gray: gray, regions: grayRegions, report: report.ToString());
         });
         if (result is null)
         {
@@ -106,7 +113,8 @@ public class UiGraphicsRegressionTests
         // che Windows disegna sempre in grisaglia.
         Assert.True(
             result.Value.gray < 0.01,
-            $"Colori di sistema non temizzati nei dialoghi ({result.Value.gray:P2}). {result.Value.report}");
+            $"Colori di sistema non temizzati nei dialoghi ({result.Value.gray:P2}). " +
+            $"Aree grigie: {result.Value.regions}. {result.Value.report}");
     }
 
     private static T? RunOnStaThread<T>(Func<T> probe)
@@ -140,24 +148,65 @@ public class UiGraphicsRegressionTests
         return bitmap;
     }
 
-    private static double GrayRatio(Bitmap bitmap)
+    /// <summary>
+    /// Colori di sistema che sfuggono al tema: il grigio delle finestre di Windows
+    /// (barre di scorrimento native, pulsanti a tendina, superfici non ridipinte).
+    /// </summary>
+    private static bool IsSystemGray(Color color) =>
+        color.R is 240 or 241 or 243 or 245 && color.G == color.R && color.B == color.R;
+
+    /// <summary>
+    /// Quota di grigio di sistema nel rendering e aree che lo producono: dal
+    /// messaggio di errore si capisce subito quale controllo resta fuori tema
+    /// (una barra di scorrimento, per esempio, è una striscia alta e stretta).
+    /// </summary>
+    private static (double Ratio, string Regions) GrayReport(Bitmap bitmap)
     {
         var total = 0;
         var gray = 0;
+        // Fasce orizzontali consecutive di grigio, con il loro rettangolo.
+        var bands = new List<(int Top, int Bottom, int Left, int Right, int Count)>();
         for (var y = 0; y < bitmap.Height; y += 2)
         {
+            var left = int.MaxValue;
+            var right = -1;
+            var count = 0;
             for (var x = 0; x < bitmap.Width; x += 2)
             {
-                var color = bitmap.GetPixel(x, y);
                 total++;
-                if (color.R is 240 or 241 or 243 or 245 && color.G == color.R && color.B == color.R)
+                if (!IsSystemGray(bitmap.GetPixel(x, y)))
                 {
-                    gray++;
+                    continue;
                 }
+                gray++;
+                count++;
+                left = Math.Min(left, x);
+                right = Math.Max(right, x);
+            }
+            if (count == 0)
+            {
+                continue;
+            }
+            if (bands.Count > 0 && bands[^1].Bottom == y - 2)
+            {
+                var last = bands[^1];
+                bands[^1] = (last.Top, y, Math.Min(last.Left, left), Math.Max(last.Right, right), last.Count + count);
+            }
+            else
+            {
+                bands.Add((y, y, left, right, count));
             }
         }
         bitmap.Dispose();
-        return gray * 1.0 / total;
+
+        var regions = string.Join(
+            "; ",
+            bands
+                .OrderByDescending(band => band.Count)
+                .Take(5)
+                .Select(band =>
+                    $"{band.Count * 4:N0} px fra ({band.Left},{band.Top}) e ({band.Right + 1},{band.Bottom + 1})"));
+        return (total == 0 ? 0 : gray * 1.0 / total, regions.Length == 0 ? "nessuna" : regions);
     }
 
     /// <summary>

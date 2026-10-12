@@ -40,9 +40,12 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 - Pulsante **Foglio: …** per scegliere il foglio, riepilogo dell'anteprima con dipendenti, giornate e ore/minuti totali
 - **Scorciatoie da tastiera** (`Ctrl+O`, `Ctrl+G`, `Ctrl+S`, `Ctrl+F`, `Ctrl+1/2/3`, `Ctrl+,`, `F1`) e voce *Scorciatoie da tastiera* nel menu dell'icona in tray
 - Scritte e messaggi di stato riscritti (stato degli aggiornamenti e dell'AI sempre leggibili nel piè di pagina)
+- **Card di sinistra che entra sempre nella finestra**: le altezze delle righe stanno in un unico posto (`SetupCardLayout`) e la guida ai passi è l'unica riga elastica, quindi non compare la barra di scorrimento grigia di sistema e nessun testo viene schiacciato; *Codici PAGHE* e *AI locale* sono sulla stessa riga
+- **Campo di ricerca dell'area di revisione non più tagliato**: la fascia dei comandi ha la larghezza che le serve, il riepilogo prende lo spazio rimanente ed è lui a troncare con i puntini
 
 ### ✅ Verifiche
-- **140 test di logica, tutti verdi** (49 nuovi) su ricerca, impostazioni, controlli, generazione con le nuove opzioni, aiuti dell'AI e installer
+- **144 test di logica, tutti verdi** (49 nuovi) su ricerca, impostazioni, controlli, generazione con le nuove opzioni, aiuti dell'AI e installer
+- Nuovo test sul bilancio delle altezze della card (`SetupCardLayout`): a ogni dimensione di finestra consentita il contenuto deve entrare, altrimenti comparirebbe la barra di scorrimento di sistema
 - Nuove guardie statiche sull'installer: token fornibile all'installazione senza sovrascrivere quello esistente e modello consigliato coincidente con il predefinito dell'app
 
 ---

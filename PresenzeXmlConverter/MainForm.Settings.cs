@@ -8,7 +8,8 @@ namespace PresenzeXmlConverter;
 /// </summary>
 internal sealed partial class MainForm
 {
-    private readonly ToolTip _sheetTooltip = new();
+    /// <summary>Suggerimenti condivisi dei comandi della finestra.</summary>
+    private readonly ToolTip _tooltips = new();
 
     /// <summary>Apre le impostazioni e applica quello che l'utente ha salvato.</summary>
     private void OpenSettings()
@@ -161,7 +162,7 @@ internal sealed partial class MainForm
         if (!hasFile)
         {
             _sheetButton.Text = "Foglio: nessun file importato";
-            _sheetTooltip.SetToolTip(_sheetButton, "Importa un file Excel per scegliere il foglio da leggere.");
+            _tooltips.SetToolTip(_sheetButton, "Importa un file Excel per scegliere il foglio da leggere.");
             return;
         }
 
@@ -175,7 +176,7 @@ internal sealed partial class MainForm
         _sheetButton.Text = _sheetNames.Count > 1
             ? $"Foglio: {shortName}   ▾   ({_sheetNames.Count} fogli)"
             : $"Foglio: {shortName}";
-        _sheetTooltip.SetToolTip(
+        _tooltips.SetToolTip(
             _sheetButton,
             _sheetNames.Count > 1
                 ? $"Foglio letto: {name}\n{_requests.Count:N0} richieste · {workers:N0} dipendenti\nClic per leggere un altro foglio del file."

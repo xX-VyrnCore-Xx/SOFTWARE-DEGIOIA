@@ -41,7 +41,7 @@ Durante la disinstallazione puoi scegliere se rimuovere il programma mantenendo 
 
 6. **Revisione ed export**: nella scheda **Movimenti** puoi correggere codice dipendente, giustificativo, data, ore e minuti: l'XML viene aggiornato automaticamente (con una breve pausa dopo le modifiche, per restare fluido). La scheda **Controlli** elenca ciò che va verificato prima di esportare, la scheda **Anteprima XML** mostra il documento finale. La ricerca filtra i movimenti con più parole in qualsiasi ordine e **ignora accenti e maiuscole**: `mario ferie 12/05` trova sia "Rossi Mario" sia la data, scritta come `12/05/2026` o `2026-05-12`. Il file si salva dove vuoi e il programma ricorda l'ultima cartella usata. Le correzioni ai codici fatte in griglia vengono salvate nel database locale.
 
-7. **Impostazioni** (pulsante nell'intestazione o `Ctrl+,`): ore della giornata standard, se considerare lavorativo il sabato, chiusure aziendali aggiuntive, token delle Release e modello AI preferito. Il foglio di un file con più fogli si cambia dal pulsante **Foglio: …** nella colonna di sinistra, senza reimportare il file.
+7. **Impostazioni** (pulsante nell'intestazione o `Ctrl+,`): ore della giornata standard, se considerare lavorativo il sabato, chiusure aziendali aggiuntive, token delle Release e modello AI preferito. Il foglio di un file con più fogli si cambia dal pulsante **Foglio: …** nella colonna di sinistra, senza reimportare il file; i **Codici PAGHE** e i giustificativi delle assenze si modificano dal pulsante omonimo, sempre nella colonna di sinistra.
 
 8. **Chiusura**: alla prima chiusura puoi scegliere una sola volta (o ricordare la scelta) se uscire definitivamente o restare in tray: in background ricevi una notifica quando una conversione termina.
 
@@ -57,7 +57,7 @@ L'app usa un modello locale (`qwen2.5:3b` per impostazione predefinita) per tre 
 
 L'AI **non scrive mai l'XML** e non può introdurre codici ufficiali: un abbinamento è accettato solo se il codice esiste già fra quelli configurati, e un'osservazione che cita un codice inesistente viene scartata. Il documento viene sempre composto e validato dal programma.
 
-Il modello può essere installato dal wizard di installazione oppure da **Configura AI locale**, che scarica l'installer ufficiale di Ollama e poi il modello. Se **Ollama è già installato** (per esempio perché usato da altri programmi) né l'installer né il programma lo reinstallano: viene scaricato **solo il modello**; se il servizio non è attivo, l'app prova ad avviarlo e attende che risponda. Se è già presente un altro modello compatibile (es. `qwen2.5:0.5b` o `3b`) viene usato automaticamente. Il runtime supera 1 GB e il modello richiede altro spazio; l'AI è opzionale.
+Il modello può essere installato dal wizard di installazione oppure dal pulsante **AI locale** della colonna di sinistra, che scarica l'installer ufficiale di Ollama e poi il modello. Se **Ollama è già installato** (per esempio perché usato da altri programmi) né l'installer né il programma lo reinstallano: viene scaricato **solo il modello**; se il servizio non è attivo, l'app prova ad avviarlo e attende che risponda. Se è già presente un altro modello compatibile (es. `qwen2.5:0.5b` o `3b`) viene usato automaticamente. Il runtime supera 1 GB e il modello richiede altro spazio; l'AI è opzionale.
 
 ### Controlli prima dell'esportazione
 
@@ -195,7 +195,7 @@ L'assistente AI è **opzionale** e gira interamente sul PC (Ollama su `127.0.0.1
 - il modello scelto viene scaricato **solo se non è già presente**; la scelta è ricordata in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\ai-model.txt` e riproposta agli aggiornamenti successivi;
 - in disinstallazione viene rimosso **solo il modello scelto per PresenzeFlow**: Ollama e gli altri modelli restano intatti.
 
-### Dall'app (menu "Configura AI locale")
+### Dall'app (pulsante "AI locale" nella colonna di sinistra)
 - se Ollama è installato ma non attivo, l'app prova ad avviarlo e attende che risponda (fino a 15 secondi): nessuna reinstallazione;
 - se Ollama manca, l'app prova prima con **winget** (`Ollama.Ollama`, modalità silenziosa) e, se winget non è disponibile o fallisce, scarica l'installer ufficiale con barra di avanzamento; se l'installazione silenziosa non produce risultati viene riproposto l'installer visibile;
 - il download del modello avviene in streaming con **percentuale reale** (byte di tutti i blocchi dello stream `/api/pull`), annullabile; prima di partire l'app verifica che ci siano **almeno 2,5 GB liberi**;

@@ -12,11 +12,24 @@ internal sealed partial class MainForm
     /// <summary>Indice della scheda "Controlli" fra le pagine dell'area di revisione.</summary>
     private const int ReviewTabIndex = 2;
 
+    private const int SearchFieldWidth = 220;
+    private const int CopyXmlButtonWidth = 108;
+    private const int ExportXmlButtonWidth = 114;
+
     /// <summary>
-    /// Larghezza del contenuto della card di sinistra: la colonna è fissa (282 px)
+    /// Larghezza della fascia di azioni dell'area di revisione: la somma dei
+    /// margini dei tre comandi. La colonna è dichiarata di questa misura, così i
+    /// comandi non possono finire fuori dallo spazio disponibile (con la colonna
+    /// in percentuale il campo di ricerca veniva tagliato).
+    /// </summary>
+    private const int PreviewActionsWidth =
+        SearchFieldWidth + 10 + CopyXmlButtonWidth + 6 + ExportXmlButtonWidth + 6;
+
+    /// <summary>
+    /// Larghezza del contenuto della card di sinistra: la colonna è fissa (300 px)
     /// meno margine e spaziatura interna della card.
     /// </summary>
-    private const int SetupContentWidth = 226;
+    private const int SetupContentWidth = 244;
 
     /// <summary>
     /// Aggiunge una riga all'impilamento verticale della card con l'altezza
@@ -34,18 +47,37 @@ internal sealed partial class MainForm
     }
 
     /// <summary>
-    /// Adatta l'impilamento alla card: le larghezze seguono lo spazio visibile,
-    /// le altezze restano quelle dichiarate riga per riga. Un FlowLayoutPanel
-    /// TopDown non ridimensiona mai i figli, quindi nessuna riga può essere
-    /// compressa e nessun testo viene tagliato quando la finestra è bassa.
+    /// Adatta l'impilamento alla card: le larghezze seguono lo spazio visibile e
+    /// le altezze restano quelle dichiarate riga per riga (un FlowLayoutPanel
+    /// TopDown non ridimensiona mai i figli, quindi nessun testo viene tagliato
+    /// quando la finestra è bassa). La guida ai passi è l'unica riga elastica:
+    /// prende lo spazio che avanza e, se non ne resta abbastanza per il suo testo,
+    /// viene nascosta. Così la card entra sempre nello spazio disponibile e non
+    /// mostra mai la barra di scorrimento di sistema, che Windows disegna in
+    /// grigio e fuori tema.
     /// </summary>
-    private static void SyncSetupStack(Control container, FlowLayoutPanel stack)
+    private void SyncSetupStack(Control container, FlowLayoutPanel stack)
     {
         var width = container.ClientSize.Width;
         if (width <= 0)
         {
             return;
         }
+
+        // Spazio richiesto dalle righe ad altezza fissa, misurato sulle altezze
+        // reali dei controlli: se un pulsante ha un'altezza minima più alta di
+        // quella dichiarata, qui viene contata quella vera e la guida si adegua.
+        var required = 0;
+        foreach (Control child in stack.Controls)
+        {
+            if (ReferenceEquals(child, _workflowSteps))
+            {
+                continue;
+            }
+            required += child.Height + child.Margin.Vertical;
+        }
+        FitWorkflowSteps(stack, container.ClientSize.Height - required);
+
         foreach (Control child in stack.Controls)
         {
             var childWidth = Math.Max(0, width - child.Margin.Horizontal);
@@ -61,6 +93,47 @@ internal sealed partial class MainForm
         }
     }
 
+    /// <summary>
+    /// Mostra la guida ai passi solo se lo spazio che avanza basta al suo testo:
+    /// la riga si allunga fino a <see cref="SetupCardLayout.StepsMaximumHeight"/> e, quando lo
+    /// spazio è poco, sparisce invece di costringere la card a scorrere.
+    /// </summary>
+    private void FitWorkflowSteps(Control stack, int remaining)
+    {
+        if (_workflowSteps is not TableLayoutPanel steps || steps.Parent != stack)
+        {
+            return;
+        }
+
+        var show = remaining >= SetupCardLayout.StepsMinimumHeight;
+        if (steps.Visible != show)
+        {
+            steps.Visible = show;
+        }
+        if (!show)
+        {
+            return;
+        }
+
+        var target = Math.Min(SetupCardLayout.StepsMaximumHeight, remaining);
+        var controlHeight = Math.Max(0, target - steps.Margin.Vertical);
+        var row = Math.Max(SetupCardLayout.StepsRowMinimumHeight, controlHeight / 2);
+        for (var index = 0; index < 2 && index < steps.RowStyles.Count; index++)
+        {
+            if ((int)steps.RowStyles[index].Height != row)
+            {
+                steps.RowStyles[index] = new RowStyle(SizeType.Absolute, row);
+            }
+        }
+        if (steps.Height != controlHeight)
+        {
+            steps.Height = controlHeight;
+        }
+    }
+
+    /// <summary>Guida ai passi del flusso: riga elastica della card di sinistra.</summary>
+    private Control? _workflowSteps;
+
     private readonly Label _requestMetricLabel = new();
     private readonly Label _employeeMetricLabel = new();
     private readonly Label _previewTitleLabel = new();
@@ -75,7 +148,7 @@ internal sealed partial class MainForm
     private void BuildLayout()
     {
         Text = "PresenzeFlow";
-        MinimumSize = new Size(1024, 650);
+        MinimumSize = new Size(SetupCardLayout.MinimumWindowWidth, SetupCardLayout.MinimumWindowHeight);
         Size = new Size(1360, 860);
         BackColor = Theme.Canvas;
         Icon = _applicationIcon;
@@ -103,7 +176,9 @@ internal sealed partial class MainForm
             BackColor = Theme.Canvas,
             Margin = Padding.Empty
         };
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 282));
+        // Colonna un po' più larga: nella card ci stanno due pulsanti affiancati
+        // senza che le loro scritte vengano tagliate.
+        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300));
         workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         // Riga dichiarata esplicitamente: senza RowStyles la tabella ricade su una
         // riga autosize che non combacia con l'altezza reale della cella, così la
@@ -118,11 +193,14 @@ internal sealed partial class MainForm
             Padding = new Padding(20, 18, 20, 18),
             Margin = new Padding(0, 0, 16, 0)
         };
-        // La card scorre quando la finestra è bassa. L'impilamento verticale è un
-        // FlowLayoutPanel TopDown con altezze esplicite per ogni riga: il flusso
-        // non ridimensiona MAI i figli, quindi le righe non possono essere
-        // compresse e i testi non finiscono tagliati (sui runner CI e sui
-        // portatili con lo schermo basso una tabella a righe fisse si schiacciava).
+        // L'impilamento verticale è un FlowLayoutPanel TopDown con altezze esplicite
+        // per ogni riga: il flusso non ridimensiona MAI i figli, quindi le righe non
+        // possono essere compresse e i testi non finiscono tagliati (sui runner CI e
+        // sui portatili con lo schermo basso una tabella a righe fisse si schiacciava).
+        // Lo scorrimento resta solo come rete di sicurezza per casi estremi: le
+        // altezze delle righe (SetupCardLayout) tengono il contenuto dentro la card
+        // alle dimensioni di finestra consentite, perché la barra di scorrimento
+        // che disegna Windows è grigia di sistema e fuori tema.
         var setupScroll = new Panel
         {
             Dock = DockStyle.Fill,
@@ -153,9 +231,9 @@ internal sealed partial class MainForm
             ForeColor = Theme.Ink,
             Font = Theme.Fonts.CardTitle
         };
-        AddSetupRow(setup, title, 46);
+        AddSetupRow(setup, title, SetupCardLayout.TitleRow);
 
-        AddSetupRow(setup, CreateSectionRow("01   AZIENDA ZUCCHETTI", "fino a 6 caratteri"), 24);
+        AddSetupRow(setup, CreateSectionRow("01   AZIENDA ZUCCHETTI", "fino a 6 caratteri"), SetupCardLayout.SectionRow);
         _companyCode.MaxLength = 6;
         _companyCode.InputFont = Theme.Fonts.Field;
         _companyCode.CharacterCasing = CharacterCasing.Upper;
@@ -170,12 +248,12 @@ internal sealed partial class MainForm
             _companyCodeSaveDebounce.Start();
         };
         _companyCode.Leave += (_, _) => SaveCompanyCode();
-        AddSetupRow(setup, _companyCode, 44, new Padding(0, 2, 0, 8));
+        AddSetupRow(setup, _companyCode, SetupCardLayout.CompanyRow, new Padding(0, 2, 0, 8));
 
-        AddSetupRow(setup, CreateSectionRow("02   FILE SORGENTE", "formato .xlsx"), 24);
+        AddSetupRow(setup, CreateSectionRow("02   FILE SORGENTE", "formato .xlsx"), SetupCardLayout.SectionRow);
         var importButton = Theme.CreateButton("SELEZIONA FILE EXCEL", Theme.ButtonTone.Primary);
         importButton.Click += async (_, _) => await ImportWorkbookAsync();
-        AddSetupRow(setup, importButton, 46, new Padding(0, 2, 0, 8));
+        AddSetupRow(setup, importButton, SetupCardLayout.ImportRow, new Padding(0, 2, 0, 8));
 
         _fileLabel.AutoSize = false;
         _fileLabel.AutoEllipsis = true;
@@ -183,7 +261,7 @@ internal sealed partial class MainForm
         _fileLabel.Text = "Nessun file selezionato";
         _fileLabel.Font = Theme.Fonts.SmallBold;
         _fileLabel.ForeColor = Theme.InkSecondary;
-        AddSetupRow(setup, _fileLabel, 28);
+        AddSetupRow(setup, _fileLabel, SetupCardLayout.SourceFileRow);
 
         // Foglio in uso: mostra il nome e, quando il file ne ha più di uno,
         // permette di passare a un altro senza reimportare il file.
@@ -192,7 +270,7 @@ internal sealed partial class MainForm
         _sheetButton.TextAlign = ContentAlignment.MiddleLeft;
         _sheetButton.Enabled = false;
         _sheetButton.Click += (_, _) => ShowSheetMenu();
-        AddSetupRow(setup, _sheetButton, 28, new Padding(0, 1, 0, 1));
+        AddSetupRow(setup, _sheetButton, SetupCardLayout.SheetRow);
 
         var metrics = new TableLayoutPanel
         {
@@ -207,13 +285,13 @@ internal sealed partial class MainForm
         metrics.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         metrics.Controls.Add(CreateMetricTile("RICHIESTE", _requestMetricLabel, Theme.BrandInk, Theme.BrandSoft), 0, 0);
         metrics.Controls.Add(CreateMetricTile("DIPENDENTI", _employeeMetricLabel, Theme.SuccessInk, Theme.SuccessSoft), 1, 0);
-        AddSetupRow(setup, metrics, 88, new Padding(0, 2, 0, 2));
+        AddSetupRow(setup, metrics, SetupCardLayout.MetricsRow, new Padding(0, 2, 0, 2));
 
-        var mappingButton = Theme.CreateButton("Codici e giustificativi", Theme.ButtonTone.Neutral);
-        mappingButton.Click += (_, _) => EditMappings();
-        AddSetupRow(setup, mappingButton, 40, new Padding(0, 3, 0, 3));
-
-        var aiRow = new TableLayoutPanel
+        // Due azioni sulla stessa riga: i codici PAGHE (con i giustificativi delle
+        // assenze) e la configurazione dell'AI locale. Una riga in meno, quindi la
+        // card resta dentro lo spazio disponibile anche su schermi bassi; le
+        // impostazioni restano nell'intestazione, sempre a portata di mano.
+        var actions = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
@@ -221,29 +299,38 @@ internal sealed partial class MainForm
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
-        aiRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        aiRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        aiRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        actions.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var aiButton = Theme.CreateButton("Configura AI locale", Theme.ButtonTone.Neutral, compact: true);
+        var mappingButton = Theme.CreateButton("Codici PAGHE", Theme.ButtonTone.Neutral, compact: true);
+        mappingButton.Dock = DockStyle.Fill;
+        mappingButton.Margin = new Padding(0, 3, 4, 3);
+        mappingButton.Click += (_, _) => EditMappings();
+        _tooltips.SetToolTip(mappingButton, "Codici PAGHE e giustificativi delle assenze (es. Ferie → F01)");
+        actions.Controls.Add(mappingButton, 0, 0);
+
+        var aiButton = Theme.CreateButton("AI locale", Theme.ButtonTone.Neutral, compact: true);
         aiButton.Dock = DockStyle.Fill;
-        aiButton.Margin = new Padding(0, 3, 4, 3);
+        aiButton.Margin = new Padding(4, 3, 0, 3);
         aiButton.Click += async (_, _) => await ConfigureAiAsync();
-        aiRow.Controls.Add(aiButton, 0, 0);
+        _tooltips.SetToolTip(aiButton, "Installa o aggiorna il motore AI locale (facoltativo)");
+        actions.Controls.Add(aiButton, 1, 0);
+        AddSetupRow(setup, actions, SetupCardLayout.ActionsRow);
 
-        var settingsButton = Theme.CreateButton("Impostazioni", Theme.ButtonTone.Neutral, compact: true);
-        settingsButton.Dock = DockStyle.Fill;
-        settingsButton.Margin = new Padding(4, 3, 0, 3);
-        settingsButton.Click += (_, _) => OpenSettings();
-        aiRow.Controls.Add(settingsButton, 1, 0);
-        AddSetupRow(setup, aiRow, 40);
-
-        AddSetupRow(setup, BuildWorkflowSteps(), 82, new Padding(0, 8, 0, 4));
+        // Guida ai passi: è la riga elastica della card di sinistra, dimensionata
+        // in SyncSetupStack in base allo spazio che avanza.
+        _workflowSteps = BuildWorkflowSteps();
+        _workflowSteps.Margin = new Padding(0, 8, 0, 4);
+        _workflowSteps.Size = new Size(
+            SetupContentWidth,
+            SetupCardLayout.StepsMaximumHeight - _workflowSteps.Margin.Vertical);
+        setup.Controls.Add(_workflowSteps);
 
         _generateButton.Text = "Genera anteprima   →";
         Theme.StyleButton(_generateButton, Theme.ButtonTone.Positive);
         _generateButton.Click += (_, _) => GeneratePreview();
-        AddSetupRow(setup, _generateButton, 50, new Padding(0, 4, 0, 0));
+        AddSetupRow(setup, _generateButton, SetupCardLayout.GenerateRow, new Padding(0, 4, 0, 0));
         // Prima misura esplicita: l'aggiunta dei figli non fa scattare il Layout
         // del pannello scrollabile, quindi la dimensione va calcolata qui.
         SyncSetupStack(setupScroll, setup);
@@ -514,8 +601,9 @@ internal sealed partial class MainForm
         steps.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30));
         steps.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         steps.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 10));
-        steps.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        steps.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        // Altezze ricalcolate a runtime da FitWorkflowSteps (riga elastica).
+        steps.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
+        steps.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
 
         var importStep = new StepBadge("1", true) { Dock = DockStyle.Top, Margin = new Padding(0, 2, 0, 0) };
         steps.Controls.Add(importStep, 0, 0);
@@ -582,8 +670,8 @@ internal sealed partial class MainForm
             BackColor = Theme.Sunken,
             Margin = Padding.Empty
         };
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
-        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, PreviewActionsWidth));
         // Riga percentuale esplicita: senza una riga dichiarata la tabella usa un
         // default che non combacia con l'altezza reale e i figli escono fuori.
         toolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -596,7 +684,7 @@ internal sealed partial class MainForm
         _previewCountLabel.ForeColor = Theme.InkSecondary;
         toolbar.Controls.Add(_previewCountLabel, 0, 0);
 
-        _previewSearch.Size = new Size(220, 32);
+        _previewSearch.Size = new Size(SearchFieldWidth, 32);
         _previewSearch.Placeholder = "Cerca nei movimenti";
         _previewSearch.Margin = new Padding(0, 0, 10, 0);
         _previewSearch.TextChanged += (_, _) => FilterMovements();
@@ -615,13 +703,13 @@ internal sealed partial class MainForm
         // il TextBox veniva largo 100 px e il testo non si leggeva.
         _copyXmlButton.Text = "Copia XML";
         Theme.StyleButton(_copyXmlButton, Theme.ButtonTone.Neutral, compact: true);
-        _copyXmlButton.Size = new Size(108, 32);
+        _copyXmlButton.Size = new Size(CopyXmlButtonWidth, 32);
         _copyXmlButton.Margin = new Padding(6, 0, 0, 0);
         _copyXmlButton.Click += (_, _) => CopyXmlToClipboard();
 
         _exportButton.Text = "Scarica XML";
         Theme.StyleButton(_exportButton, Theme.ButtonTone.Primary, compact: true);
-        _exportButton.Size = new Size(114, 32);
+        _exportButton.Size = new Size(ExportXmlButtonWidth, 32);
         _exportButton.Margin = new Padding(6, 0, 0, 0);
         _exportButton.Click += (_, _) => ExportXml();
 
