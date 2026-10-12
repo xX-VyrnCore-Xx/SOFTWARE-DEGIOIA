@@ -158,18 +158,55 @@ jobs:
           # Installer.iss usa CreateDownloadPage (pagina di download di Ollama con
           # barra di avanzamento), disponibile da Inno Setup 6.1: su una versione
           # più vecchia lo script non compilerebbe, meglio un errore chiaro qui.
-          $version = (Get-Item $iscc).VersionInfo.ProductVersion
-          if ([string]::IsNullOrWhiteSpace($version)) {
-            # Versione non dichiarata: non si può verificare, ma nemmeno bloccare la build.
-            Write-Warning 'Versione di Inno Setup non rilevata: se lo script non compila, aggiorna a Inno Setup 6.1 o successivo.'
+          # Attenzione: ISCC.exe NON dichiara la versione (le sue risorse dicono
+          # 0.0.0.0), quindi la versione vera va cercata nel registro delle
+          # installazioni; se non è determinabile si prosegue, perché a mancare
+          # CreateDownloadPage lo segnala ISCC stesso con un errore preciso.
+          $version = $null
+          $uninstallKeys = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1',
+            'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Inno Setup 6_is1'
+          )
+          foreach ($key in $uninstallKeys) {
+            if (-not (Test-Path $key)) { continue }
+            $display = (Get-ItemProperty -Path $key -ErrorAction SilentlyContinue).DisplayVersion
+            if (-not [string]::IsNullOrWhiteSpace($display)) { $version = $display.Trim(); break }
+          }
+          if (-not $version) {
+            # Fallback: qualunque voce di disinstallazione di Inno Setup.
+            $uninstallRoots = @(
+              'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+              'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+            )
+            foreach ($root in $uninstallRoots) {
+              if (-not (Test-Path $root)) { continue }
+              $entry = Get-ChildItem $root -ErrorAction SilentlyContinue |
+                ForEach-Object { Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue } |
+                Where-Object { $_.DisplayName -like 'Inno Setup*' -and $_.DisplayVersion } |
+                Select-Object -First 1
+              if ($entry) { $version = $entry.DisplayVersion.Trim(); break }
+            }
+          }
+          if (-not $version) {
+            # Ultima spiaggia: risorse del file, scartando il valore fittizio 0.0.0.0.
+            $info = (Get-Item $iscc).VersionInfo
+            foreach ($candidate in @($info.ProductVersion, $info.FileVersion)) {
+              if (-not [string]::IsNullOrWhiteSpace($candidate) -and $candidate.Trim() -notmatch '^0(\.0+)*$') {
+                $version = $candidate.Trim()
+                break
+              }
+            }
+          }
+
+          if (-not $version) {
+            Write-Warning 'Versione di Inno Setup non determinabile: proseguo (se CreateDownloadPage non è disponibile, ISCC lo segnala durante la compilazione).'
           } else {
             $parts = $version.Split('.')
             $major = 0
             $minor = 0
-            if ($parts.Count -ge 2) {
-              [void][int]::TryParse($parts[0], [ref]$major)
-              [void][int]::TryParse($parts[1], [ref]$minor)
-            }
+            [void][int]::TryParse($parts[0], [ref]$major)
+            if ($parts.Count -ge 2) { [void][int]::TryParse($parts[1], [ref]$minor) }
             if ($major -lt 6 -or ($major -eq 6 -and $minor -lt 1)) {
               throw "Inno Setup $version trovato: la pagina di download di Ollama richiede Inno Setup 6.1 o successivo."
             }

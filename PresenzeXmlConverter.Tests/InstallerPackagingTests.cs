@@ -265,6 +265,36 @@ public class InstallerPackagingTests
         return builder.ToString();
     }
 
+    /// <summary>
+    /// ISCC.exe non dichiara la versione (le risorse del file dicono 0.0.0.0):
+    /// il workflow deve leggerla dal registro delle installazioni. Se si fida
+    /// delle risorse del file, il controllo "Inno Setup 6.1 o successivo" vede
+    /// una versione 0.0.0.0, blocca la release e non viene pubblicato nulla
+    /// (è già successo: la build si è fermata prima di compilare l'installer).
+    /// </summary>
+    [Fact]
+    public void ReleaseWorkflowReadsTheInnoSetupVersionWhereItActuallyIs()
+    {
+        var workflow = ReadReleaseWorkflow();
+        if (workflow is null)
+        {
+            // Cartella repo non disponibile in questo ambiente: niente da verificare.
+            return;
+        }
+
+        Assert.Contains("Inno Setup 6_is1", workflow, StringComparison.Ordinal);
+        Assert.Contains("DisplayVersion", workflow, StringComparison.Ordinal);
+        // Una versione non determinabile non deve bloccare la pubblicazione:
+        // a mancare CreateDownloadPage lo segnala ISCC durante la compilazione.
+        Assert.Contains("non determinabile", workflow, StringComparison.Ordinal);
+    }
+
+    private static string? ReadReleaseWorkflow()
+    {
+        var path = Path.Combine(FindRepositoryRoot() ?? string.Empty, ".github", "workflows", "release.yml");
+        return File.Exists(path) ? NormalizeLineEndings(File.ReadAllText(path)) : null;
+    }
+
     private static string? ReadInstallerScript()
     {
         var path = Path.Combine(FindRepositoryRoot() ?? string.Empty, "Installer.iss");
