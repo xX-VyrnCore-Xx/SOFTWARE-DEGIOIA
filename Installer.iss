@@ -283,9 +283,7 @@ begin
     if FileExists(Source) and LoadStringFromFile(Source, Value) then
       Result := Trim(Value);
   end;
-  StringChangeEx(Result, #13, '', True);
-  StringChangeEx(Result, #10, '', True);
-  StringChangeEx(Result, ' ', '', True);
+  { Spazi e a capo vengono comunque ripuliti dall'app quando legge il file. }
   Result := Trim(Result);
 end;
 
