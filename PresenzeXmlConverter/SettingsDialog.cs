@@ -210,14 +210,25 @@ internal sealed class SettingsDialog : Form
         _holidays.Dock = DockStyle.Fill;
         _holidays.Multiline = true;
         _holidays.ScrollBars = ScrollBars.Vertical;
-        _holidays.BorderStyle = BorderStyle.FixedSingle;
+        _holidays.BorderStyle = BorderStyle.None;
         _holidays.BackColor = Theme.FieldFill;
         _holidays.ForeColor = Theme.Ink;
         _holidays.Font = Theme.Fonts.Small;
         _holidays.Text = GenerationSettings.FormatHolidays(Options.ExtraHolidays, _referenceYear)
             .Replace(", ", Environment.NewLine);
-        _holidays.Margin = new Padding(0, 2, 0, 6);
-        body.Controls.Add(_holidays, 0, 5);
+        _holidays.Margin = Padding.Empty;
+        // Cornice temizzata al posto del bordo grigio di sistema della casella.
+        var holidaysFrame = new SurfacePanel
+        {
+            Dock = DockStyle.Fill,
+            SurfaceFill = Theme.FieldFill,
+            SurfaceBorder = Theme.DividerStrong,
+            Radius = 8,
+            Padding = new Padding(8, 4, 8, 4),
+            Margin = new Padding(0, 2, 0, 6)
+        };
+        holidaysFrame.Controls.Add(_holidays);
+        body.Controls.Add(holidaysFrame, 0, 5);
 
         body.Controls.Add(new Label
         {
