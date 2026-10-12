@@ -1,5 +1,5 @@
 #define AppName "PresenzeFlow"
-#define AppVersion "1.10.0"
+#define AppVersion "1.11.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 
@@ -119,6 +119,8 @@ const
   { dipendere dalle costanti di vista del registro. }
   UninstallKeyPathWow = 'Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall';
   ModelMarkerName = 'ai-model.txt';
+  { Token di sola lettura per le Release della repository privata. }
+  GithubTokenName = 'github.token';
 
 var
   ReviewPage: TWizardPage;
@@ -262,6 +264,45 @@ begin
     Result := OllamaInUninstallKey(HKEY_LOCAL_MACHINE, UninstallKeyPath);
   if not Result then
     Result := OllamaInUninstallKey(HKEY_LOCAL_MACHINE, UninstallKeyPathWow);
+end;
+
+{ Token GitHub delle Release (la repository è privata). Viene preso dal
+  parametro /GITHUBTOKEN=... (utile per installazioni guidate a distanza)
+  oppure da un file github.token lasciato accanto all'installer. Se non c'è
+  nulla, l'app lo chiede al primo avvio: qui non si inventa nulla e un token
+  già presente non viene mai sovrascritto con un valore vuoto. }
+function ProvidedGithubToken(): String;
+var
+  Value: String;
+  Source: String;
+begin
+  Result := Trim(ExpandConstant('{param:GITHUBTOKEN|}'));
+  if Result = '' then
+  begin
+    Source := AddBackslash(ExpandConstant('{src}')) + GithubTokenName;
+    if FileExists(Source) and LoadStringFromFile(Source, Value) then
+      Result := Trim(Value);
+  end;
+  StringChangeEx(Result, #13, '', True);
+  StringChangeEx(Result, #10, '', True);
+  StringChangeEx(Result, ' ', '', True);
+  Result := Trim(Result);
+end;
+
+procedure ProvisionGithubToken();
+var
+  Token: String;
+  Target: String;
+begin
+  Token := ProvidedGithubToken();
+  if Token = '' then
+    Exit;
+  Target := AddBackslash(DataDirectory()) + GithubTokenName;
+  ForceDirectories(DataDirectory());
+  if SaveStringToFile(Target, Token, False) then
+    Log('Token GitHub delle Release salvato: l''app si collega subito agli aggiornamenti.')
+  else
+    Log('Token GitHub non salvato: l''app lo chiederà al primo avvio.');
 end;
 
 { Modello scelto in una installazione precedente (file scritto in [Code]). }
@@ -444,7 +485,7 @@ begin
   AiFastRadio.Top := ScaleY(44);
   AiFastRadio.Width := AiPage.SurfaceWidth;
   AiFastRadio.Height := ScaleY(22);
-  AiFastRadio.Caption := 'Veloce — {#ModelFast} (circa 400 MB): risposte immediate anche su PC datati';
+  AiFastRadio.Caption := 'Minimo — {#ModelFast} (circa 400 MB): risposte immediate anche su PC datati';
 
   AiBalancedRadio := TNewRadioButton.Create(AiPage);
   AiBalancedRadio.Parent := AiPage.Surface;
@@ -452,7 +493,7 @@ begin
   AiBalancedRadio.Top := ScaleY(68);
   AiBalancedRadio.Width := AiPage.SurfaceWidth;
   AiBalancedRadio.Height := ScaleY(22);
-  AiBalancedRadio.Caption := 'Consigliato — {#ModelBalanced} (circa 1 GB): miglior equilibrio tra qualità e velocità';
+  AiBalancedRadio.Caption := 'Rapido — {#ModelBalanced} (circa 1 GB): buon equilibrio, un po'' meno preciso sui casi dubbi';
 
   AiQualityRadio := TNewRadioButton.Create(AiPage);
   AiQualityRadio.Parent := AiPage.Surface;
@@ -460,7 +501,7 @@ begin
   AiQualityRadio.Top := ScaleY(92);
   AiQualityRadio.Width := AiPage.SurfaceWidth;
   AiQualityRadio.Height := ScaleY(22);
-  AiQualityRadio.Caption := 'Qualità — {#ModelQuality} (circa 2 GB): suggerimenti più accurati, richiede più RAM';
+  AiQualityRadio.Caption := 'Consigliato — {#ModelQuality} (circa 2 GB): il più affidabile nell''abbinare codici e colonne';
 
   AiNoneRadio := TNewRadioButton.Create(AiPage);
   AiNoneRadio.Parent := AiPage.Surface;
@@ -483,10 +524,10 @@ begin
   ExistingModel := InstalledModelFromMarker();
   if ExistingModel = '{#ModelFast}' then
     AiFastRadio.Checked := True
-  else if ExistingModel = '{#ModelQuality}' then
-    AiQualityRadio.Checked := True
+  else if ExistingModel = '{#ModelBalanced}' then
+    AiBalancedRadio.Checked := True
   else
-    AiBalancedRadio.Checked := True;
+    AiQualityRadio.Checked := True;
 
   DownloadPage := CreateDownloadPage(
     'Scaricamento dei componenti opzionali',
@@ -648,6 +689,10 @@ var
 begin
   if CurStep <> ssPostInstall then
     Exit;
+
+  { Il token delle Release si salva anche in installazione silenziosa: così una
+    distribuzione aziendale arriva con gli aggiornamenti già collegati. }
+  ProvisionGithubToken();
 
   { Aggiornamento silenzioso: le preferenze dell'utente (incluso il modello
     scelto) restano esattamente come sono, senza download imprevisti. }

@@ -13,6 +13,7 @@ internal sealed partial class MainForm : Form
     private readonly Label _statusLabel = new();
     private readonly Label _aiStatusLabel = new();
     private readonly Button _generateButton = new();
+    private readonly Button _sheetButton = new();
     private readonly Button _exportButton = new();
     private readonly ThemedGrid _movementsGrid = new();
     private readonly RichTextBox _xmlPreview = new();
@@ -31,6 +32,9 @@ internal sealed partial class MainForm : Form
     private readonly System.Windows.Forms.Timer _xmlRefreshDebounce = new() { Interval = 350 };
     private readonly System.Windows.Forms.Timer _companyCodeSaveDebounce = new() { Interval = 700 };
     private string? _lastSourceDirectory;
+    private IReadOnlyList<string> _sheetNames = Array.Empty<string>();
+    private ColumnSelection? _columns;
+    private GenerationOptions _generationOptions = GenerationOptions.Default;
 
     /// <summary>Impostazione che ricorda il modello AI scelto dall'utente.</summary>
     private const string AiModelSetting = "ai-preferred-model";
@@ -77,9 +81,8 @@ internal sealed partial class MainForm : Form
             SaveCompanyCode();
         };
         _lastSourceDirectory = _database.GetSetting("last-source-dir");
+        _generationOptions = GenerationSettings.Read(_database);
         _ai.PreferredModel = ResolvePreferredModel();
-        LoadChatHistory();
-        ShowChatWelcome();
         InitializeUpdates();
         SetupTrayIcon();
         UpdateButtons();
@@ -268,9 +271,13 @@ internal sealed partial class MainForm : Form
                 columns = mappingDialog.Selection;
             }
 
-            _requests = inspection.ReadRequests(columns);
+            var read = inspection.Read(columns, _generationOptions.HoursPerDay);
+            _requests = read.Requests;
+            SetSourceProblems(read.Problems);
             _inspection = inspection;
+            _columns = columns;
             _sourcePath = picker.FileName;
+            LoadSheetNames(picker.FileName);
             var sourceDirectory = Path.GetDirectoryName(picker.FileName);
             if (!string.IsNullOrEmpty(sourceDirectory))
             {
@@ -279,6 +286,7 @@ internal sealed partial class MainForm : Form
             }
             _fileLabel.Text = Path.GetFileName(picker.FileName);
             ClearGeneratedPreview();
+            ResetReview();
             UpdateWorkflowSummary();
             _previewTitleLabel.Text = "File importato · pronto per la conversione";
             _previewSubtitleLabel.Text = "Controlla l’azienda e i codici, quindi genera l’anteprima dei movimenti.";
@@ -369,7 +377,8 @@ internal sealed partial class MainForm : Form
                         employees,
                         policies,
                         _inspection.PeriodStart,
-                        _inspection.PeriodEnd);
+                        _inspection.PeriodEnd,
+                        _generationOptions);
                     var document = generation.Movements.Count == 0
                         ? string.Empty
                         : TrriPwXmlWriter.Create(companyCode, generation.Movements);
@@ -390,28 +399,31 @@ internal sealed partial class MainForm : Form
             PopulatePreview(result.Movements);
             _xmlPreview.Text = _xml;
             ApplyXmlSyntaxHighlighting();
-            _previewTabs.SelectedIndex = 0;
-            _hasWarnings = result.Warnings.Count > 0;
             UpdatePreviewSummary(result.Movements);
+            // I controlli girano sempre: prima dell'esportazione l'utente deve
+            // vedere che cosa richiede attenzione, non solo le ore prodotte.
+            SetGenerationWarnings(result.Warnings);
+            RunDeterministicChecks(result.Movements);
             UpdateButtons();
             NotifyConversionCompleted(result.Movements.Count);
-            if (result.Warnings.Count > 0)
+            if (ErrorCount > 0)
             {
-                var warningText = string.Join(Environment.NewLine, result.Warnings.Take(12));
-                if (result.Warnings.Count > 12)
-                {
-                    warningText += $"{Environment.NewLine}… e altre {result.Warnings.Count - 12} segnalazioni.";
-                }
-                SetStatus($"{result.Warnings.Count} segnalazioni: controlla l’elenco prima dell’esportazione.", true);
-                MessageBox.Show(
-                    this,
-                    warningText,
-                    "Controlli sulla conversione",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
+                _previewTabs.SelectedIndex = ReviewTabIndex;
+                SetStatus(
+                    $"{ErrorCount:N0} errori e {WarningCount:N0} attenzioni da verificare nella scheda Controlli.",
+                    true);
+                ShowReviewDialog();
+            }
+            else if (WarningCount > 0)
+            {
+                _previewTabs.SelectedIndex = ReviewTabIndex;
+                SetStatus(
+                    $"{WarningCount:N0} segnalazioni da verificare: le trovi nella scheda Controlli.",
+                    true);
             }
             else
             {
+                _previewTabs.SelectedIndex = 0;
                 SetStatus("Anteprima pronta. Controlla i movimenti e il contenuto XML prima di scaricare.", false);
             }
             UpdateWorkflowSummary();
@@ -420,6 +432,34 @@ internal sealed partial class MainForm : Form
         {
             ShowError("Generazione XML non riuscita", exception);
         }
+    }
+
+    /// <summary>
+    /// Riepilogo modale delle segnalazioni più gravi: si apre solo quando ci sono
+    /// errori, così il caso normale resta senza finestre da chiudere.
+    /// </summary>
+    private void ShowReviewDialog()
+    {
+        var lines = _findings
+            .Where(finding => finding.Severity != MovementSeverity.Note)
+            .Take(12)
+            .Select(finding => $"[{finding.Label}] {finding.Message}")
+            .ToArray();
+        if (lines.Length == 0)
+        {
+            return;
+        }
+        var text = string.Join(Environment.NewLine, lines);
+        if (ErrorCount + WarningCount > lines.Length)
+        {
+            text += $"{Environment.NewLine}… e altre {ErrorCount + WarningCount - lines.Length} segnalazioni nella scheda Controlli.";
+        }
+        MessageBox.Show(
+            this,
+            text,
+            "Controlli sulla conversione",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning);
     }
 
     private void EditMappings()
@@ -1239,11 +1279,13 @@ internal sealed partial class MainForm : Form
             _xml = TrriPwXmlWriter.Create(companyCode, movements);
             _xmlPreview.Text = _xml;
             ApplyXmlSyntaxHighlighting();
-            _hasWarnings = false;
             PersistMovementMappings();
+            RunDeterministicChecks(movements);
             UpdatePreviewSummary(movements);
             UpdateButtons();
-            SetStatus("Anteprima modificata: XML aggiornato. Verifica nuovamente prima di scaricare.", false);
+            SetStatus(ErrorCount > 0
+                ? $"Anteprima modificata: {ErrorCount:N0} errori da correggere nella scheda Controlli."
+                : "Anteprima modificata: XML aggiornato. Verifica nuovamente prima di scaricare.", ErrorCount > 0);
         }
         catch (Exception exception) when (exception is InvalidDataException or FormatException)
         {

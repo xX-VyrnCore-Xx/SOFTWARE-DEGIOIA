@@ -4,9 +4,11 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.10.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.11.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
-Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Veloce* `qwen2.5:0.5b` (~400 MB), *Consigliato* `qwen2.5:1.5b` (~1 GB), *Qualità* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer vengono **firmati** quando il certificato è configurato (vedi "Firma digitale"): un file firmato viene controllato più in fretta al primo avvio.
+Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Minimo* `qwen2.5:0.5b` (~400 MB), *Rapido* `qwen2.5:1.5b` (~1 GB), *Consigliato* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Il modello consigliato è quello che l'app preferisce: entrambi partono da `qwen2.5:3b` perché è il più affidabile nell'abbinare colonne e codici. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer vengono **firmati** quando il certificato è configurato (vedi "Firma digitale"): un file firmato viene controllato più in fretta al primo avvio.
+
+Se la distribuzione è gestita a distanza puoi consegnare **anche il token delle Release**: l'installer lo prende dal parametro `/GITHUBTOKEN=...` oppure da un file `github.token` lasciato accanto al setup e lo salva nel profilo dell'utente (anche in installazione silenziosa, senza mai sovrascrivere un token già presente). In questo modo il PC è collegato agli aggiornamenti fin dal primo avvio.
 
 **Primo avvio**: al primo lancio subito dopo l'installazione Windows Defender analizza l'eseguibile (circa 160 MB non firmato digitalmente) e la finestra può impare anche 15-20 secondi ad apparire; dai lanci successivi l'avvio è immediato (misurato: ~0,5 s). La firma digitale dell'eseguibile riduce ulteriormente questa attesa.
 
@@ -29,44 +31,48 @@ Durante la disinstallazione puoi scegliere se rimuovere il programma mantenendo 
 4. **Giustificativi**: Associa i valori presenti nella colonna `Policy` ai codici giustificativo ufficiali PAGHE (fino a 3 caratteri). Questi codici non sono dedotti dall'AI.
 
 5. **Anteprima**: Genera e revisiona l'anteprima:
-   - Ogni durata viene ripartita in modo uniforme sui giorni lunedì-venerdì dell'intervallo
-   - Esclude le festività nazionali italiane
+   - Ogni durata viene ripartita in modo uniforme sui giorni lunedì-venerdì dell'intervallo (o anche il sabato, se attivato nelle impostazioni)
+   - Esclude le festività nazionali italiane e le chiusure aziendali aggiunte nelle impostazioni
+   - La giornata standard è configurabile (8 h per impostazione predefinita) e le richieste che la superano vengono **segnalate**, mai modificate o scartate
    - Gli eventuali minuti residui sono assegnati in ordine cronologico
    - Utilizza `Duration in range` quando presente
    - Limita i movimenti al periodo `From Date`/`To Date` del foglio quando disponibile
    - Le richieste dello stesso dipendente che generano movimenti sullo stesso giorno sono segnalate per la revisione (non vengono scartate o modificate automaticamente)
 
-6. **Revisione, assistente AI ed export**: Nella griglia puoi correggere codice dipendente, giustificativo, data, ore e minuti: l'XML viene aggiornato automaticamente (con una breve pausa dopo le modifiche, per restare fluido). Nella scheda **Assistente AI** puoi invece descrivere a parole la correzione e l'AI la applica all'anteprima. Il file si salva dove vuoi e il programma ricorda l'ultima cartella usata. Le correzioni ai codici fatte in griglia vengono salvate nel database locale.
+6. **Revisione ed export**: nella scheda **Movimenti** puoi correggere codice dipendente, giustificativo, data, ore e minuti: l'XML viene aggiornato automaticamente (con una breve pausa dopo le modifiche, per restare fluido). La scheda **Controlli** elenca ciò che va verificato prima di esportare, la scheda **Anteprima XML** mostra il documento finale. La ricerca filtra i movimenti con più parole in qualsiasi ordine e **ignora accenti e maiuscole**: `mario ferie 12/05` trova sia "Rossi Mario" sia la data, scritta come `12/05/2026` o `2026-05-12`. Il file si salva dove vuoi e il programma ricorda l'ultima cartella usata. Le correzioni ai codici fatte in griglia vengono salvate nel database locale.
 
-7. **Chiusura**: alla prima chiusura puoi scegliere una sola volta (o ricordare la scelta) se uscire definitivamente o restare in tray: in background ricevi una notifica quando una conversione termina.
+7. **Impostazioni** (pulsante nell'intestazione o `Ctrl+,`): ore della giornata standard, se considerare lavorativo il sabato, chiusure aziendali aggiuntive, token delle Release e modello AI preferito. Il foglio di un file con più fogli si cambia dal pulsante **Foglio: …** nella colonna di sinistra, senza reimportare il file.
+
+8. **Chiusura**: alla prima chiusura puoi scegliere una sola volta (o ricordare la scelta) se uscire definitivamente o restare in tray: in background ricevi una notifica quando una conversione termina.
 
 Il file generato contiene solo i movimenti di assenza presenti nell'Excel; non inventa ore ordinarie o presenze. Prima dell'esportazione vengono verificati codici, limiti del tracciato, associazioni dipendente/codice e caratteri XML; l'output è ordinato in modo deterministico, scritto in UTF-8 senza BOM e sostituito atomicamente per evitare file parziali.
 
 ## AI locale opzionale
 
-L'app usa un modello locale (`qwen2.5:1.5b` per impostazione predefinita) per tre attività:
+L'app usa un modello locale (`qwen2.5:3b` per impostazione predefinita) per tre attività:
 
 1. **Riconoscimento assistito delle colonne** quando il foglio non ha intestazioni standard.
 2. **Proposta di abbinamenti** tra le etichette `Policy` e i giustificativi già configurati.
-3. **Assistente conversazionale** (scheda **Assistente AI** nell'area di revisione, oppure pulsante **Chatta con AI**): scrivi in italiano cosa vuoi correggere e l'app lo trasforma in modifiche controllate sui movimenti.
+3. **Revisione dei movimenti generati**: nella scheda **Controlli**, il pulsante **Revisione AI** rilegge il riepilogo dell'anteprima e aggiunge osservazioni in coda ai controlli automatici.
+
+L'AI **non scrive mai l'XML** e non può introdurre codici ufficiali: un abbinamento è accettato solo se il codice esiste già fra quelli configurati, e un'osservazione che cita un codice inesistente viene scartata. Il documento viene sempre composto e validato dal programma.
 
 Il modello può essere installato dal wizard di installazione oppure da **Configura AI locale**, che scarica l'installer ufficiale di Ollama e poi il modello. Se **Ollama è già installato** (per esempio perché usato da altri programmi) né l'installer né il programma lo reinstallano: viene scaricato **solo il modello**; se il servizio non è attivo, l'app prova ad avviarlo e attende che risponda. Se è già presente un altro modello compatibile (es. `qwen2.5:0.5b` o `3b`) viene usato automaticamente. Il runtime supera 1 GB e il modello richiede altro spazio; l'AI è opzionale.
 
-### Assistente AI: cosa può fare sul documento
+### Controlli prima dell'esportazione
 
-L'AI **non scrive mai direttamente l'XML**. Descrivi a parole la correzione e l'applicazione la traduce in un insieme di azioni validate da codice:
+La scheda **Controlli** raccoglie in un unico elenco tutto ciò che va verificato, ordinato per gravità (**ERRORE**, **ATTENZIONE**, **NOTA**):
 
-- impostare ore e minuti sui movimenti che corrispondono a un filtro (dipendente, giustificativo, giorno o intervallo);
-- spostare le date di N giorni (avanti o indietro);
-- riscalare le durate (es. dimezzare);
-- cambiare il **codice giustificativo**, ma solo riusando codici già configurati;
-- rimuovere movimenti.
+- righe del foglio che non sono state importate, con il numero di riga e il motivo (data illeggibile, durata non riconosciuta, codice troppo lungo…);
+- codici giustificativo non configurati, codici PAGHE mancanti o assegnati a due dipendenti diversi;
+- più richieste che si sovrappongono nello stesso giorno e giornate oltre la giornata standard configurata;
+- date fuori dal periodo dichiarato nel foglio, sabati, domeniche e giorni festivi;
+- dipendenti presenti nel foglio che non hanno prodotto alcun movimento;
+- differenze fra le ore dichiarate nel foglio e quelle effettivamente generate.
 
-Un filtro senza campi vale "tutti i movimenti". Esempi di richieste: *"metti le ferie di Rossi a 4 ore il 17/08"*, *"sposta di un giorno tutti i movimenti del 20 agosto"*, *"dimezza le ore di Mario Bianchi"*, *"rimuovi i permessi non retribuiti di luglio"*.
+I controlli automatici girano **sempre**, senza AI e senza rete, e si aggiornano a ogni modifica della griglia. Il pulsante **Revisione AI** aggiunge le osservazioni del modello locale, **Copia elenco** esporta l'elenco per condividerlo con chi gestisce le paghe, e un doppio clic su una segnalazione porta al movimento corrispondente. Se restano errori, l'app li riassume in una finestra e apre direttamente la scheda Controlli.
 
-Ogni modifica viene mostrata nel riquadro della conversazione con l'esito (quanti movimenti aggiornati, rimossi o ignorati) e l'anteprima/XML si rigenerano subito. Se l'AI propone un codice non configurato, la modifica viene scartata e viene segnalato. La conversazione è salvata nel database locale e viene ripristinata al riavvio (puoi azzerarla con **Nuova chat**).
-
-**Comunicazioni e privacy**: Il programma comunica con `127.0.0.1:11434` (modello locale) e, separatamente, con `api.github.com` solo per il controllo degli aggiornamenti (vedi la sezione "Aggiornamenti automatici"). Per le attività 1 e 2 invia esclusivamente intestazioni, etichette `Policy` e mapping già configurati, mai nominativi o righe del foglio. Per l'assistente conversazionale invia al modello locale il **riepilogo dell'anteprima corrente** (dipendenti, codici, date e giustificativi): serve a capire cosa correggere e **non esce mai dal tuo PC**. Nessun dato viene inviato a servizi esterni. L'AI non può introdurre codici ufficiali nuovi: i suggerimenti vanno verificati e confermati.
+**Comunicazioni e privacy**: il programma comunica con `127.0.0.1:11434` (modello locale) e, separatamente, con `api.github.com` solo per il controllo degli aggiornamenti (vedi la sezione "Aggiornamenti automatici"). Per le attività 1 e 2 invia esclusivamente intestazioni, etichette `Policy` e mapping già configurati, mai nominativi o righe del foglio. Per la revisione invia al modello locale il **riepilogo dell'anteprima corrente** (dipendenti, codici, date, giustificativi e ore): **non esce mai dal tuo PC**. Nessun dato viene inviato a servizi esterni.
 
 ## Dati e tracciato
 
@@ -77,7 +83,7 @@ SQLite è configurato con:
 - Attese controllate per accessi concorrenti
 - Sincronizzazione completa delle scritture (`PRAGMA synchronous FULL`)
 - `secure_delete` su tutte le pagine
-- Controllo d'integrità all'avvio (`INTEGRITY_CHECK`)
+- Controllo d'integrità rapido (`PRAGMA quick_check`) al primo avvio e poi al massimo una volta a settimana
 - Tutti i valori passati tramite query parametrizzate
 
 ⚠️ **Nota importante**: Il database non è cifrato. Proteggi l'account Windows e il dispositivo secondo le policy aziendali. La disinstallazione consente di mantenere o rimuovere il database.
@@ -91,6 +97,18 @@ SQLite è configurato con:
 
 Prima del primo utilizzo produttivo, verifica un XML di prova nell'ambiente Zucchetti: i codici, le abilitazioni e le configurazioni di importazione dipendono dall'installazione PAGHE aziendale.
 
+## Scorciatoie da tastiera
+
+| Tasto | Azione |
+| --- | --- |
+| `Ctrl+O` | Apri un file Excel |
+| `Ctrl+G` | Genera anteprima e XML |
+| `Ctrl+S` | Salva l'XML su file |
+| `Ctrl+F` | Cerca nei movimenti |
+| `Ctrl+1` / `Ctrl+2` / `Ctrl+3` | Scheda Movimenti / Anteprima XML / Controlli |
+| `Ctrl+,` | Impostazioni |
+| `F1` | Elenco delle scorciatoie |
+
 ## Build e test
 
 Richiede .NET 8 SDK e Windows x64:
@@ -103,7 +121,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.10.0.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.11.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).
@@ -142,15 +160,20 @@ PresenzeFlow controlla le Release pubblicate sul proprio repository GitHub e pro
 ### Attivare il controllo (una volta per PC)
 
 1. Su GitHub crea un **fine-grained personal access token** con un solo permesso: **Contents → Read-only**, limitato al repository `xX-VyrnCore-Xx/SOFTWARE-DEGIOIA`.
-2. Rendilo disponibile in uno dei due modi:
+2. Rendilo disponibile in uno dei modi seguenti:
+   - **dall'app** (consigliato): **Impostazioni → Aggiornamenti**, incolla il token e premi **Verifica e salva token**. L'app interroga subito GitHub, dice esattamente cosa risponde (`200` collegato, `401` token non valido, `403` permessi mancanti, `404` repository non visibile al token), salva il token e **lo attiva immediatamente**: nessun riavvio e nessun file da cercare a mano;
    - **variabile d'ambiente** `PRESENZEFLOW_GITHUB_TOKEN`;
-   - oppure file **`%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\github.token`** contenente solo il token.
+   - oppure file **`%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\github.token`** contenente solo il token;
+   - oppure, per una distribuzione aziendale, al momento dell'installazione con `/GITHUBTOKEN=...` o con un file `github.token` accanto al setup.
 
-Il token **non è mai incluso nell'eseguibile** e non viene mai scritto nel database: resta nella configurazione del PC. Senza token il controllo automatico è inattivo e compare un messaggio che spiega come configurarlo.
+Il token **non è mai incluso nell'eseguibile** e non viene mai scritto nel database: resta nella configurazione del PC. Senza token il controllo automatico è inattivo: la barra in basso lo dice (`Aggiornamenti · token GitHub da configurare`) e al primo avvio l'app apre una sola volta le impostazioni nel punto giusto.
+
+Con **Rimuovi token** il token viene cancellato dal profilo dell'utente.
 
 ### Come funziona
 
-- **All'avvio**, dopo qualche secondo, l'app controlla in silenzio l'ultima Release.
+- **All'avvio**, dopo qualche secondo, l'app controlla in silenzio l'ultima Release; **mentre l'app resta aperta il controllo si ripete ogni ora**, così un aggiornamento pubblicato nel pomeriggio non aspetta il giorno dopo.
+- La barra inferiore mostra sempre lo stato del collegamento (`Aggiornamenti · aggiornato alla 1.11.0 · 09:41`) e il pulsante **Aggiornamenti** nell'intestazione avvia un controllo immediato.
 - Se esiste una versione più recente, mostra una finestra con **le novità** e i pulsanti **Aggiorna ora** / **Più tardi** (un aggiornamento rimandato non viene riproposto a ogni avvio, ma resta disponibile dal tray).
 - **Aggiorna ora**: l'installer viene scaricato con barra di avanzamento e **verificato con il checksum SHA-256** pubblicato nella Release. Poi l'app si chiude, l'installer aggiorna e **PresenzeFlow si riapre da solo**.
 - **Dopo l'aggiornamento** viene mostrata automaticamente la finestra **Novità** con il riepilogo delle modifiche (le note sono salvate in locale, quindi funzionano anche senza rete).
@@ -210,6 +233,17 @@ In azienda la stessa operazione si distribuisce con Criteri di gruppo; per rende
 ### Nota importante
 
 Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica l'installer da Internet: diventa attendibile solo sui PC dove il certificato pubblico è installato. Per una firma riconosciuta da tutti serve un certificato emesso da una CA pubblica (a pagamento) o un servizio di firma gestito. Senza firma l'app funziona comunque: Windows mostra solo l'avviso "editore sconosciuto" al primo avvio.
+
+## Novità v1.11.0
+
+- **Analisi Excel più solida**: intestazioni fuzzy più numerose, date e durate riconosciute in più formati (comprese le celle con formato orario e le durate espresse in giorni), nominativi normalizzati (spazi doppi e caratteri invisibili), righe problematiche **segnalate con il numero di riga e il motivo** invece di bloccare l'importazione, e possibilità di **scegliere un altro foglio** del file senza reimportarlo
+- **Chat AI rimossa**: non serviva. Al suo posto la scheda **Controlli**, che elenca per gravità errori, attenzioni e note di ogni conversione (righe non importate, codici non configurati, sovrapposizioni, giorni oltre la giornata standard, festivi, differenze di ore), con doppio clic per raggiungere il movimento e **Copia elenco** per condividerlo
+- **AI usata meglio nella generazione dell'XML**: **structured outputs** (JSON Schema passato a Ollama) per l'abbinamento delle colonne e dei codici, prompt dedicati con temperature 0 e seed fisso, e una nuova **revisione dei movimenti** che aggiunge solo osservazioni verificate (i codici inventati vengono scartati)
+- **Modello AI**: predefinito e consigliato `qwen2.5:3b`, il più affidabile per l'estrazione strutturata fra i modelli piccoli; la lista dei modelli accettati è allineata fra app e installer
+- **Aggiornamenti sempre collegati**: token GitHub inserito e **verificato direttamente nell'app** (Impostazioni → Aggiornamenti, con l'esito reale di GitHub: 200/401/403/404), attivo **subito** senza riavvio, controllo ripetuto ogni ora, stato sempre visibile nella barra inferiore, e possibilità di fornire il token all'installazione (`/GITHUBTOKEN=...` o file `github.token`)
+- **Motore di calcolo e ricerca**: ore della giornata standard configurabili, sabato lavorativo opzionale, chiusure aziendali aggiuntive, avvisi sulle richieste che superano la giornata; ricerca nei movimenti **multi-termine, senza accenti e senza maiuscole**, che riconosce codici, date (italiane e ISO) e durate (`7:30`, `7.30`, `450` minuti)
+- **UI/UX**: pulsanti **Impostazioni** e **Aggiornamenti** nell'intestazione, nuovo dialogo **Impostazioni** unico per conversione, aggiornamenti e modello AI, pulsante **Foglio: …** per cambiare foglio, riepilogo dell'anteprima con totali, **scorciatoie da tastiera** (`Ctrl+O/G/S/F`, `Ctrl+1/2/3`, `Ctrl+,`, `F1`) e stato degli aggiornamenti nel piè di pagina
+- **140 test di logica** (49 nuovi) su ricerca, impostazioni, controlli, generazione con le nuove opzioni e installer
 
 ## Novità v1.10.0
 

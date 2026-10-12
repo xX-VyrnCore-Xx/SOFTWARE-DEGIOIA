@@ -40,6 +40,65 @@ internal sealed class LocalDatabase
         return command.ExecuteScalar() as string;
     }
 
+    /// <summary>
+    /// Legge più preferenze con una sola connessione e una sola query. All'avvio
+    /// servono diverse impostazioni: aprirne una per ciascuna era uno spreco.
+    /// Le chiavi assenti sono presenti nel risultato con valore vuoto.
+    /// </summary>
+    public Dictionary<string, string> GetSettings(params string[] keys)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (keys.Length == 0)
+        {
+            return result;
+        }
+        foreach (var key in keys)
+        {
+            result[key] = string.Empty;
+        }
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        var placeholders = new string[keys.Length];
+        for (var index = 0; index < keys.Length; index++)
+        {
+            placeholders[index] = $"$key{index}";
+            command.Parameters.AddWithValue($"$key{index}", keys[index]);
+        }
+        command.CommandText =
+            $"SELECT Key, Value FROM Settings WHERE Key IN ({string.Join(", ", placeholders)});";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            result[reader.GetString(0)] = reader.GetString(1);
+        }
+        return result;
+    }
+
+    /// <summary>Salva più preferenze in un'unica transazione.</summary>
+    public void SaveSettings(IReadOnlyDictionary<string, string> values)
+    {
+        if (values.Count == 0)
+        {
+            return;
+        }
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        foreach (var pair in values)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO Settings (Key, Value) VALUES ($key, $value)
+                ON CONFLICT(Key) DO UPDATE SET Value = excluded.Value;
+                """;
+            command.Parameters.AddWithValue("$key", pair.Key);
+            command.Parameters.AddWithValue("$value", pair.Value ?? string.Empty);
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
     public void SaveSetting(string key, string value)
     {
         using var connection = OpenConnection();

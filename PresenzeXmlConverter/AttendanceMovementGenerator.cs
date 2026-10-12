@@ -7,10 +7,17 @@ internal static class AttendanceMovementGenerator
         IReadOnlyDictionary<string, string> employeeCodes,
         IReadOnlyDictionary<string, string> policyCodes,
         DateTime? periodStart,
-        DateTime? periodEnd)
+        DateTime? periodEnd,
+        GenerationOptions? options = null)
     {
+        options ??= GenerationOptions.Default;
+        var extraHolidays = options.ExtraHolidays ?? [];
         var movements = new List<DailyMovement>();
         var warnings = new List<string>();
+        // Capienza di una giornata: serve solo per avvisare, mai per scartare ore.
+        var capacityMinutes = options.HoursPerDay is > 0m and <= 24m
+            ? decimal.ToInt32(decimal.Round(options.HoursPerDay * 60m, 0, MidpointRounding.AwayFromZero))
+            : 24 * 60;
 
         foreach (var request in requests)
         {
@@ -31,10 +38,13 @@ internal static class AttendanceMovementGenerator
                 continue;
             }
 
-            var workDays = EnumerateWorkDays(start, end).ToArray();
+            var workDays = EnumerateWorkDays(start, end, options).ToArray();
             if (workDays.Length == 0)
             {
-                warnings.Add($"Riga {request.SourceRow}: nessun giorno lavorativo nel periodo della richiesta.");
+                warnings.Add(
+                    $"Riga {request.SourceRow}: nessun giorno lavorativo fra " +
+                    $"{start:dd/MM/yyyy} e {end:dd/MM/yyyy} (fine settimana, festivi" +
+                    (options.IncludeSaturdays ? "" : " e sabati") + "), richiesta esclusa.");
                 continue;
             }
 
@@ -74,12 +84,17 @@ internal static class AttendanceMovementGenerator
                 throw new InvalidDataException(
                     $"Il codice PAGHE o il giustificativo supera il limite del tracciato (riga {request.SourceRow}).");
             }
+            var overloadedDays = 0;
             for (var index = 0; index < workDays.Length; index++)
             {
                 var minutes = baseMinutes + (index < extraMinutes ? 1 : 0);
                 if (minutes == 0)
                 {
                     continue;
+                }
+                if (minutes > capacityMinutes)
+                {
+                    overloadedDays++;
                 }
                 movements.Add(new DailyMovement(
                     request.EmployeeName,
@@ -90,6 +105,16 @@ internal static class AttendanceMovementGenerator
                     minutes / 60,
                     minutes % 60,
                     request.SourceRow));
+            }
+
+            if (overloadedDays > 0)
+            {
+                var declaredHours = totalMinutes / 60m;
+                warnings.Add(
+                    $"Riga {request.SourceRow}: {declaredHours:0.##} ore su " +
+                    $"{workDays.Length} {(workDays.Length == 1 ? "giorno lavorativo" : "giorni lavorativi")} " +
+                    $"superano la giornata di {options.HoursPerDay:0.##}h in {overloadedDays} " +
+                    $"{(overloadedDays == 1 ? "giorno" : "giorni")}. Controlla i dati del foglio.");
             }
         }
 
@@ -176,11 +201,18 @@ internal static class AttendanceMovementGenerator
                 obj.ReasonCode.ToUpperInvariant());
     }
 
-    private static IEnumerable<DateTime> EnumerateWorkDays(DateTime start, DateTime end)
+    private static IEnumerable<DateTime> EnumerateWorkDays(
+        DateTime start,
+        DateTime end,
+        GenerationOptions options)
     {
+        var extraHolidays = options.ExtraHolidays ?? [];
         for (var day = start; day <= end; day = day.AddDays(1))
         {
-            if (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday || ItalianHolidays.Contains(day))
+            if (day.DayOfWeek == DayOfWeek.Sunday ||
+                (day.DayOfWeek == DayOfWeek.Saturday && !options.IncludeSaturdays) ||
+                ItalianHolidays.Contains(day) ||
+                extraHolidays.Contains(day.Date))
             {
                 continue;
             }
@@ -191,7 +223,12 @@ internal static class AttendanceMovementGenerator
 
 internal static class ItalianHolidays
 {
-    public static bool Contains(DateTime date)
+    /// <summary>Festività nazionali più le chiusure aziendali aggiunte dall'utente.</summary>
+    public static bool Contains(DateTime date, IReadOnlyCollection<DateTime>? extraHolidays = null) =>
+        IsNationalHoliday(date) ||
+        (extraHolidays is not null && extraHolidays.Contains(date.Date));
+
+    public static bool IsNationalHoliday(DateTime date)
     {
         var day = date.Date;
         return (day.Month, day.Day) is

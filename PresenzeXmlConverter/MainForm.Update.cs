@@ -18,13 +18,30 @@ internal sealed partial class MainForm
     private const string UpdateEndpointSetting = "update-endpoint";
 
     private readonly System.Windows.Forms.Timer _updateCheckDelay = new() { Interval = 4000 };
+    /// <summary>
+    /// Controllo periodico: il collegamento alle Release resta attivo anche con
+    /// il programma aperto per ore, non solo all'avvio.
+    /// </summary>
+    private readonly System.Windows.Forms.Timer _updatePeriodic = new() { Interval = 60 * 60 * 1000 };
+    private readonly Label _updateStatusLabel = new();
     private bool _updateBusy;
+    private bool _isFirstRun;
+    private bool _updateTokenPromptShown;
 
     private static Version RunningVersion =>
         typeof(MainForm).Assembly.GetName().Version ?? new Version(1, 0, 0, 0);
 
     private void InitializeUpdates()
     {
+        // Primo avvio: se la repo è privata e il token non c'è, conviene chiederlo
+        // subito una volta sola, invece di lasciare gli aggiornamenti spenti.
+        _isFirstRun = _database.GetSetting(LastRunVersionSetting) is null;
+        RefreshUpdateStatus(
+            UpdateService.ResolveToken() is null
+                ? "Aggiornamenti · token GitHub da configurare"
+                : $"Aggiornamenti · collegato ({UpdateService.DescribeTokenSource()})",
+            UpdateService.ResolveToken() is null);
+
         // Controllo all'avvio volutamente ritardato: non rallenta l'apertura della
         // finestra e non tocca nulla se l'utente sta già lavorando.
         _updateCheckDelay.Tick += async (_, _) =>
@@ -43,6 +60,16 @@ internal sealed partial class MainForm
             }
         };
         _updateCheckDelay.Start();
+
+        _updatePeriodic.Tick += async (_, _) =>
+        {
+            if (IsDisposed || !Visible || _updateBusy || !AutoUpdateEnabled())
+            {
+                return;
+            }
+            await CheckForUpdatesAsync(userInitiated: false);
+        };
+        _updatePeriodic.Start();
     }
 
     private void AddUpdateCommands(ContextMenuStrip menu)
@@ -56,6 +83,8 @@ internal sealed partial class MainForm
             "Novità di questa versione",
             null,
             (_, _) => ShowVersionNotes());
+        menu.Items.Add("Impostazioni…", null, (_, _) => OpenSettings());
+        menu.Items.Add("Scorciatoie da tastiera", null, (_, _) => ShowShortcuts());
     }
 
     private bool AutoUpdateEnabled()
@@ -98,14 +127,25 @@ internal sealed partial class MainForm
                 _database.GetSetting(UpdateEndpointSetting));
             if (!result.Succeeded)
             {
+                var error = result.Error ?? "Controllo non riuscito.";
+                RefreshUpdateStatus($"Aggiornamenti · {SummarizeError(error)}", true);
                 if (userInitiated)
                 {
-                    ShowInformation("Aggiornamenti", result.Error ?? "Controllo non riuscito.");
+                    ShowInformation("Aggiornamenti", error);
+                }
+                // Token mancante o non valido: si propone una volta sola la
+                // configurazione, senza continuare a interrompere il lavoro.
+                if (NeedsTokenAttention(error) && (_isFirstRun || userInitiated))
+                {
+                    PromptForUpdateToken();
                 }
                 return;
             }
             if (result.Update is null)
             {
+                RefreshUpdateStatus(
+                    $"Aggiornamenti · aggiornato alla {RunningVersion.ToString(3)} · {DateTime.Now:HH:mm}",
+                    false);
                 if (userInitiated)
                 {
                     ShowInformation(
@@ -116,6 +156,7 @@ internal sealed partial class MainForm
             }
 
             var update = result.Update;
+            RefreshUpdateStatus($"Aggiornamenti · nuova versione {update.Version.ToString(3)}", true);
             // Un aggiornamento rimandato dall'utente non viene riproposto a ogni avvio,
             // ma resta disponibile dal menu "Cerca aggiornamenti…".
             if (!userInitiated &&
@@ -281,6 +322,46 @@ internal sealed partial class MainForm
             showUpdateButton: false);
         dialog.ShowDialog(this);
         SetStatus($"●   Aggiornamento completato: versione {version.ToString(3)}.", false);
+    }
+
+    /// <summary>
+    /// Stato del collegamento alle Release nella barra inferiore: dice sempre se
+    /// gli aggiornamenti sono attivi e da dove arriva il token.
+    /// </summary>
+    private void RefreshUpdateStatus(string text, bool isWarning)
+    {
+        _updateStatusLabel.Text = text;
+        _updateStatusLabel.ForeColor = isWarning ? Theme.WarningInk : Theme.MutedInk;
+    }
+
+    /// <summary>Errore in una riga sola, adatto alla barra di stato.</summary>
+    private static string SummarizeError(string error)
+    {
+        var firstLine = error.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? error;
+        firstLine = firstLine.Trim();
+        return firstLine.Length <= 80 ? firstLine : firstLine[..77] + "…";
+    }
+
+    /// <summary>True quando il controllo è fallito per un problema di token, non di rete.</summary>
+    private static bool NeedsTokenAttention(string error) =>
+        error.Contains("privato", StringComparison.OrdinalIgnoreCase) ||
+        error.Contains("token", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Apre le impostazioni sul punto giusto quando manca il token: la repo è
+    /// privata e senza token l'app non può leggere le Release.
+    /// </summary>
+    private void PromptForUpdateToken()
+    {
+        if (_updateTokenPromptShown || IsDisposed)
+        {
+            return;
+        }
+        _updateTokenPromptShown = true;
+        SetStatus(
+            "La repository delle Release è privata: incolla il token GitHub in Impostazioni → Aggiornamenti e premi “Verifica e salva token”.",
+            true);
+        OpenSettings();
     }
 
     private static void StartInstaller(string installerPath)

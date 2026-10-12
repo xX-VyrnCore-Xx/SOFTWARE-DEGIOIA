@@ -17,6 +17,9 @@ internal sealed record UpdateInfo(
     long InstallerSize,
     string? ChecksumApiUrl);
 
+/// <summary>Esito della verifica di un token GitHub: esito e messaggio per l'utente.</summary>
+internal sealed record TokenCheckResult(bool Succeeded, string Message);
+
 /// <summary>Esito di un controllo aggiornamenti: nessun errore, nessun aggiornamento o errore leggibile.</summary>
 internal sealed record UpdateCheckResult(bool Succeeded, UpdateInfo? Update, string? Error)
 {
@@ -40,6 +43,13 @@ internal static class UpdateService
 
     private const string UserAgent = "PresenzeFlow-Updater";
 
+    /// <summary>
+    /// Token impostato in questa sessione dal dialogo Impostazioni: ha la
+    /// precedenza sul file, così il collegamento funziona subito dopo averlo
+    /// incollato, senza riavviare il programma.
+    /// </summary>
+    public static string? SessionToken { get; set; }
+
     public static string TokenFilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "DeGioia",
@@ -52,16 +62,21 @@ internal static class UpdateService
     /// </summary>
     public static string? ResolveToken()
     {
-        var fromEnvironment = Environment.GetEnvironmentVariable(TokenEnvironmentVariable);
-        if (!string.IsNullOrWhiteSpace(fromEnvironment))
+        var fromEnvironment = SanitizeToken(Environment.GetEnvironmentVariable(TokenEnvironmentVariable));
+        if (fromEnvironment.Length > 0)
         {
-            return fromEnvironment.Trim();
+            return fromEnvironment;
+        }
+        var fromSession = SanitizeToken(SessionToken);
+        if (fromSession.Length > 0)
+        {
+            return fromSession;
         }
         try
         {
             if (File.Exists(TokenFilePath))
             {
-                var value = File.ReadAllText(TokenFilePath).Trim();
+                var value = SanitizeToken(File.ReadAllText(TokenFilePath));
                 if (value.Length > 0)
                 {
                     return value;
@@ -76,6 +91,166 @@ internal static class UpdateService
         {
         }
         return null;
+    }
+
+    /// <summary>
+    /// Ripulisce un token incollato: toglie spazi, a capo, virgolette e il
+    /// prefisso "Bearer"/"token" che a volte viene copiato per errore. Un incolla
+    /// con un a capo in fondo funziona comunque.
+    /// </summary>
+    public static string SanitizeToken(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+        var token = value.Trim().Trim('"', '\'', '`').Trim();
+        token = Regex.Replace(token, @"^(?:bearer|token)\s+", string.Empty, RegexOptions.IgnoreCase);
+        token = Regex.Replace(token, @"\s+", string.Empty);
+        return token;
+    }
+
+    /// <summary>Da dove arriva il token in uso: serve solo per informare l'utente.</summary>
+    public static string DescribeTokenSource()
+    {
+        if (SanitizeToken(Environment.GetEnvironmentVariable(TokenEnvironmentVariable)).Length > 0)
+        {
+            return $"variabile d'ambiente {TokenEnvironmentVariable}";
+        }
+        if (SanitizeToken(SessionToken).Length > 0)
+        {
+            return "impostato in questa sessione";
+        }
+        try
+        {
+            if (File.Exists(TokenFilePath) && SanitizeToken(File.ReadAllText(TokenFilePath)).Length > 0)
+            {
+                return "file di configurazione locale";
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+        return "non configurato";
+    }
+
+    /// <summary>
+    /// Salva il token nel file locale (permessi ristretti all'utente corrente) e
+    /// lo attiva subito per la sessione. Non viene mai salvato nel database.
+    /// </summary>
+    public static bool TrySaveToken(string? value, out string error)
+    {
+        error = string.Empty;
+        var token = SanitizeToken(value);
+        if (token.Length == 0)
+        {
+            error = "Il token inserito è vuoto.";
+            return false;
+        }
+        if (token.Length > 400)
+        {
+            error = "Il valore inserito non sembra un token GitHub (troppo lungo).";
+            return false;
+        }
+        try
+        {
+            var directory = Path.GetDirectoryName(TokenFilePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            File.WriteAllText(TokenFilePath, token);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            error = $"Impossibile salvare il token: {exception.Message}";
+            return false;
+        }
+        SessionToken = token;
+        return true;
+    }
+
+    /// <summary>Dimentica il token (sessione e file locale).</summary>
+    public static bool TryClearToken(out string error)
+    {
+        error = string.Empty;
+        SessionToken = null;
+        try
+        {
+            if (File.Exists(TokenFilePath))
+            {
+                File.Delete(TokenFilePath);
+            }
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            error = $"Impossibile cancellare il token salvato: {exception.Message}";
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Verifica subito un token (quello appena inserito oppure quello configurato)
+    /// interrogando il repository: 200 = accesso completo, 401 scaduto, 403 senza
+    /// permessi, 404 repo privata non visibile al token.
+    /// </summary>
+    public static async Task<TokenCheckResult> ValidateTokenAsync(
+        string? candidate = null,
+        CancellationToken cancellationToken = default)
+    {
+        var typed = SanitizeToken(candidate);
+        var token = typed.Length > 0 ? typed : ResolveToken();
+        var endpoint = $"https://api.github.com/repos/{DefaultOwner}/{DefaultRepository}";
+        try
+        {
+            using var client = CreateClient(token);
+            using var response = await client.GetAsync(endpoint, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                using var document = JsonDocument.Parse(
+                    await response.Content.ReadAsStringAsync(cancellationToken));
+                var name = ReadString(document.RootElement, "full_name") ?? $"{DefaultOwner}/{DefaultRepository}";
+                var isPrivate = document.RootElement.TryGetProperty("private", out var privateFlag) &&
+                                privateFlag.ValueKind == JsonValueKind.True;
+                return new TokenCheckResult(
+                    true,
+                    $"Collegato a {name} ({(isPrivate ? "privato" : "pubblico")}). " +
+                    $"Token da {DescribeTokenSource()}: puoi ricevere gli aggiornamenti pubblicati in Release.");
+            }
+            return response.StatusCode switch
+            {
+                HttpStatusCode.Unauthorized => new TokenCheckResult(
+                    false,
+                    "Token non valido o revocato (401). Creane uno nuovo con permesso Contents → Read-only."),
+                HttpStatusCode.Forbidden => new TokenCheckResult(
+                    false,
+                    "Token senza i permessi necessari (403): serve il permesso Contents → Read-only sul repository."),
+                HttpStatusCode.NotFound => new TokenCheckResult(
+                    false,
+                    token is null
+                        ? "Il repository è privato: senza token GitHub l'app non può leggere le Release."
+                        : "Token valido ma senza accesso a questo repository (404). Controlla che sia selezionato il repository giusto."),
+                _ => new TokenCheckResult(
+                    false,
+                    $"GitHub ha risposto con un codice inatteso ({(int)response.StatusCode}). Riprova più tardi.")
+            };
+        }
+        catch (HttpRequestException exception)
+        {
+            return new TokenCheckResult(false, $"Impossibile contattare GitHub: {exception.Message}");
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new TokenCheckResult(false, "GitHub non ha risposto in tempo. Controlla la connessione e riprova.");
+        }
+        catch (JsonException)
+        {
+            return new TokenCheckResult(false, "La risposta di GitHub non è interpretabile.");
+        }
     }
 
     /// <summary>Estrae "1.7.0" da tag come "v1.7.0" o "release-1.7.0".</summary>

@@ -9,8 +9,8 @@ internal sealed partial class MainForm
     // impressa su un rettangolo di un altro colore.
     private static readonly Color RowHeaderFill = Theme.Sunken;
 
-    private static readonly string[] SearchableColumns =
-        { "employee", "code", "date", "policy", "reason", "source" };
+    /// <summary>Indice della scheda "Controlli" fra le pagine dell'area di revisione.</summary>
+    private const int ReviewTabIndex = 2;
 
     private readonly Label _sourceInfoLabel = new();
     private readonly Label _requestMetricLabel = new();
@@ -74,7 +74,7 @@ internal sealed partial class MainForm
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 12,
+            RowCount = 13,
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
@@ -88,7 +88,8 @@ internal sealed partial class MainForm
         setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));   // dettagli file
         setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));   // metriche
         setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // codici e giustificativi
-        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // assistente AI
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // AI locale e impostazioni
+        setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));   // scelta del foglio
         setup.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // passi del flusso
         setup.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));   // genera anteprima
         setupCard.Controls.Add(setup);
@@ -182,27 +183,38 @@ internal sealed partial class MainForm
         aiRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         aiRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var aiButton = Theme.CreateButton("Configura AI", Theme.ButtonTone.Neutral, compact: true);
+        var aiButton = Theme.CreateButton("Configura AI locale", Theme.ButtonTone.Neutral, compact: true);
         aiButton.Dock = DockStyle.Fill;
         aiButton.Margin = new Padding(0, 3, 4, 3);
         aiButton.Click += async (_, _) => await ConfigureAiAsync();
-        aiRow.Controls.Add(aiButton, 0, 0);
+        setup.Controls.Add(aiButton, 0, 0);
 
-        var chatButton = Theme.CreateButton("Chatta con AI", Theme.ButtonTone.Neutral, compact: true);
-        chatButton.Dock = DockStyle.Fill;
-        chatButton.Margin = new Padding(4, 3, 0, 3);
-        chatButton.Click += (_, _) => FocusAiChat();
-        aiRow.Controls.Add(chatButton, 1, 0);
+        var settingsButton = Theme.CreateButton("Impostazioni", Theme.ButtonTone.Neutral, compact: true);
+        settingsButton.Dock = DockStyle.Fill;
+        settingsButton.Margin = new Padding(4, 3, 0, 3);
+        settingsButton.Click += (_, _) => OpenSettings();
+        aiRow.Controls.Add(settingsButton, 1, 0);
         setup.Controls.Add(aiRow, 0, 9);
 
-        setup.Controls.Add(BuildWorkflowSteps(), 0, 10);
+        // Scelta del foglio: l'analisi automatica indovina il foglio giusto, ma
+        // un file con più fogli simili va comunque poter essere corretto a mano.
+        _sheetButton.Text = "Foglio: nessun file importato";
+        Theme.StyleButton(_sheetButton, Theme.ButtonTone.Neutral, compact: true);
+        _sheetButton.Dock = DockStyle.Fill;
+        _sheetButton.TextAlign = ContentAlignment.MiddleLeft;
+        _sheetButton.Enabled = false;
+        _sheetButton.Margin = new Padding(0, 2, 0, 2);
+        _sheetButton.Click += (_, _) => ShowSheetMenu();
+        setup.Controls.Add(_sheetButton, 0, 10);
+
+        setup.Controls.Add(BuildWorkflowSteps(), 0, 11);
 
         _generateButton.Text = "Genera anteprima   →";
         _generateButton.Dock = DockStyle.Fill;
         _generateButton.Margin = new Padding(0, 4, 0, 0);
         Theme.StyleButton(_generateButton, Theme.ButtonTone.Positive);
         _generateButton.Click += (_, _) => GeneratePreview();
-        setup.Controls.Add(_generateButton, 0, 11);
+        setup.Controls.Add(_generateButton, 0, 12);
 
         var reviewCard = new SurfacePanel
         {
@@ -252,7 +264,7 @@ internal sealed partial class MainForm
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 268));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 296));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var mark = new PictureBox
@@ -303,10 +315,45 @@ internal sealed partial class MainForm
         titles.Controls.Add(subtitle, 0, 2);
         body.Controls.Add(titles, 1, 0);
 
-        _reviewStatusBadge.Dock = DockStyle.Top;
-        _reviewStatusBadge.Height = 34;
-        _reviewStatusBadge.Margin = new Padding(0, 24, 4, 0);
-        body.Controls.Add(_reviewStatusBadge, 2, 0);
+        // Azioni sempre a portata di mano nell'intestazione: aggiornamenti e
+        // impostazioni non devono costringere a cercare fra le schede.
+        var headerSide = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Theme.HeaderFill,
+            Margin = new Padding(0, 6, 4, 0)
+        };
+        headerSide.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        headerSide.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        headerSide.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var headerActions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            BackColor = Color.Transparent,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        var headerSettings = Theme.CreateButton("Impostazioni", Theme.ButtonTone.Neutral, compact: true);
+        headerSettings.Size = new Size(124, 28);
+        headerSettings.Margin = new Padding(6, 0, 0, 0);
+        headerSettings.Click += (_, _) => OpenSettings();
+        var headerUpdates = Theme.CreateButton("Aggiornamenti", Theme.ButtonTone.Neutral, compact: true);
+        headerUpdates.Size = new Size(124, 28);
+        headerUpdates.Margin = Padding.Empty;
+        headerUpdates.Click += async (_, _) => await CheckForUpdatesAsync(userInitiated: true);
+        headerActions.Controls.Add(headerSettings);
+        headerActions.Controls.Add(headerUpdates);
+        headerSide.Controls.Add(headerActions, 0, 0);
+
+        _reviewStatusBadge.Dock = DockStyle.Fill;
+        _reviewStatusBadge.Margin = Padding.Empty;
+        headerSide.Controls.Add(_reviewStatusBadge, 0, 1);
+        body.Controls.Add(headerSide, 2, 0);
 
         // Accento sfumato in cima all'header: la card resta la stessa, ma con un
         // tocco di profondità in più. La riga è fissa (4 px) e il corpo riempie il resto.
@@ -516,7 +563,7 @@ internal sealed partial class MainForm
         toolbar.Controls.Add(_previewCountLabel, 0, 0);
 
         _previewSearch.Size = new Size(220, 32);
-        _previewSearch.Placeholder = "Cerca nei movimenti";
+        _previewSearch.Placeholder = "Cerca: nome, codice, data, causale…";
         _previewSearch.Margin = new Padding(0, 0, 10, 0);
         _previewSearch.TextChanged += (_, _) => FilterMovements();
 
@@ -621,7 +668,7 @@ internal sealed partial class MainForm
         xmlPage.Controls.Add(_xmlPreview);
         _previewTabs.AddPage("Movimenti  ·  0", movementPage);
         _previewTabs.AddPage("Anteprima XML", xmlPage);
-        _previewTabs.AddPage("Assistente AI", BuildAiChatPanel());
+        _previewTabs.AddPage("Controlli", BuildReviewPanel());
         _previewTabs.SelectedIndex = 0;
         return _previewTabs;
     }
@@ -677,13 +724,14 @@ internal sealed partial class MainForm
         var content = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
+            ColumnCount = 3,
             RowCount = 1,
             BackColor = Theme.Canvas,
             Padding = new Padding(2, 0, 2, 0),
             Margin = Padding.Empty
         };
         content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        content.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         content.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -695,14 +743,25 @@ internal sealed partial class MainForm
         _statusLabel.ForeColor = Theme.MutedInk;
         content.Controls.Add(_statusLabel, 0, 0);
 
-        _aiStatusLabel.AutoSize = false;
-        _aiStatusLabel.Dock = DockStyle.Fill;
+        // AutoSize: la colonna si adatta al testo e non c'è mai nulla da tagliare.
+        _aiStatusLabel.AutoSize = true;
+        _aiStatusLabel.Dock = DockStyle.Right;
         _aiStatusLabel.TextAlign = ContentAlignment.MiddleRight;
-        _aiStatusLabel.AutoEllipsis = true;
         _aiStatusLabel.Text = "AI locale opzionale";
         _aiStatusLabel.Font = Theme.Fonts.Small;
         _aiStatusLabel.ForeColor = Theme.MutedInk;
+        _aiStatusLabel.Margin = new Padding(0, 0, 14, 0);
         content.Controls.Add(_aiStatusLabel, 1, 0);
+
+        // Stato degli aggiornamenti sempre visibile: si vede a colpo d'occhio se
+        // il collegamento alle Release è attivo.
+        _updateStatusLabel.AutoSize = true;
+        _updateStatusLabel.Dock = DockStyle.Right;
+        _updateStatusLabel.TextAlign = ContentAlignment.MiddleRight;
+        _updateStatusLabel.Text = "Aggiornamenti · verifica in corso";
+        _updateStatusLabel.Font = Theme.Fonts.Small;
+        _updateStatusLabel.ForeColor = Theme.MutedInk;
+        content.Controls.Add(_updateStatusLabel, 2, 0);
         footer.Controls.Add(content, 0, 1);
         return footer;
     }
@@ -738,6 +797,11 @@ internal sealed partial class MainForm
         }
     }
 
+    /// <summary>
+    /// Filtra i movimenti con più parole in qualsiasi ordine, ignorando accenti
+    /// e maiuscole. Ogni parola deve comparire da qualche parte nella riga, così
+    /// "mario ferie 12/05" restringe davvero il risultato.
+    /// </summary>
     private void FilterMovements()
     {
         if (_isApplyingFilter || _movementsGrid.Rows.Count == 0)
@@ -746,15 +810,13 @@ internal sealed partial class MainForm
         }
 
         _isApplyingFilter = true;
-        var query = _previewSearch.Value.Trim();
+        var terms = MovementSearch.SplitTerms(_previewSearch.Value);
         var visible = 0;
         try
         {
             foreach (DataGridViewRow row in _movementsGrid.Rows)
             {
-                var matches = query.Length == 0 ||
-                    SearchableColumns.Any(column =>
-                        CellText(row, column).Contains(query, StringComparison.CurrentCultureIgnoreCase));
+                var matches = terms.Count == 0 || MovementSearch.Matches(RowSearchHaystack(row), terms);
                 row.Visible = matches;
                 if (matches) visible++;
             }
@@ -764,10 +826,21 @@ internal sealed partial class MainForm
             _isApplyingFilter = false;
         }
         _previewCountLabel.Text =
-            query.Length == 0
-                ? $"{visible} movimenti   ·   tutti inclusi nell’XML"
-                : $"{visible} visualizzati   ·   {_movementsGrid.Rows.Count} inclusi nell’XML";
+            terms.Count == 0
+                ? $"{visible:N0} movimenti   ·   tutti inclusi nell’XML"
+                : $"{visible:N0} trovati   ·   {_movementsGrid.Rows.Count:N0} inclusi nell’XML";
     }
+
+    /// <summary>Testo su cui viene cercata una riga della griglia (valori reali, anche appena modificati).</summary>
+    private static string RowSearchHaystack(DataGridViewRow row) => MovementSearch.Describe(
+        CellText(row, "employee"),
+        CellText(row, "code"),
+        CellText(row, "date"),
+        CellText(row, "policy"),
+        CellText(row, "reason"),
+        CellText(row, "hours"),
+        CellText(row, "minutes"),
+        CellText(row, "source"));
 
     private void UpdateWorkflowSummary()
     {
@@ -796,13 +869,11 @@ internal sealed partial class MainForm
 
     private void UpdatePreviewSummary(IReadOnlyList<DailyMovement> movements)
     {
-        var workers = movements.Select(movement => movement.EmployeeCode)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count();
-        var totalMinutes = movements.Sum(movement => movement.Hours * 60 + movement.Minutes);
+        var totals = MovementChecks.Summarize(movements);
         _previewTitleLabel.Text = "Revisione movimenti";
         _previewSubtitleLabel.Text =
-            $"{workers:N0} dipendenti    ·    {totalMinutes / 60:N0} h {totalMinutes % 60:D2} min assegnati    ·    origine Excel disponibile";
+            $"{totals.Employees:N0} dipendenti    ·    {totals.Days:N0} giornate coinvolte    ·    " +
+            $"{totals.TotalText} assegnati    ·    {_generationOptions.HoursPerDay:0.##} h al giorno";
         _previewTabs.SetPageText(0, $"Movimenti  ·  {movements.Count:N0}");
         _previewCountLabel.Text = $"{movements.Count:N0} movimenti   ·   tutti inclusi nell’XML";
         _previewSearch.Clear();

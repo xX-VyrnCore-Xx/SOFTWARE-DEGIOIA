@@ -89,6 +89,51 @@ public class InstallerPackagingTests
         Assert.Contains("InstalledModelFromMarker", script, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Il token delle Release è l'unica cosa che l'installazione riceve
+    /// dall'esterno: deve poter arrivare dal parametro /GITHUBTOKEN=... o da un
+    /// file accanto al setup, e non deve mai cancellare un token già presente.
+    /// </summary>
+    [Fact]
+    public void TheReleaseTokenCanBeProvidedAtInstallTime()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        Assert.Contains("GITHUBTOKEN", script, StringComparison.Ordinal);
+        Assert.Contains("github.token", script, StringComparison.Ordinal);
+        Assert.Contains("procedure ProvisionGithubToken", script, StringComparison.Ordinal);
+        // Se non c'è nulla da salvare si esce subito: un token esistente non
+        // viene mai sovrascritto con un valore vuoto.
+        Assert.Contains("if Token = '' then", script, StringComparison.Ordinal);
+        // Viene salvato anche in installazione silenziosa (distribuzione aziendale).
+        Assert.Contains("ProvisionGithubToken();", script, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// L'installer deve consigliare il modello che l'app preferisce: se le due
+    /// scelte divergono, un PC nuovo scarica un modello che l'app non usa.
+    /// </summary>
+    [Fact]
+    public void TheRecommendedModelMatchesTheApplicationPreference()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        var quality = Regex.Match(script, "#define ModelQuality \"([^\"]+)\"")
+            .Groups[1].Value;
+        Assert.Equal(LocalAiAssistant.DefaultModel, quality);
+        Assert.Contains("Consigliato — {#ModelQuality}", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("Consigliato — {#ModelBalanced}", script, StringComparison.Ordinal);
+        Assert.Contains("AiQualityRadio.Checked := True", script, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheInstallerRequiresASupportedWindowsAndLogsEveryInstallation()
     {

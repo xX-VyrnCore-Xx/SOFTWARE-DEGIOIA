@@ -4,7 +4,50 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.10.0] - Corrente
+## [1.11.0] - Corrente
+
+### 📊 Analisi dei file Excel
+- Righe problematiche **segnalate e non bloccanti**: ogni riga scartata riporta numero e motivo (data illeggibile, durata non riconosciuta, codice troppo lungo, date invertite) e l'elenco compare nei Controlli
+- **Scelta del foglio**: se il file ha più fogli simili, il pulsante *Foglio: …* permette di cambiarlo senza reimportare il file, riutilizzando l'abbinamento delle colonne
+- Intestazioni fuzzy più numerose, date e durate riconosciute in più formati (celle con formato orario, durate in giorni), nomi normalizzati e codici PAGHE letti quando presenti
+- Nuove API pure (`WorkbookCell`, `WorkbookInspection.Read`) con i problemi separati dalle richieste valide
+
+### 🧹 Chat AI rimossa, nuova scheda Controlli
+- Eliminati la scheda **Assistente AI**, il pulsante *Chatta con AI*, la cronologia in database e i file `DocumentEdits`/`LocalAiAssistant.Chat`
+- Nuova scheda **Controlli**: elenco unico ordinato per gravità (ERRORE/ATTENZIONE/NOTA) con righe non importate, codici non configurati o mancanti, codici PAGHE duplicati, sovrapposizioni nello stesso giorno, giornate oltre la standard, festivi e fuori periodo, dipendenti senza movimenti, differenze fra ore dichiarate e generate
+- Doppio clic su una segnalazione per raggiungere il movimento, **Copia elenco** per condividerlo; i controlli si aggiornano a ogni modifica della griglia e l'app apre la scheda da sola quando restano errori
+
+### 🤖 AI impiegata meglio sulla generazione dell'XML
+- **Structured outputs**: gli schemi JSON vengono passati a Ollama nel campo `format`, quindi l'abbinamento di colonne e codici non dipende più dal testo libero del modello
+- Prompt riscritti (regole esplicite, temperature 0, seed fisso, `keep_alive`, contesto e `num_predict` limitati) e gestione dei modelli "reasoning" con `think: false`
+- Nuova **revisione dei movimenti**: l'AI rilegge il riepilogo dell'anteprima e aggiunge solo osservazioni verificate; un'osservazione che cita codici non configurati viene scartata
+- Modello predefinito e **consigliato `qwen2.5:3b`** (il più affidabile per l'estrazione strutturata fra i modelli piccoli); lista dei modelli accettati allineata fra app e installer
+
+### ⬇️ Aggiornamenti collegati subito e sempre
+- **Token GitHub verificato e attivato dall'app**: Impostazioni → Aggiornamenti con esito reale di GitHub (200 collegato, 401 token non valido, 403 permessi mancanti, 404 non visibile, oppure errore di rete); il token è attivo **nella stessa sessione**, senza riavvio, e viene salvato con `Rimuovi token` per cancellarlo
+- **Controllo periodico ogni ora** oltre a quello all'avvio, **stato degli aggiornamenti sempre visibile** nel piè di pagina e pulsante **Aggiornamenti** nell'intestazione
+- **Token fornibile all'installazione**: parametro `/GITHUBTOKEN=...` o file `github.token` accanto al setup, salvato anche in installazione silenziosa e mai sovrascritto con un valore vuoto
+- Al primo avvio, se la repo privata non è raggiungibile per mancanza di token, le impostazioni si aprono una sola volta nel punto giusto
+
+### 🔢 Motore di calcolo e ricerca
+- **Ore della giornata standard configurabili** (1-24 h, virgola o punto): usate per convertire le durate in giorni e per segnalare le richieste che superano la giornata, che vengono **mai scartate**
+- **Sabato lavorativo opzionale** e **chiusure aziendali aggiuntive** (gg/mm o gg/mm/aaaa), con le voci non riconosciute riportate all'utente invece di essere ignorate in silenzio
+- Avvisi più chiari quando una richiesta non trova giorni lavorativi (fine settimana, festivi, sabati)
+- **Ricerca multi-termine** in qualsiasi ordine, **senza accenti e senza maiuscole**, che riconosce codici, date (italiane e ISO), nomi dei mesi e durate (`7:30`, `7.30`, `7h30`, 450 minuti)
+
+### 🎨 UI/UX
+- Pulsanti **Impostazioni** e **Aggiornamenti** nell'intestazione, nuovo dialogo **Impostazioni** per conversione, aggiornamenti e modello AI
+- Pulsante **Foglio: …** per scegliere il foglio, riepilogo dell'anteprima con dipendenti, giornate e ore/minuti totali
+- **Scorciatoie da tastiera** (`Ctrl+O`, `Ctrl+G`, `Ctrl+S`, `Ctrl+F`, `Ctrl+1/2/3`, `Ctrl+,`, `F1`) e voce *Scorciatoie da tastiera* nel menu dell'icona in tray
+- Scritte e messaggi di stato riscritti (stato degli aggiornamenti e dell'AI sempre leggibili nel piè di pagina)
+
+### ✅ Verifiche
+- **140 test di logica, tutti verdi** (49 nuovi) su ricerca, impostazioni, controlli, generazione con le nuove opzioni, aiuti dell'AI e installer
+- Nuove guardie statiche sull'installer: token fornibile all'installazione senza sovrascrivere quello esistente e modello consigliato coincidente con il predefinito dell'app
+
+---
+
+## [1.10.0] - Precedente
 
 ### ⬇️ Installazione dell'AI locale riscritta
 - **Barra di avanzamento reale nel download di Ollama**: l'installer ufficiale viene scaricato con la pagina di download di Inno Setup (`CreateDownloadPage`), quindi con percentuale visibile, possibilità di **annullare** e **fino a 3 tentativi automatici** su rete instabile; prima era un comando PowerShell silenzioso che sembrava bloccato

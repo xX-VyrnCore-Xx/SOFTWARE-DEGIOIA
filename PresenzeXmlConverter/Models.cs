@@ -37,8 +37,11 @@ internal sealed record GenerationResult(
     IReadOnlyList<DailyMovement> Movements,
     IReadOnlyList<string> Warnings);
 
-/// <summary>Messaggio della conversazione con l'assistente AI locale.</summary>
-internal sealed record AiChatMessage(bool IsUser, string Text);
-
-/// <summary>Risposta dell'assistente: testo in linguaggio naturale e modifiche proposte.</summary>
-internal sealed record AiChatResponse(string Reply, IReadOnlyList<DocumentEdit> Edits);
+/// <summary>Impostazioni di generazione scelte dall'utente.</summary>
+internal sealed record GenerationOptions(
+    decimal HoursPerDay = 8m,
+    bool IncludeSaturdays = false,
+    IReadOnlyList<DateTime>? ExtraHolidays = null)
+{
+    public static GenerationOptions Default { get; } = new();
+}

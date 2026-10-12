@@ -5,11 +5,25 @@ using ClosedXML.Excel;
 
 namespace PresenzeXmlConverter;
 
+/// <summary>
+/// Esito della lettura delle richieste: le righe valide e l'elenco dei problemi
+/// trovati. I problemi non interrompono l'importazione (l'utente li vede e
+/// decide), ma nessuna riga viene mai persa in silenzio.
+/// </summary>
+internal sealed record WorkbookReadResult(
+    IReadOnlyList<AttendanceRequest> Requests,
+    IReadOnlyList<string> Problems)
+{
+    public int SkippedRows => Problems.Count;
+}
+
 internal sealed class WorkbookInspection
 {
     private readonly IReadOnlyList<IReadOnlyList<WorkbookCell>> _rows;
     private readonly int _headerRow;
     private readonly int? _employeeCodeColumn;
+    private readonly int _headerRowNumber;
+    private readonly int _lastRowNumber;
 
     internal WorkbookInspection(
         string sheetName,
@@ -19,7 +33,9 @@ internal sealed class WorkbookInspection
         int? employeeCodeColumn,
         ColumnSelection? suggestedColumns,
         DateTime? periodStart,
-        DateTime? periodEnd)
+        DateTime? periodEnd,
+        int headerRowNumber = 0,
+        int lastRowNumber = 0)
     {
         SheetName = sheetName;
         Headers = headers;
@@ -29,6 +45,8 @@ internal sealed class WorkbookInspection
         SuggestedColumns = suggestedColumns;
         PeriodStart = periodStart;
         PeriodEnd = periodEnd;
+        _headerRowNumber = headerRowNumber;
+        _lastRowNumber = lastRowNumber == 0 ? rows.Count + headerRow : lastRowNumber;
     }
 
     public string SheetName { get; }
@@ -40,18 +58,32 @@ internal sealed class WorkbookInspection
     /// <summary>Ore di una giornata lavorativa standard, usate quando la durata è espressa in giorni.</summary>
     public const decimal DefaultHoursPerDay = 8m;
 
-    public IReadOnlyList<AttendanceRequest> ReadRequests(ColumnSelection columns, decimal hoursPerDay = DefaultHoursPerDay)
+    /// <summary>Prima riga di dati del foglio (dopo l'intestazione).</summary>
+    public int FirstDataRowNumber => _headerRowNumber + 1;
+
+    /// <summary>Ultima riga usata del foglio.</summary>
+    public int LastRowNumber => _lastRowNumber;
+
+    /// <summary>
+    /// Legge le richieste valide. Le righe incomplete o incoerenti vengono
+    /// raccolte in <see cref="WorkbookReadResult.Problems"/> invece di far
+    /// fallire l'intera importazione sulla prima riga sbagliata.
+    /// </summary>
+    public WorkbookReadResult Read(ColumnSelection columns, decimal hoursPerDay = DefaultHoursPerDay)
     {
         ValidateColumns(columns);
         if (hoursPerDay <= 0m || hoursPerDay > 24m)
         {
             hoursPerDay = DefaultHoursPerDay;
         }
-        // Alcuni export esprimono la durata in giorni ("Giorni", "Days", "gg"): in quel
-        // caso va convertita in ore, altrimenti 2 giorni di ferie diventerebbe 2 ore.
-        var durationInDays = IsDayBasedDurationHeader(
-            columns.Duration >= 0 && columns.Duration < Headers.Count ? Headers[columns.Duration] : string.Empty);
+
         var requests = new List<AttendanceRequest>();
+        var problems = new List<string>();
+        // Alcuni export esprimono la durata in giorni ("Giorni", "Days", "gg"):
+        // in quel caso va convertita in ore, altrimenti 2 giorni di ferie
+        // diventerebbe 2 ore.
+        var headerIsDayBased = columns.Duration >= 0 && columns.Duration < Headers.Count &&
+                               IsDayBasedDurationHeader(Headers[columns.Duration]);
         foreach (var row in _rows.Where(row => row.Count > 0 && row[0].RowNumber > _headerRow))
         {
             var employee = GetCell(row, columns.Employee);
@@ -59,46 +91,61 @@ internal sealed class WorkbookInspection
             var start = GetCell(row, columns.StartDate);
             var end = GetCell(row, columns.EndDate);
             var duration = GetCell(row, columns.Duration);
-            var employeeCode = _employeeCodeColumn.HasValue
-                ? GetCell(row, _employeeCodeColumn.Value).Text.Trim()
-                : string.Empty;
+            var rowNumber = row[0].RowNumber;
+
+            // Righe senza alcun contenuto utile (separatori, note di coda): ignorate.
             if (!new[] { employee, policy, start, end, duration }.Any(cell => cell.HasValue))
             {
                 continue;
             }
 
-            var rowNumber = row[0].RowNumber;
-            var employeeName = employee.Text.Trim();
-            var policyName = policy.Text.Trim();
-            if (string.IsNullOrWhiteSpace(employeeName) ||
-                string.IsNullOrWhiteSpace(policyName) ||
-                employeeName.Length > 200 ||
-                policyName.Length > 200 ||
-                !start.TryGetDate(out var startDate) ||
-                !end.TryGetDate(out var endDate) ||
-                !duration.TryGetNumber(out var rawDuration))
-            {
-                throw new InvalidDataException(
-                    $"La riga {rowNumber} contiene dati incompleti o non validi. Verifica nome, giustificativo, date e durata.");
-            }
-            var hours = durationInDays ? rawDuration * hoursPerDay : rawDuration;
+            var employeeCode = _employeeCodeColumn.HasValue
+                ? GetCell(row, _employeeCodeColumn.Value).Text.Trim()
+                : string.Empty;
+            var employeeName = NormalizeName(employee.Text);
+            var policyName = NormalizeName(policy.Text);
 
+            if (string.IsNullOrWhiteSpace(employeeName) || string.IsNullOrWhiteSpace(policyName))
+            {
+                problems.Add($"Riga {rowNumber}: manca il nominativo o il giustificativo.");
+                continue;
+            }
+            if (employeeName.Length > 200 || policyName.Length > 200)
+            {
+                problems.Add($"Riga {rowNumber}: nominativo o giustificativo troppo lungo.");
+                continue;
+            }
+            if (!start.TryGetDate(out var startDate) || !end.TryGetDate(out var endDate))
+            {
+                problems.Add($"Riga {rowNumber}: data di inizio o fine non riconosciuta.");
+                continue;
+            }
+            if (!duration.TryGetDuration(out var rawDuration, out var cellIsDayBased))
+            {
+                problems.Add($"Riga {rowNumber}: durata non riconosciuta.");
+                continue;
+            }
+
+            var hours = headerIsDayBased || cellIsDayBased ? rawDuration * hoursPerDay : rawDuration;
             if (startDate.Date > endDate.Date)
             {
-                throw new InvalidDataException($"La data iniziale è successiva alla data finale nella riga {rowNumber}.");
+                problems.Add($"Riga {rowNumber}: la data iniziale è successiva a quella finale.");
+                continue;
             }
             if (hours < 0)
             {
-                throw new InvalidDataException($"La durata non può essere negativa (riga {rowNumber}).");
+                problems.Add($"Riga {rowNumber}: la durata è negativa.");
+                continue;
             }
             if (hours > 24 * 100)
             {
-                throw new InvalidDataException($"La durata della riga {rowNumber} sembra irrealistica (oltre 100 giorni-ore).");
+                problems.Add($"Riga {rowNumber}: la durata supera il limite ragionevole (100 giornate).");
+                continue;
             }
             if (!string.IsNullOrWhiteSpace(employeeCode) && employeeCode.Trim().Length > 7)
             {
-                throw new InvalidDataException(
-                    $"Il codice PAGHE supera il limite di 7 caratteri (riga {rowNumber}).");
+                problems.Add($"Riga {rowNumber}: il codice PAGHE supera i 7 caratteri.");
+                continue;
             }
 
             requests.Add(new AttendanceRequest(
@@ -108,15 +155,26 @@ internal sealed class WorkbookInspection
                 endDate.Date,
                 hours,
                 rowNumber,
-                string.IsNullOrWhiteSpace(employeeCode) ? null : employeeCode));
+                string.IsNullOrWhiteSpace(employeeCode) ? null : employeeCode.Trim()));
         }
 
         if (requests.Count == 0)
         {
-            throw new InvalidDataException("Nel foglio non sono state trovate richieste di assenza valide.");
+            var detail = problems.Count == 0
+                ? string.Empty
+                : $" Primo problema: {problems[0]}";
+            throw new InvalidDataException(
+                "Nel foglio non sono state trovate richieste di assenza valide." + detail);
         }
-        return requests;
+        return new WorkbookReadResult(requests, problems);
     }
+
+    /// <summary>
+    /// Richieste valide. Le righe problematiche vengono scartate: usare
+    /// <see cref="Read"/> per conoscerle.
+    /// </summary>
+    public IReadOnlyList<AttendanceRequest> ReadRequests(ColumnSelection columns, decimal hoursPerDay = DefaultHoursPerDay) =>
+        Read(columns, hoursPerDay).Requests;
 
     private void ValidateColumns(ColumnSelection columns)
     {
@@ -128,17 +186,42 @@ internal sealed class WorkbookInspection
             columns.EndDate,
             columns.Duration
         };
-        if (selected.Any(index => index < 0 || index >= Headers.Count) ||
-            selected.Distinct().Count() != selected.Length)
+        if (selected.Any(index => index < 0 || index >= Headers.Count))
+        {
+            throw new InvalidDataException("Seleziona una colonna valida per ogni campo richiesto.");
+        }
+        // Data iniziale e finale possono coincidere (fogli con una sola data);
+        // tutti gli altri campi devono restare distinti.
+        if (columns.Employee == columns.Policy ||
+            columns.Employee == columns.StartDate ||
+            columns.Employee == columns.EndDate ||
+            columns.Employee == columns.Duration ||
+            columns.Policy == columns.StartDate ||
+            columns.Policy == columns.EndDate ||
+            columns.Policy == columns.Duration ||
+            columns.StartDate == columns.Duration ||
+            columns.EndDate == columns.Duration)
         {
             throw new InvalidDataException("Seleziona una colonna distinta e valida per ogni campo richiesto.");
         }
     }
 
+    /// <summary>Spazi multipli e spazi ai bordi non devono creare due dipendenti diversi.</summary>
+    internal static string NormalizeName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+        return string.Join(
+            " ",
+            value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
+
     /// <summary>
     /// Riconosce le intestazioni che esprimono la durata in giorni anziché in ore.
     /// </summary>
-    private static bool IsDayBasedDurationHeader(string header)
+    internal static bool IsDayBasedDurationHeader(string header)
     {
         var value = header.Trim().ToLowerInvariant();
         if (value.Length == 0)
@@ -159,97 +242,6 @@ internal sealed class WorkbookInspection
     }
 }
 
-internal sealed record WorkbookCell(
-    int RowNumber,
-    string Text,
-    DateTime? DateValue,
-    decimal? NumberValue)
-{
-    private static readonly Regex HourMinuteText = new(@"^(\d{1,3})\s*[hH]\s*(\d{1,2})?$", RegexOptions.Compiled);
-    private static readonly Regex ClockText = new(@"^(\d{1,3})\s*:\s*(\d{1,2})(?:\s*:\s*\d{1,2})?$", RegexOptions.Compiled);
-    private static readonly Regex TrailingHoursText = new(@"^(\d{1,3}(?:[.,]\d{1,2})?)\s*[hH]$", RegexOptions.Compiled);
-
-    public bool HasValue => !string.IsNullOrWhiteSpace(Text) || DateValue.HasValue || NumberValue.HasValue;
-
-    public static WorkbookCell Empty(int rowNumber) => new(rowNumber, string.Empty, null, null);
-
-    public bool TryGetDate(out DateTime date)
-    {
-        if (DateValue.HasValue)
-        {
-            date = DateValue.Value;
-            return true;
-        }
-        return DateTime.TryParse(Text, CultureInfo.GetCultureInfo("it-IT"), DateTimeStyles.AllowWhiteSpaces, out date) ||
-               DateTime.TryParse(Text, CultureInfo.GetCultureInfo("en-US"), DateTimeStyles.AllowWhiteSpaces, out date);
-    }
-
-    public bool TryGetNumber(out decimal number)
-    {
-        if (NumberValue.HasValue)
-        {
-            number = NumberValue.Value;
-            return true;
-        }
-
-        var value = Text.Trim().Replace(" ", string.Empty).Replace("\u00a0", string.Empty);
-        if (value.Length == 0)
-        {
-            number = 0m;
-            return false;
-        }
-
-        // Forme testuali di durata: "8h30", "8h", "8,5h", "8:30".
-        var hourMinute = HourMinuteText.Match(value);
-        if (hourMinute.Success)
-        {
-            var hoursPart = decimal.Parse(hourMinute.Groups[1].Value, CultureInfo.InvariantCulture);
-            var minutesPart = hourMinute.Groups[2].Success
-                ? decimal.Parse(hourMinute.Groups[2].Value, CultureInfo.InvariantCulture)
-                : 0m;
-            number = hoursPart + minutesPart / 60m;
-            return true;
-        }
-        var clock = ClockText.Match(value);
-        if (clock.Success)
-        {
-            number = decimal.Parse(clock.Groups[1].Value, CultureInfo.InvariantCulture) +
-                     decimal.Parse(clock.Groups[2].Value, CultureInfo.InvariantCulture) / 60m;
-            return true;
-        }
-        var trailingHours = TrailingHoursText.Match(value);
-        if (trailingHours.Success)
-        {
-            return TryParseDecimal(trailingHours.Groups[1].Value, out number);
-        }
-
-        return TryParseDecimal(value, out number);
-    }
-
-    private static bool TryParseDecimal(string value, out decimal number)
-    {
-        var comma = value.LastIndexOf(',');
-        var dot = value.LastIndexOf('.');
-        if (comma >= 0 && dot >= 0)
-        {
-            var decimalSeparator = comma > dot ? ',' : '.';
-            var groupSeparator = decimalSeparator == ',' ? '.' : ',';
-            value = value.Replace(groupSeparator.ToString(), string.Empty)
-                .Replace(decimalSeparator, '.');
-        }
-        else
-        {
-            value = value.Replace(',', '.');
-        }
-
-        return decimal.TryParse(
-            value,
-            NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
-            CultureInfo.InvariantCulture,
-            out number);
-    }
-}
-
 internal static class AttendanceWorkbookReader
 {
     private const long MaximumWorkbookBytes = 50 * 1024 * 1024;
@@ -260,14 +252,41 @@ internal static class AttendanceWorkbookReader
     private const int MaximumWorksheetColumns = 256;
     private const long MaximumWorksheetCells = 2_000_000;
 
+    /// <summary>
+    /// Intestazioni riconosciute per campo, dalla più specifica alla più
+    /// generica: l'ordine è anche il criterio di spareggio fra colonne ambigue.
+    /// </summary>
     private static readonly string[][] FieldAliases =
     [
-        ["display name", "employee name", "employee display name", "employee full name", "full name", "resource name", "nome completo", "nome dipendente", "nome del dipendente", "nominativo", "collaboratore", "dipendente", "employee", "worker", "person", "persona"],
-        ["policy", "policy name", "leave policy", "absence policy", "causale", "giustificativo", "tipo assenza", "motivo assenza", "leave type", "absence type", "reason", "policy type", "tipo richiesta"],
-        ["start date", "start", "date start", "data inizio", "data di inizio", "from date", "date from", "inizio", "dal", "data richiesta"],
-        ["end date", "end", "date end", "data fine", "data di fine", "to date", "date to", "fine", "al", "data conclusione"],
-        ["duration in range", "duration in period", "durata nel periodo", "durata nel range", "ore nel periodo", "total duration", "durata totale", "duration", "durata", "hours", "ore", "ore totali", "totale ore"]
+        [
+            "employee display name", "employee full name", "employee name", "display name", "resource name",
+            "nome e cognome", "nome completo", "nome dipendente", "nome del dipendente", "nominativo dipendente",
+            "cognome e nome", "nome collaboratore", "nominativo", "collaboratore", "dipendente", "risorsa",
+            "employee", "worker", "person", "persona"
+        ],
+        [
+            "policy name", "leave policy", "absence policy", "leave type", "absence type", "policy type",
+            "tipo assenza", "tipo di assenza", "tipo richiesta", "tipo di richiesta", "motivo assenza",
+            "causale assenza", "descrizione assenza", "giustificativo", "causale", "tipologia", "voce",
+            "assenza", "policy", "reason"
+        ],
+        [
+            "data di inizio", "data iniziale", "data inizio", "inizio assenza", "data dalla", "data da",
+            "from date", "date from", "start date", "data richiesta", "data presenza", "data assenza",
+            "inizio", "dal", "start"
+        ],
+        [
+            "data di fine", "data finale", "data fine", "fine assenza", "data alla", "data al",
+            "to date", "date to", "end date", "data conclusione", "fine", "al", "end"
+        ],
+        [
+            "duration in range", "duration in period", "durata nel periodo", "durata nel range",
+            "ore nel periodo", "ore totali", "totale ore", "total duration", "durata totale",
+            "quantita ore", "numero ore", "n ore", "ore assenza", "ore richieste", "durata ore",
+            "duration", "durata", "hours", "ore", "h"
+        ]
     ];
+
     private static readonly string[] EmployeeCodeAliases =
     [
         "employee code",
@@ -280,6 +299,9 @@ internal static class AttendanceWorkbookReader
         "codice paghe ufficiale",
         "codice paghe",
         "id paghe",
+        "codice dipendente",
+        "cod dipendente",
+        "matricola dipendente",
         "codice",
         "matricola"
     ];
@@ -288,7 +310,40 @@ internal static class AttendanceWorkbookReader
     // non devono mai essere associate al nome dipendente, alle date o alla durata.
     private static readonly string[] CodeMarkers = ["codice", "code", "cod", "matricola", "id"];
 
-    public static WorkbookInspection Inspect(string path)
+    // Nomi di foglio che suggeriscono il contenuto giusto (o decisamente sbagliato):
+    // servono a scegliere il foglio da analizzare quando ce ne sono più di uno.
+    private static readonly string[] PreferredSheetMarkers =
+        ["presen", "assenze", "timbrature", "ferie", "permessi", "richieste", "dipendenti", "attendance", "leave"];
+
+    private static readonly string[] DiscouragedSheetMarkers =
+        ["istruzion", "legenda", "readme", "note", "config", "parametr", "help", "template"];
+
+    private static readonly Regex PeriodRange = new(
+        @"(?<start>\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2})\s*(?:-|>|a|to|fino a)\s*(?<end>\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2})",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Nomi dei fogli visibili, nell'ordine del file: serve al programma per
+    /// proporre un foglio diverso quando quello riconosciuto automaticamente non
+    /// è quello giusto.
+    /// </summary>
+    public static IReadOnlyList<string> ListSheetNames(string path)
+    {
+        ValidateWorkbookArchive(path);
+        using var workbook = new XLWorkbook(path);
+        return workbook.Worksheets
+            .Where(sheet => sheet.Visibility != XLWorksheetVisibility.VeryHidden)
+            .Select(sheet => sheet.Name)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Legge il foglio migliore del file. Con <paramref name="sheetName"/> il
+    /// foglio viene usato così com'è, senza riconoscimento automatico.
+    /// </summary>
+    public static WorkbookInspection Inspect(string path) => Inspect(path, null);
+
+    public static WorkbookInspection Inspect(string path, string? sheetName)
     {
         ValidateWorkbookArchive(path);
         using var workbook = new XLWorkbook(path);
@@ -297,11 +352,11 @@ internal static class AttendanceWorkbookReader
             throw new InvalidDataException("Il file Excel non contiene fogli.");
         }
 
-        // Scegli il foglio con la riconoscibilità migliore: il primo con intestazioni
-        // complete vince subito, altrimenti resta il punteggio più alto.
+        // Scegli il foglio con la riconoscibilità migliore: intestazioni complete
+        // vincono subito, il nome del foglio fa da spareggio.
         IXLWorksheet? bestSheet = null;
         ColumnSelection? bestSelection = null;
-        int bestScore = -1;
+        int bestScore = int.MinValue;
         int bestHeaderRow = -1;
         foreach (var sheet in workbook.Worksheets.Where(sheet =>
                      sheet.Visibility != XLWorksheetVisibility.VeryHidden))
@@ -315,10 +370,25 @@ internal static class AttendanceWorkbookReader
             var lastRow = usedRange.RangeAddress.LastAddress.RowNumber;
             var firstColumn = usedRange.RangeAddress.FirstAddress.ColumnNumber;
             var lastColumn = usedRange.RangeAddress.LastAddress.ColumnNumber;
-            var headerRow = FindHeaderRow(sheet, firstRow, lastRow, firstColumn, lastColumn, out var selection, out var score);
-            if (score > bestScore)
+            if (lastRow - firstRow + 1 < 2)
             {
-                bestScore = score;
+                continue;
+            }
+            var headerRow = FindHeaderRow(sheet, firstRow, lastRow, firstColumn, lastColumn, out var selection, out var score);
+            if (!string.IsNullOrWhiteSpace(sheetName) &&
+                string.Equals(sheet.Name, sheetName.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                // Foglio scelto a mano: si usa questo, ma si legge comunque
+                // l'intestazione per riproporre l'abbinamento delle colonne.
+                bestSheet = sheet;
+                bestSelection = selection;
+                bestHeaderRow = headerRow;
+                break;
+            }
+            var total = score * 10 + SheetNameBonus(sheet.Name);
+            if (total > bestScore)
+            {
+                bestScore = total;
                 bestSheet = sheet;
                 bestSelection = selection;
                 bestHeaderRow = headerRow;
@@ -370,7 +440,12 @@ internal static class AttendanceWorkbookReader
             rows.Add(cells);
         }
 
-        var (periodStart, periodEnd) = ReadPeriod(worksheet, firstRowNumber, Math.Min(headerRowNumber - 1, firstRowNumber + 10), firstColumnNumber, lastColumnNumber);
+        var (periodStart, periodEnd) = ReadPeriod(
+            worksheet,
+            firstRowNumber,
+            Math.Min(headerRowNumber - 1, firstRowNumber + 10),
+            firstColumnNumber,
+            lastColumnNumber);
         return new WorkbookInspection(
             worksheet.Name,
             headers,
@@ -379,30 +454,85 @@ internal static class AttendanceWorkbookReader
             employeeCodeColumn >= 0 ? employeeCodeColumn : null,
             bestSelection,
             periodStart,
-            periodEnd);
+            periodEnd,
+            headerRowNumber,
+            lastRowNumber);
     }
 
+    /// <summary>
+    /// Mappa le intestazioni sui campi richiesti. Se il foglio ha una sola
+    /// colonna data, questa viene usata sia come inizio sia come fine (molti
+    /// export indicano un singolo giorno per richiesta).
+    /// </summary>
     public static ColumnSelection? SuggestColumns(IReadOnlyList<string> headers)
+    {
+        var indexes = MapFields(headers);
+        if (!IsUsableSelection(indexes))
+        {
+            return null;
+        }
+        return new ColumnSelection(indexes[0], indexes[1], indexes[2], indexes[3], indexes[4]);
+    }
+
+    private static int[] MapFields(IReadOnlyList<string> headers)
     {
         var indexes = new int[FieldAliases.Length];
         for (var field = 0; field < FieldAliases.Length; field++)
         {
             indexes[field] = FindColumn(headers, FieldAliases[field], rejectCodeHeaders: field is 0 or 4);
-            if (indexes[field] < 0)
+        }
+        // Una sola colonna data vale per inizio e fine.
+        if (indexes[3] < 0 && indexes[2] >= 0)
+        {
+            indexes[3] = indexes[2];
+        }
+        if (indexes[2] < 0 && indexes[3] >= 0)
+        {
+            indexes[2] = indexes[3];
+        }
+        return indexes;
+    }
+
+    /// <summary>
+    /// Tutti i campi sono presenti e distinti; l'unica ripetizione ammessa è
+    /// quella tra data iniziale e finale (foglio con una sola data).
+    /// </summary>
+    private static bool IsUsableSelection(IReadOnlyList<int> indexes)
+    {
+        if (indexes.Any(index => index < 0))
+        {
+            return false;
+        }
+        for (var first = 0; first < indexes.Count; first++)
+        {
+            for (var second = first + 1; second < indexes.Count; second++)
             {
-                return null;
+                if (indexes[first] != indexes[second])
+                {
+                    continue;
+                }
+                if (first == 2 && second == 3)
+                {
+                    continue;
+                }
+                return false;
             }
         }
-        if (indexes.Distinct().Count() != indexes.Length)
-        {
-            return null;
-        }
-
-        return new ColumnSelection(indexes[0], indexes[1], indexes[2], indexes[3], indexes[4]);
+        return true;
     }
 
     public static ColumnSelection CreateSelection(IReadOnlyDictionary<string, int> selection) =>
         new(selection["employee"], selection["policy"], selection["startDate"], selection["endDate"], selection["duration"]);
+
+    private static int SheetNameBonus(string name)
+    {
+        var normalized = name.Trim().ToLowerInvariant();
+        if (DiscouragedSheetMarkers.Any(marker => normalized.Contains(marker, StringComparison.Ordinal)))
+        {
+            return -8;
+        }
+        return PreferredSheetMarkers.Any(marker => normalized.Contains(marker, StringComparison.Ordinal)) ? 4 : 0;
+    }
 
     private static int FindHeaderRow(
         IXLWorksheet worksheet,
@@ -430,17 +560,13 @@ internal static class AttendanceWorkbookReader
                 fallbackFilledCells = filledCells;
                 fallbackRow = row;
             }
-            var indexes = SuggestColumns(headers) is { } complete
-                ? new[] { complete.Employee, complete.Policy, complete.StartDate, complete.EndDate, complete.Duration }
-                : Enumerable.Range(0, FieldAliases.Length)
-                    .Select(field => FindColumn(headers, FieldAliases[field], rejectCodeHeaders: field is 0 or 4))
-                    .ToArray();
+            var indexes = MapFields(headers);
             var rowScore = indexes.Count(index => index >= 0);
             if (rowScore > bestScore)
             {
                 bestScore = rowScore;
                 bestRow = row;
-                if (indexes.All(index => index >= 0) && indexes.Distinct().Count() == indexes.Length)
+                if (IsUsableSelection(indexes))
                 {
                     bestSelection = new ColumnSelection(indexes[0], indexes[1], indexes[2], indexes[3], indexes[4]);
                 }
@@ -475,9 +601,16 @@ internal static class AttendanceWorkbookReader
                 continue;
             }
             var isCodeHeader = rejectCodeHeaders && ContainsAnyToken(header, CodeMarkers);
-            foreach (var alias in normalizedAliases)
+            for (var aliasIndex = 0; aliasIndex < normalizedAliases.Length; aliasIndex++)
             {
+                var alias = normalizedAliases[aliasIndex];
                 var aliasScore = ScoreHeader(header, alias);
+                if (aliasScore > 0)
+                {
+                    // A parità di corrispondenza vince l'alias più specifico,
+                    // cioè quello elencato prima nella lista del campo.
+                    aliasScore += Math.Max(0, 40 - aliasIndex);
+                }
                 if (aliasScore > bestScore && (!isCodeHeader || aliasScore >= 1000))
                 {
                     bestScore = aliasScore;
@@ -519,7 +652,13 @@ internal static class AttendanceWorkbookReader
         {
             return 450 + alias.Length;
         }
-        if (headerTokens.Length >= 1 && headerTokens.All(aliasTokens.Contains))
+        // Intestazioni abbreviate dal foglio (es. "ore ass." per l'alias "ore assenza").
+        if (headerTokens.All(token => token.Length >= 3 &&
+                                      aliasTokens.Any(aliasToken => aliasToken.StartsWith(token, StringComparison.Ordinal))))
+        {
+            return 430 + headerTokens.Length;
+        }
+        if (headerTokens.All(aliasTokens.Contains))
         {
             return 400 + headerTokens.Length;
         }
@@ -567,6 +706,7 @@ internal static class AttendanceWorkbookReader
                 .Replace('/', ' ')
                 .Replace('(', ' ')
                 .Replace(')', ' ')
+                .Replace('.', ' ')
                 .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
@@ -637,8 +777,23 @@ internal static class AttendanceWorkbookReader
             return new WorkbookCell(rowNumber, number.ToString(CultureInfo.InvariantCulture), null, number);
         }
 
-        return new WorkbookCell(rowNumber, cell.GetString().Trim(), null, null);
+        // Celle formattate come durata ([h]:mm): ClosedXML le espone come TimeSpan.
+        if (IsTimeSpanCell(cell))
+        {
+            var hours = Math.Round(Convert.ToDecimal(cell.GetTimeSpan().TotalHours), 4, MidpointRounding.AwayFromZero);
+            return new WorkbookCell(rowNumber, hours.ToString(CultureInfo.InvariantCulture), null, hours);
+        }
+
+        var text = cell.GetString().Trim();
+        if (!WorkbookCell.IsMeaningfulText(text))
+        {
+            return WorkbookCell.Empty(rowNumber);
+        }
+        return new WorkbookCell(rowNumber, text, null, null);
     }
+
+    private static bool IsTimeSpanCell(IXLCell cell) =>
+        string.Equals(cell.DataType.ToString(), "TimeSpan", StringComparison.Ordinal);
 
     private static bool IsTimeLikeNumberFormat(string? format)
     {
@@ -662,22 +817,42 @@ internal static class AttendanceWorkbookReader
         DateTime? end = null;
         for (var row = firstRow; row <= lastRow; row++)
         {
-            for (var column = firstColumn; column < lastColumn; column++)
+            for (var column = firstColumn; column <= lastColumn; column++)
             {
-                var label = Normalize(worksheet.Cell(row, column).GetString());
+                var rawLabel = worksheet.Cell(row, column).GetString();
+                var label = Normalize(rawLabel);
                 var value = ReadCell(worksheet.Cell(row, column + 1), row);
-                if (label is "from date" or "data da" or "dal")
+                if (label is "from date" or "data da" or "data dalla" or "dal" or "periodo dal" or "inizio periodo")
                 {
                     if (value.TryGetDate(out var date))
                     {
                         start = date.Date;
                     }
                 }
-                else if (label is "to date" or "data al" or "al")
+                else if (label is "to date" or "data al" or "data alla" or "al" or "periodo al" or "fine periodo")
                 {
                     if (value.TryGetDate(out var date))
                     {
                         end = date.Date;
+                    }
+                }
+
+                // Intervallo scritto in una sola cella: "01/08/2026 - 31/08/2026".
+                if (!start.HasValue || !end.HasValue)
+                {
+                    var range = PeriodRange.Match(rawLabel ?? string.Empty);
+                    if (range.Success)
+                    {
+                        if (!start.HasValue &&
+                            new WorkbookCell(row, range.Groups["start"].Value, null, null).TryGetDate(out var rangeStart))
+                        {
+                            start = rangeStart.Date;
+                        }
+                        if (!end.HasValue &&
+                            new WorkbookCell(row, range.Groups["end"].Value, null, null).TryGetDate(out var rangeEnd))
+                        {
+                            end = rangeEnd.Date;
+                        }
                     }
                 }
             }
