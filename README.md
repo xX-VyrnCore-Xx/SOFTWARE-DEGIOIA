@@ -6,7 +6,7 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.11.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
-Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Minimo* `qwen2.5:0.5b` (~400 MB), *Rapido* `qwen2.5:1.5b` (~1 GB), *Consigliato* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Il modello consigliato è quello che l'app preferisce: entrambi partono da `qwen2.5:3b` perché è il più affidabile nell'abbinare colonne e codici. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer vengono **firmati** quando il certificato è configurato (vedi "Firma digitale"): un file firmato viene controllato più in fretta al primo avvio.
+Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Minimo* `qwen2.5:0.5b` (~400 MB), *Rapido* `qwen2.5:1.5b` (~1 GB), *Consigliato* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Il modello consigliato è quello che l'app preferisce: entrambi partono da `qwen2.5:3b` perché è il più affidabile nell'abbinare colonne e codici. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
 
 Se la distribuzione è gestita a distanza puoi consegnare **anche il token delle Release**: l'installer lo prende dal parametro `/GITHUBTOKEN=...` oppure da un file `github.token` lasciato accanto al setup e lo salva nel profilo dell'utente (anche in installazione silenziosa, senza mai sovrascrivere un token già presente). In questo modo il PC è collegato agli aggiornamenti fin dal primo avvio.
 
@@ -201,9 +201,9 @@ L'assistente AI è **opzionale** e gira interamente sul PC (Ollama su `127.0.0.1
 - il download del modello avviene in streaming con **percentuale reale** (byte di tutti i blocchi dello stream `/api/pull`), annullabile; prima di partire l'app verifica che ci siano **almeno 2,5 GB liberi**;
 - il modello in uso è quello **preferito** (scelta in installazione, poi quella salvata dall'utente) e il confronto avviene sul nome completo con il tag, quindi non viene richiesto un modello diverso da quello installato.
 
-## Firma digitale (opzionale)
+## Firma digitale
 
-L'eseguibile e l'installer possono essere **firmati**. La firma identifica l'editore e riduce l'attesa del primo avvio (Windows Defender controlla con più fiducia un eseguibile firmato).
+L'eseguibile e l'installer **sono firmati**: la firma identifica l'editore e riduce l'attesa del primo avvio (Windows Defender controlla con più fiducia un eseguibile firmato). Il workflow di Release firma l'eseguibile, l'installer e il disinstallatore, poi **verifica** ogni firma: se il certificato non è configurato la Release si ferma e non pubblica nulla di non firmato (vedi *Release non firmate* più sotto).
 
 ### Attivare la firma (una volta sola, su Windows)
 
@@ -217,7 +217,13 @@ Lo script crea un **certificato di firma autofirmato** per l'azienda e prepara l
 - la **password** stampata dallo script → secret **CODE_SIGNING_PFX_PASSWORD**
 - `PresenzeFlow-codesign.cer` → certificato pubblico da rendere attendibile sui PC
 
-Il workflow di Release firma eseguibile e installer **solo se i due secret esistono**: senza certificato la build procede normalmente, non firmata.
+Il workflow firma eseguibile e installer **solo se i due secret esistono**, e li verifica entrambi (che la firma ci sia, che l'hash corrisponda e che il certificato sia quello atteso). Senza certificato il workflow **si ferma** e dice quale dei due secret manca: nessuna Release esce non firmata per distrazione.
+
+Oltre all'installer e al suo checksum, la Release allega anche il **certificato pubblico** `PresenzeFlow-codesign.cer`: è quello da installare sui PC (paragrafo successivo). Non contiene la chiave privata.
+
+### Release non firmate
+
+Se serve pubblicare comunque una Release non firmata (per esempio per una prova), si imposta la variabile di repository **`ALLOW_UNSIGNED_RELEASE=true`** (Settings → Secrets and variables → Actions → Variables): il workflow avvisa, scrive nel riepilogo che la Release non è firmata e prosegue. Togliendola, la firma torna obbligatoria.
 
 ### Rendere attendibile il certificato sui PC
 
@@ -232,7 +238,7 @@ In azienda la stessa operazione si distribuisce con Criteri di gruppo; per rende
 
 ### Nota importante
 
-Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica l'installer da Internet: diventa attendibile solo sui PC dove il certificato pubblico è installato. Per una firma riconosciuta da tutti serve un certificato emesso da una CA pubblica (a pagamento) o un servizio di firma gestito. Senza firma l'app funziona comunque: Windows mostra solo l'avviso "editore sconosciuto" al primo avvio.
+Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica l'installer da Internet: diventa attendibile solo sui PC dove il certificato pubblico è installato. Per una firma riconosciuta da tutti serve un certificato emesso da una CA pubblica (a pagamento) o un servizio di firma gestito. Senza firma l'app funziona comunque: Windows mostra solo l'avviso "editore sconosciuto" al primo avvio. La verifica nel workflow non pretende una catena attendibile sul runner (il certificato è autofirmato): controlla firma, hash e impronta del certificato.
 
 ## Novità v1.11.0
 
@@ -259,7 +265,7 @@ Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica 
 - **Ollama già installato? Niente reinstallazione**: l'installer scarica solo il modello e l'app, se trova Ollama presente ma non attivo, prova ad avviarlo e attende che risponda
 - **Installazione più rapida**: compressione a livello "normal" (decompressione più veloce e meno memoria), passi di Ollama saltati quando non servono
 - **Apertura più rapida**: il font monospaziato viene scelto senza enumerare tutti i font di sistema e il controllo d'integrità del database viene eseguito una volta a settimana invece che a ogni avvio
-- **Firma digitale opzionale** (autofirmata aziendale) di eseguibile e installer, attivabile con due secret GitHub
+- **Firma digitale obbligatoria** (autofirmata aziendale) di eseguibile, installer e disinstallatore, con verifica della firma a ogni Release; senza certificato la Release si ferma (esenzione esplicita con `ALLOW_UNSIGNED_RELEASE`)
 - **Grafica**: barra di avanzamento del download disegnata con il tema dell'app (niente grigio di sistema) e intestazione sfumata anche nella finestra "Novità"
 - **README aggiornato** all'ultima versione + rimosse la cronologia duplicata e i file generati non usati dal build
 

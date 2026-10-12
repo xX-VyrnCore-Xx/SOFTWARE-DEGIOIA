@@ -419,6 +419,92 @@ public class InstallerPackagingTests
     }
 
     /// <summary>
+    /// La firma digitale è obbligatoria: il workflow non può più pubblicare
+    /// eseguibili non firmati in silenzio. Era esattamente quello che accadeva —
+    /// senza i secret, lo step della firma veniva saltato e il log diceva solo
+    /// "l'installer verrà prodotto senza firma".
+    /// </summary>
+    [Fact]
+    public void ReleaseWorkflowRefusesToPublishUnsignedBinaries()
+    {
+        var workflow = ReadReleaseWorkflow();
+        if (workflow is null)
+        {
+            return;
+        }
+
+        Assert.Contains("Firma obbligatoria", workflow, StringComparison.Ordinal);
+        Assert.Contains("secrets.CODE_SIGNING_PFX_BASE64", workflow, StringComparison.Ordinal);
+        Assert.Contains("secrets.CODE_SIGNING_PFX_PASSWORD", workflow, StringComparison.Ordinal);
+        // Deve dire QUALE dei due secret manca: un nome diverso = secret assente.
+        Assert.Contains("missing=", workflow, StringComparison.Ordinal);
+        Assert.Contains("steps.signing.outputs.missing", workflow, StringComparison.Ordinal);
+        // E deve fermarsi, a meno di un consenso esplicito a pubblicare non firmato.
+        Assert.Contains("ALLOW_UNSIGNED_RELEASE", workflow, StringComparison.Ordinal);
+        Assert.Contains("Firma digitale non configurata", workflow, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Firme su entrambi gli eseguibili e, soprattutto, verifica: signtool può
+    /// uscire con codice 0 senza aver firmato nulla, e Inno Setup firma l'installer
+    /// per una strada diversa (il SignTool passato con -sci=...). Coinvolge due
+    /// file: il workflow (eseguibile, SignTool, verifiche) e Installer.iss
+    /// (installer e disinstallatore).
+    /// </summary>
+    [Fact]
+    public void ReleaseWorkflowSignsAndVerifiesEveryExecutable()
+    {
+        var workflow = ReadReleaseWorkflow();
+        var installerScript = ReadInstallerScript();
+        if (workflow is null || installerScript is null)
+        {
+            return;
+        }
+
+        // Eseguibile dell'applicazione.
+        Assert.Contains(@"$exe = 'dist\app\PresenzeFlow.exe'", workflow, StringComparison.Ordinal);
+        Assert.Contains("signtool.exe sign /sha1 $env:SIGN_CERT_THUMBPRINT", workflow, StringComparison.Ordinal);
+        // Installer e disinstallatore: Inno Setup usa lo stesso SignTool, ma solo
+        // quando il workflow lo attiva con -dEnableSigning=1.
+        Assert.Contains("-dEnableSigning=1", workflow, StringComparison.Ordinal);
+        Assert.Contains("-sci=", workflow, StringComparison.Ordinal);
+        Assert.Contains("#ifdef EnableSigning", installerScript, StringComparison.Ordinal);
+        Assert.Contains("SignTool=ci", installerScript, StringComparison.Ordinal);
+        Assert.Contains("SignedUninstaller=yes", installerScript, StringComparison.Ordinal);
+        // La firma viene verificata su entrambi i file.
+        Assert.Contains("-Path $exe -Thumbprint $env:SIGN_CERT_THUMBPRINT", workflow, StringComparison.Ordinal);
+        Assert.Contains("-Path $installer -Thumbprint $env:SIGN_CERT_THUMBPRINT", workflow, StringComparison.Ordinal);
+        // Il certificato pubblico segue la Release, per poterlo rendere attendibile.
+        Assert.Contains("PresenzeFlow-codesign.cer", workflow, StringComparison.Ordinal);
+        // L'esito di signtool non è accettato come prova di firma avvenuta.
+        Assert.Contains("signtool è terminato con codice ${LASTEXITCODE}", workflow, StringComparison.Ordinal);
+        Assert.Contains("ISCC è terminato con codice ${LASTEXITCODE}", workflow, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// La verifica della firma non può basarsi sulla catena di certificazione: il
+    /// certificato è autofirmato e sul runner non è attendibile. Controlla che la
+    /// firma esista, che l'hash corrisponda e che il certificato sia quello atteso.
+    /// </summary>
+    [Fact]
+    public void CodeSignatureVerificationChecksTheSignerAndTheHash()
+    {
+        var script = ReadToolScript("Test-CodeSignature.ps1");
+        if (script is null)
+        {
+            return;
+        }
+
+        Assert.Contains("Get-AuthenticodeSignature", script, StringComparison.Ordinal);
+        Assert.Contains("HashMismatch", script, StringComparison.Ordinal);
+        Assert.Contains("SignerCertificate.Thumbprint", script, StringComparison.Ordinal);
+        Assert.Contains("ExpectedThumbprint", script, StringComparison.Ordinal);
+        Assert.Contains("NotAfter", script, StringComparison.Ordinal);
+        Assert.Contains("TimeStamperCertificate", script, StringComparison.Ordinal);
+        Assert.Contains("throw", script, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Tipi del Pascal Script di Inno Setup 6, ricavati dalle fonti ufficiali della
     /// 6.7 (tipi, enumerazioni e classi registrati dal compilatore). 'HKEY' NON è fra
     /// questi: in Inno Setup 6 le chiavi di registro sono costanti Integer e un
@@ -733,6 +819,12 @@ public class InstallerPackagingTests
             .Select(match => match.Groups[1].Value)
             .Distinct()
             .ToArray();
+
+    private static string? ReadToolScript(string fileName)
+    {
+        var path = Path.Combine(FindRepositoryRoot() ?? string.Empty, "tools", fileName);
+        return File.Exists(path) ? NormalizeLineEndings(File.ReadAllText(path)) : null;
+    }
 
     private static string? ReadReleaseWorkflow()
     {

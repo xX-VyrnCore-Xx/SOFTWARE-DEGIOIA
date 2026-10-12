@@ -93,27 +93,94 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Prepara il certificato di firma (se configurato)
+      # La firma digitale e' OBBLIGATORIA: senza certificato il workflow si ferma
+      # (vedi lo step successivo). Un eseguibile non firmato fa attendere Windows
+      # Defender 15-20 secondi al primo avvio e mostra "editore sconosciuto".
+      - name: Prepara il certificato di firma
         id: signing
         shell: pwsh
         env:
           PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
           PFX_PASSWORD: ${{ secrets.CODE_SIGNING_PFX_PASSWORD }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:PFX_BASE64)) {
-            Write-Host 'Firma digitale non configurata: la build procede senza firma.'
+          $ErrorActionPreference = 'Stop'
+
+          # Distinguere QUALE dei due secret manca: un nome scritto diversamente
+          # equivale a nessun secret, e senza questo messaggio il motivo resta
+          # invisibile (e' quello che faceva saltare la firma in silenzio).
+          $missing = @()
+          if ([string]::IsNullOrWhiteSpace($env:PFX_BASE64))   { $missing += 'CODE_SIGNING_PFX_BASE64' }
+          if ([string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) { $missing += 'CODE_SIGNING_PFX_PASSWORD' }
+          "missing=$($missing -join ', ')" >> $env:GITHUB_OUTPUT
+          if ($missing.Count -gt 0) {
+            Write-Host "Firma digitale non configurata: mancano i secret $($missing -join ', ')."
             "enabled=false" >> $env:GITHUB_OUTPUT
             exit 0
           }
-          $pfx = Join-Path $env:RUNNER_TEMP 'codesign.pfx'
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
-          $password = ConvertTo-SecureString $env:PFX_PASSWORD -AsPlainText -Force
-          $certificate = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
-          Remove-Item $pfx -Force
-          if (-not $certificate.HasPrivateKey) { throw 'Il certificato importato non ha la chiave privata.' }
+
+          # .NET diretto invece di Import-PfxCertificate: nessuna dipendenza dal
+          # modulo PKI e messaggi di errore comprensibili.
+          try { $bytes = [Convert]::FromBase64String($env:PFX_BASE64.Trim()) }
+          catch { throw 'CODE_SIGNING_PFX_BASE64 non e'' Base64 valido: ricrealo con .\tools\New-CodeSigningCertificate.ps1' }
+          if ($bytes.Length -lt 4 -or $bytes[0] -ne 0x30 -or $bytes[1] -ne 0x82) {
+            throw 'CODE_SIGNING_PFX_BASE64 non contiene un file .pfx: incolla il contenuto di codesign\PresenzeFlow-codesign.pfx.base64.txt'
+          }
+
+          $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet -bor `
+                   [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::UserKeySet
+          try {
+            $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($bytes, $env:PFX_PASSWORD, $flags)
+          } catch {
+            throw "Il .pfx non si apre: CODE_SIGNING_PFX_PASSWORD e'' la password stampata da New-CodeSigningCertificate.ps1? Dettaglio: $($_.Exception.Message)"
+          }
+          if (-not $certificate.HasPrivateKey) { throw 'Il certificato non ha la chiave privata: senza di essa non si puo'' firmare.' }
+
+          $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('My', 'CurrentUser')
+          try { $store.Open('ReadWrite'); $store.Add($certificate) } finally { $store.Close() }
+
+          # Certificato pubblico: viene allegato alla Release perche' chi installa
+          # PresenzeFlow possa renderlo attendibile (Trusted Root/Publisher).
+          New-Item -ItemType Directory -Force -Path 'dist' | Out-Null
+          $publicCertificate = Join-Path $PWD (Join-Path 'dist' 'PresenzeFlow-codesign.cer')
+          [IO.File]::WriteAllBytes($publicCertificate, $certificate.Export('Cert'))
+
           "SIGN_CERT_THUMBPRINT=$($certificate.Thumbprint)" >> $env:GITHUB_ENV
           "enabled=true" >> $env:GITHUB_OUTPUT
           Write-Host "Certificato pronto per la firma (scade il $($certificate.NotAfter.ToString('yyyy-MM-dd')))."
+
+      - name: Firma obbligatoria
+        if: steps.signing.outputs.enabled != 'true'
+        shell: pwsh
+        env:
+          ALLOW_UNSIGNED_RELEASE: ${{ vars.ALLOW_UNSIGNED_RELEASE }}
+        run: |
+          $missing = '${{ steps.signing.outputs.missing }}'
+          if ($env:ALLOW_UNSIGNED_RELEASE -eq 'true') {
+            $relaxed = "Release NON firmata: firma non configurata (mancano: $missing) e ALLOW_UNSIGNED_RELEASE=true."
+            Write-Warning $relaxed
+            $relaxed | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            exit 0
+          }
+
+          @(
+            'Gli eseguibili uscirebbero NON firmati, quindi il workflow si ferma:'
+            'una Release non firmata mostra "editore sconosciuto" e fa attendere'
+            'Windows Defender 15-20 secondi al primo avvio.'
+            ''
+            "Mancano i secret: $missing"
+            ''
+            'Come sistemarlo (una volta sola, su Windows):'
+            '  1. .\tools\New-CodeSigningCertificate.ps1'
+            '  2. GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret:'
+            '       CODE_SIGNING_PFX_BASE64   = contenuto di codesign\PresenzeFlow-codesign.pfx.base64.txt'
+            '       CODE_SIGNING_PFX_PASSWORD = la password stampata dallo script'
+            '     I nomi devono essere esattamente questi: anche un solo carattere diverso = secret assente.'
+            ''
+            'Per pubblicare comunque una Release non firmata, imposta la variabile'
+            'ALLOW_UNSIGNED_RELEASE=true (Settings -> Secrets and variables -> Actions -> Variables).'
+          ) | ForEach-Object { Write-Host $_ }
+
+          throw "Firma digitale non configurata (mancano: $missing)."
 
       - name: Rendi disponibile signtool
         if: steps.signing.outputs.enabled == 'true'
@@ -223,8 +290,13 @@ jobs:
         shell: pwsh
         run: |
           $exe = 'dist\app\PresenzeFlow.exe'
+          if (-not (Test-Path $exe)) { throw "Eseguibile mancante dopo il publish: $exe" }
           signtool.exe sign /sha1 $env:SIGN_CERT_THUMBPRINT /s My /fd sha256 /td sha256 /tr http://timestamp.digicert.com "$exe"
-          Write-Host 'Eseguibile firmato.'
+          if ($LASTEXITCODE -ne 0) { throw "signtool è terminato con codice ${LASTEXITCODE}: firma dell'eseguibile non riuscita." }
+          # La firma viene verificata, non data per buona: signtool puo' uscire con
+          # codice 0 senza aver firmato (certificato non trovato nella memoria).
+          .\tools\Test-CodeSignature.ps1 -Path $exe -Thumbprint $env:SIGN_CERT_THUMBPRINT
+          Write-Host 'Eseguibile firmato e verificato.'
 
       - name: Compila l'installer
         shell: pwsh
@@ -239,9 +311,15 @@ jobs:
             Write-Host 'L''installer verrà prodotto senza firma.'
           }
           & '${{ steps.iscc.outputs.path }}' @arguments
+          if ($LASTEXITCODE -ne 0) { throw "ISCC è terminato con codice ${LASTEXITCODE}: l'installer non è stato compilato." }
           $installer = "dist\PresenzeFlow-Setup-${{ needs.prepare.outputs.version }}.exe"
           if (-not (Test-Path $installer)) { throw "Installer non generato: $installer" }
           Get-Item $installer | Select-Object Name, Length
+          if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
+            # Inno Setup firma installer e disinstallatore con lo stesso SignTool
+            # passato con -sci=...: qui si controlla che la firma ci sia davvero.
+            .\tools\Test-CodeSignature.ps1 -Path $installer -Thumbprint $env:SIGN_CERT_THUMBPRINT
+          }
 
       - name: Calcola il checksum SHA-256 dell'installer
         shell: pwsh
@@ -252,6 +330,33 @@ jobs:
           "$hash  $name" | Set-Content -Path "$installer.sha256" -Encoding ascii -NoNewline
           Get-Content "$installer.sha256"
 
+      - name: Prepara i file della Release
+        id: artifacts
+        shell: pwsh
+        run: |
+          $installer = "dist\PresenzeFlow-Setup-${{ needs.prepare.outputs.version }}.exe"
+          # L'app scarica l'installer e ne verifica il checksum SHA-256.
+          $files = @($installer, "$installer.sha256")
+          # Quando la Release e' firmata si allega anche il certificato PUBBLICO, cosi'
+          # i PC possono renderlo attendibile (Trusted Root/Trusted Publisher).
+          if (Test-Path 'dist\PresenzeFlow-codesign.cer') { $files += 'dist\PresenzeFlow-codesign.cer' }
+          foreach ($file in $files) {
+            if (-not (Test-Path $file)) { throw "File da pubblicare mancante: $file" }
+          }
+
+          $relative = $files | ForEach-Object { $_ -replace '\\', '/' }
+          "files<<EOF" >> $env:GITHUB_OUTPUT
+          $relative -join "`n" >> $env:GITHUB_OUTPUT
+          "EOF" >> $env:GITHUB_OUTPUT
+          $relative | ForEach-Object { Write-Host "Da pubblicare: $_" }
+
+          if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
+            "### Release firmata`nEseguibile e installer firmati e verificati (impronta $env:SIGN_CERT_THUMBPRINT)." | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          }
+          else {
+            "### Release NON firmata`nFirma digitale non configurata e ALLOW_UNSIGNED_RELEASE=true." | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          }
+
       - name: Crea la Release GitHub
         uses: softprops/action-gh-release@v3
         with:
@@ -260,7 +365,4 @@ jobs:
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          # L'app scarica l'installer e ne verifica il checksum SHA-256.
-          files: |
-            dist/PresenzeFlow-Setup-*.exe
-            dist/PresenzeFlow-Setup-*.exe.sha256
+          files: ${{ steps.artifacts.outputs.files }}
