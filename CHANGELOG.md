@@ -4,7 +4,38 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.15.1] - Corrente
+## [1.16.0] - Corrente
+
+### 🔄 Aggiornamenti sempre collegati
+- **Token iniettato in ogni build**: il workflow di rilascio legge il secret `PRESENZEFLOW_GITHUB_TOKEN`, lo **verifica** contro l'API (un token scaduto non viene mai distribuito) e lo scrive, offuscato, nel codice prima della compilazione (`tools/Inject-UpdateToken.ps1` → `EmbeddedUpdateToken`). Ogni installer esce con gli aggiornamenti già collegati, senza configurare nulla sul PC e senza token nel repository. Senza secret il rilascio si ferma (salvo la variabile `ALLOW_RELEASE_WITHOUT_UPDATE_TOKEN=true`)
+- **Più token, nessun punto di rottura**: si prova prima l'ultimo che ha funzionato, poi ambiente, Impostazioni, file locale e infine quello incluso; se uno è scaduto o revocato (401/403/404) si passa al successivo
+- **Rete instabile**: ogni richiesta ripete da sola i tentativi per i problemi transitori (rete, errori 5xx), lo scaricamento dell'installer riparte fino a 3 volte e dopo un controllo fallito per la rete si riprova dopo 5 minuti invece che all'ora piena
+- **Anche con la finestra nascosta in tray**: il controllo periodico non si ferma più quando il programma è ridotto a icona; se c'è una versione nuova arriva una notifica
+- **Proxy aziendale**: il proxy di Windows (con le credenziali dell'utente) non è più escluso
+- **Limite di richieste di GitHub** riconosciuto e distinto da un token sbagliato
+- **Checksum obbligatorio quando la Release lo dichiara**: se non si riesce a leggerlo l'installazione viene annullata invece di procedere con un file non verificato
+- In Impostazioni il token incluso nell'app non viene mai mostrato né modificato: il campo resta per un token personale facoltativo
+
+### 🗄️ Database sempre disponibile
+- **Si ripara da solo all'avvio**: un file danneggiato viene messo da parte (cartella `corrupt`) e sostituito dall'ultimo backup valido; senza backup se ne crea uno nuovo; se la cartella dei dati non è utilizzabile si lavora su un database temporaneo e lo si dice. Un database di una versione più recente **non** viene mai sovrascritto
+- **Backup automatici** (VACUUM INTO, consistenti anche con l'app in uso): all'avvio se l'ultimo ha più di 20 ore, alla chiusura se ne ha più di 6 e prima di ogni aggiornamento dello schema; si tengono gli ultimi 10
+- **Checkpoint alla chiusura**: copiare `settings.db` non lascia indietro dati recenti
+- Dal menu dell'icona in tray: *Stato del database…*, *Backup dei dati ora*, *Apri cartella dei dati*
+
+### 🧹 Disinstallazione: conservare o eliminare i dati
+- Domanda esplicita **«Vuoi conservare i dati?»** con tre esiti (conserva / elimina / annulla); l'eliminazione chiede una **seconda conferma** con «No» preselezionato
+- Eliminando si rimuove l'intera cartella dei dati (database, backup, copie danneggiate, token, log), ma solo se il nome della cartella è quello atteso
+- Disinstallazione silenziosa: i dati si **conservano** salvo `/DELETEDATA`
+
+### ✅ Verifiche
+- Nuovi test: codifica/decodifica del token incorporato, sorgente committato senza token, workflow (iniezione prima della compilazione e verifica del token), ordine dei token, limite di richieste, backup e potatura, ripristino da file danneggiato (con e senza backup), database più nuovo mai sovrascritto, riepilogo dello stato, domanda di disinstallazione
+
+### ⚠️ Sicurezza del token incluso
+Il token è offuscato, **non cifrato**: chi possiede l'eseguibile può estrarlo. Deve avere il solo permesso *Contents: Read-only* e vedere il solo repository delle Release; con un repository privato che contiene anche il codice sorgente, il token permetterebbe di leggerlo. Se il codice non va condiviso, pubblica le Release in un repository separato.
+
+---
+
+## [1.15.1] - Precedente
 
 ### 🩹 Correzioni
 - **Finestra vuota e Excel non importabile**: nella 1.15.0 la costruzione dell'interfaccia passava da `Trace?.Measure(...)`; con la diagnostica di avvio spenta (il caso normale) l'operatore `?.` saltava l'intera chiamata e l'interfaccia non veniva mai costruita — nessun pulsante, nessuna dashboard, nessuna importazione. Ora le fasi di avvio passano da `MeasureStartup`, che esegue **sempre** l'azione e la misura solo se richiesto. Stessa correzione per l'inizializzazione degli aggiornamenti

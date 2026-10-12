@@ -2,6 +2,56 @@ using Microsoft.Data.Sqlite;
 
 namespace PresenzeXmlConverter;
 
+/// <summary>Un backup del database: file, momento di creazione (UTC) e dimensione.</summary>
+internal sealed record DatabaseBackup(string Path, DateTime CreatedUtc, long SizeBytes);
+
+/// <summary>Database aperto e, se serviva, il racconto di che cosa è stato fatto per riaprirlo.</summary>
+internal sealed record LocalDatabaseOpenResult(LocalDatabase Database, string? Note);
+
+/// <summary>Stato del database in una forma adatta a essere mostrata all'utente.</summary>
+internal sealed record DatabaseHealth(
+    string Path,
+    long SizeBytes,
+    int SchemaVersion,
+    int BackupCount,
+    DateTime? LastBackupUtc,
+    bool IsTemporary)
+{
+    public string Describe(DateTime nowUtc)
+    {
+        var size = SizeBytes < 1024 * 1024
+            ? $"{Math.Max(1, SizeBytes / 1024)} KB"
+            : $"{SizeBytes / (1024.0 * 1024.0):0.0} MB";
+        var backups = BackupCount == 0
+            ? "nessun backup"
+            : $"{BackupCount} backup (ultimo {DescribeAge(nowUtc)})";
+        var storage = IsTemporary ? " · TEMPORANEO: si perde alla pulizia di Windows" : string.Empty;
+        return $"Database collegato · schema {SchemaVersion} · {size} · {backups}{storage}";
+    }
+
+    private string DescribeAge(DateTime nowUtc)
+    {
+        if (LastBackupUtc is not { } last)
+        {
+            return "mai";
+        }
+        var age = nowUtc - last;
+        if (age < TimeSpan.FromMinutes(1))
+        {
+            return "adesso";
+        }
+        if (age < TimeSpan.FromHours(1))
+        {
+            return $"{(int)age.TotalMinutes} min fa";
+        }
+        if (age < TimeSpan.FromDays(1))
+        {
+            return $"{(int)age.TotalHours} h fa";
+        }
+        return $"{(int)age.TotalDays} g fa";
+    }
+}
+
 internal sealed class LocalDatabase
 {
     /// <summary>
@@ -11,16 +61,29 @@ internal sealed class LocalDatabase
     /// </summary>
     public const int CurrentSchemaVersion = 2;
 
+    /// <summary>Quanti backup restano: i più vecchi vengono eliminati.</summary>
+    public const int MaximumBackups = 10;
+
     private readonly string _connectionString;
 
+    /// <summary>Cartella dei dati dell'utente (la stessa che l'installer chiede se conservare o eliminare).</summary>
+    public static string DataDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "DeGioia",
+        "PresenzeXmlConverter");
+
+    public static string DefaultDatabasePath => Path.Combine(DataDirectory, "settings.db");
+
     public LocalDatabase()
-        : this(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "DeGioia",
-            "PresenzeXmlConverter",
-            "settings.db"))
+        : this(DefaultDatabasePath)
     {
     }
+
+    /// <summary>Percorso completo del file del database.</summary>
+    public string DatabasePath { get; }
+
+    /// <summary>Cartella dei backup automatici, accanto al database.</summary>
+    public string BackupDirectory => Path.Combine(Path.GetDirectoryName(DatabasePath)!, "backups");
 
     internal LocalDatabase(string databasePath)
     {
@@ -28,6 +91,7 @@ internal sealed class LocalDatabase
         var directory = Path.GetDirectoryName(Path.GetFullPath(databasePath))
             ?? throw new ArgumentException("Percorso del database non valido.", nameof(databasePath));
         Directory.CreateDirectory(directory);
+        DatabasePath = Path.GetFullPath(databasePath);
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = Path.GetFullPath(databasePath),
@@ -145,6 +209,12 @@ internal sealed class LocalDatabase
                 $"Il database PresenzeFlow usa una versione non supportata ({schemaVersion}).");
         }
 
+        if (schemaVersion > 0 && schemaVersion < CurrentSchemaVersion)
+        {
+            // Prima di cambiare lo schema di un database con dati si tiene una copia.
+            TryCreateBackup("prima-di-aggiornare");
+        }
+
         using var command = connection.CreateCommand();
         command.CommandText = """
             CREATE TABLE IF NOT EXISTS Settings (
@@ -189,14 +259,19 @@ internal sealed class LocalDatabase
                 System.Globalization.CultureInfo.InvariantCulture);
             if (!string.Equals(integrityResult, "ok", StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidDataException(
+                // Resta un InvalidDataException (come prima), ma marcata: il ripristino
+                // distingue un file danneggiato da uno scritto da una build più nuova.
+                var integrityFailure = new InvalidDataException(
                     $"Il database PresenzeFlow non ha superato il controllo di integrità: {integrityResult}");
+                integrityFailure.Data[IntegrityMarker] = true;
+                throw integrityFailure;
             }
             RecordIntegrityCheck(connection);
         }
     }
 
     private const string IntegrityCheckSetting = "integrity-check-at";
+    private const string IntegrityMarker = "presenzeflow.integrity";
 
     private static bool ShouldRunIntegrityCheck(SqliteConnection connection)
     {
@@ -241,6 +316,263 @@ internal sealed class LocalDatabase
             """;
         command.ExecuteNonQuery();
         return connection;
+    }
+
+    /* ------------------- Apertura, backup e ripristino ------------------- */
+
+    /// <summary>
+    /// Apre il database e non si arrende al primo problema, così l'app parte
+    /// sempre: un file danneggiato viene messo da parte (cartella "corrupt") e
+    /// sostituito dall'ultimo backup valido; se non c'è nemmeno quello se ne crea
+    /// uno nuovo; se la cartella dei dati non è utilizzabile si ripiega su un
+    /// database temporaneo. La nota restituita racconta che cosa è successo.
+    /// </summary>
+    public static LocalDatabaseOpenResult OpenWithRecovery(string? databasePath = null)
+    {
+        var path = databasePath ?? DefaultDatabasePath;
+        try
+        {
+            return new LocalDatabaseOpenResult(new LocalDatabase(path), null);
+        }
+        catch (Exception first) when (IsOpenFailure(first))
+        {
+            var failure = first;
+            if (IsCorruption(first))
+            {
+                try
+                {
+                    Quarantine(path);
+                    var restored = RestoreLatestBackup(path);
+                    var database = new LocalDatabase(path);
+                    var note = restored is null
+                        ? "Il database locale era danneggiato e non c'erano backup validi: ne è stato creato uno nuovo. " +
+                          "Il vecchio file è conservato nella cartella \"corrupt\" dei dati."
+                        : $"Il database locale era danneggiato: è stato ripristinato dall'ultimo backup valido ({restored}). " +
+                          "Il vecchio file è conservato nella cartella \"corrupt\" dei dati.";
+                    return new LocalDatabaseOpenResult(database, note);
+                }
+                catch (Exception second) when (IsOpenFailure(second))
+                {
+                    failure = second;
+                }
+            }
+
+            var fallbackPath = Path.Combine(Path.GetTempPath(), "PresenzeFlow-dati-temporanei", "settings.db");
+            var fallback = new LocalDatabase(fallbackPath);
+            return new LocalDatabaseOpenResult(
+                fallback,
+                $"Impossibile aprire il database locale ({failure.Message}). Per ora si lavora con un database " +
+                $"temporaneo: abbinamenti e storico di questa sessione potrebbero andare persi. Cartella dei dati: {DataDirectory}");
+        }
+    }
+
+    private static bool IsOpenFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException or SqliteException or InvalidDataException;
+
+    /// <summary>
+    /// File danneggiato (SQLITE_CORRUPT = 11, SQLITE_NOTADB = 26) o con contenuto
+    /// che non supera il controllo d'integrità. Un database "più nuovo" di questa
+    /// build NON è danneggiato e non va mai sovrascritto.
+    /// </summary>
+    private static bool IsCorruption(Exception exception) =>
+        exception.Data.Contains(IntegrityMarker) || exception is SqliteException { SqliteErrorCode: 11 or 26 };
+
+    /// <summary>Sposta il database danneggiato (e i file WAL/SHM) in "corrupt", senza cancellarlo.</summary>
+    private static void Quarantine(string databasePath)
+    {
+        var folder = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(databasePath))!, "corrupt");
+        Directory.CreateDirectory(folder);
+        var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+        foreach (var suffix in new[] { string.Empty, "-wal", "-shm" })
+        {
+            var source = databasePath + suffix;
+            if (File.Exists(source))
+            {
+                File.Move(source, Path.Combine(folder, $"settings-{stamp}.db{suffix}"), overwrite: true);
+            }
+        }
+    }
+
+    /// <summary>Ripristina il backup valido più recente; restituisce il suo nome (null se non ce n'è).</summary>
+    private static string? RestoreLatestBackup(string databasePath)
+    {
+        var folder = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(databasePath))!, "backups");
+        if (!Directory.Exists(folder))
+        {
+            return null;
+        }
+        foreach (var file in new DirectoryInfo(folder).GetFiles("*.db").OrderByDescending(file => file.LastWriteTimeUtc))
+        {
+            if (!IsHealthyDatabaseFile(file.FullName))
+            {
+                continue;
+            }
+            File.Copy(file.FullName, databasePath, overwrite: true);
+            return file.Name;
+        }
+        return null;
+    }
+
+    /// <summary>Il file si apre, supera il controllo d'integrità e ha uno schema che questa build conosce.</summary>
+    private static bool IsHealthyDatabaseFile(string path)
+    {
+        try
+        {
+            var connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = path,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false
+            }.ToString();
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA quick_check;";
+            var result = Convert.ToString(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+            if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            command.CommandText = "PRAGMA user_version;";
+            var version = Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+            return version <= CurrentSchemaVersion;
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Copia consistente del database (anche con l'app in uso) nella cartella dei
+    /// backup. Il file nasce con un nome provvisorio e prende quello definitivo
+    /// solo a copia finita: un backup a metà non esiste mai.
+    /// </summary>
+    public string CreateBackup(string label = "")
+    {
+        Directory.CreateDirectory(BackupDirectory);
+        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmssfff", System.Globalization.CultureInfo.InvariantCulture);
+        var name = label.Length == 0 ? $"settings-{stamp}.db" : $"settings-{label}-{stamp}.db";
+        var finalPath = Path.Combine(BackupDirectory, name);
+        var temporaryPath = finalPath + ".tmp";
+        if (File.Exists(temporaryPath))
+        {
+            File.Delete(temporaryPath);
+        }
+
+        using (var connection = OpenConnection())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "VACUUM INTO $path;";
+            command.Parameters.AddWithValue("$path", temporaryPath);
+            command.ExecuteNonQuery();
+        }
+        File.Move(temporaryPath, finalPath);
+        PruneBackups();
+        return finalPath;
+    }
+
+    /// <summary>Come <see cref="CreateBackup"/>, ma un errore non deve mai fermare chi lo chiama.</summary>
+    private string? TryCreateBackup(string label)
+    {
+        try
+        {
+            return CreateBackup(label);
+        }
+        catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Crea un backup solo se l'ultimo è più vecchio di <paramref name="minimumAge"/>.</summary>
+    public string? BackupIfDue(TimeSpan minimumAge)
+    {
+        var newest = ListBackups().FirstOrDefault();
+        if (newest is not null && DateTime.UtcNow - newest.CreatedUtc < minimumAge)
+        {
+            return null;
+        }
+        return CreateBackup();
+    }
+
+    /// <summary>I backup presenti, dal più recente al più vecchio.</summary>
+    public IReadOnlyList<DatabaseBackup> ListBackups()
+    {
+        if (!Directory.Exists(BackupDirectory))
+        {
+            return Array.Empty<DatabaseBackup>();
+        }
+        return new DirectoryInfo(BackupDirectory)
+            .GetFiles("*.db")
+            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .Select(file => new DatabaseBackup(file.FullName, file.LastWriteTimeUtc, file.Length))
+            .ToArray();
+    }
+
+    private void PruneBackups()
+    {
+        foreach (var old in ListBackups().Skip(MaximumBackups))
+        {
+            try
+            {
+                File.Delete(old.Path);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Un backup vecchio che non si lascia cancellare non è un problema.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Riporta nel file principale tutto ciò che sta nel registro WAL: dopo la
+    /// chiamata copiare o spostare settings.db non lascia indietro dati recenti.
+    /// </summary>
+    public void Checkpoint()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Manutenzione alla chiusura: backup se serve e checkpoint. Non lancia mai eccezioni.</summary>
+    public void MaintainOnExit()
+    {
+        try
+        {
+            BackupIfDue(TimeSpan.FromHours(6));
+            Checkpoint();
+        }
+        catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            // La chiusura del programma non deve dipendere da un backup riuscito.
+        }
+    }
+
+    /// <summary>Stato attuale del database, per mostrarlo all'utente.</summary>
+    public DatabaseHealth GetHealth()
+    {
+        int schema;
+        using (var connection = OpenConnection())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA user_version;";
+            schema = Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+        }
+        var backups = ListBackups();
+        var size = File.Exists(DatabasePath) ? new FileInfo(DatabasePath).Length : 0;
+        var isTemporary = DatabasePath.StartsWith(
+            Path.GetFullPath(Path.GetTempPath()),
+            StringComparison.OrdinalIgnoreCase);
+        return new DatabaseHealth(
+            DatabasePath,
+            size,
+            schema,
+            backups.Count,
+            backups.Count == 0 ? null : backups[0].CreatedUtc,
+            isTemporary);
     }
 
     /* --------------------- Storico delle esportazioni -------------------- */

@@ -312,7 +312,7 @@ internal sealed class SettingsDialog : Form
         var (page, body) = CreatePage(SettingsPageLayout.UpdateRows);
 
         body.Controls.Add(CreateHint(
-            "PresenzeFlow legge le Release del repository: la repo è privata, quindi serve un token di sola lettura."), 0, 0);
+            "Le Release del repository privato si leggono con un token di sola lettura, già incluso nelle versioni ufficiali."), 0, 0);
 
         _autoCheck.Text = "Cerca aggiornamenti automaticamente all'avvio e durante l'uso";
         _autoCheck.Dock = DockStyle.Fill;
@@ -325,13 +325,13 @@ internal sealed class SettingsDialog : Form
         body.Controls.Add(_autoCheck, 0, 1);
 
         body.Controls.Add(CreateFieldLabel(
-            "Token GitHub (fine-grained, permesso Contents → Read-only sul repository). Solo lettere e numeri: non viene mai salvato nell'eseguibile."), 0, 2);
+            "Token personale (facoltativo, se quello incluso è scaduto). Fine-grained, permesso Contents → Read-only."), 0, 2);
         _token.MaxLength = 400;
         _token.Dock = DockStyle.Fill;
         _token.InputFont = Theme.Fonts.Field;
         _token.Placeholder = "github_pat_… oppure ghp_…";
         _token.Input.UseSystemPasswordChar = true;
-        _token.Input.Text = UpdateService.ResolveToken() ?? string.Empty;
+        _token.Input.Text = UpdateService.ResolveUserToken() ?? string.Empty;
         _token.Input.AccessibleName = "Token GitHub delle Release";
         _token.Margin = new Padding(0, 2, 0, 8);
         body.Controls.Add(_token, 0, 3);
@@ -365,7 +365,7 @@ internal sealed class SettingsDialog : Form
         body.Controls.Add(_tokenStatus, 0, 5);
 
         body.Controls.Add(CreateNote(
-            "Il token serve solo a leggere le Release e scaricare l'installer: senza di esso l'app resta funzionante ma non riceve aggiornamenti."), 0, 6);
+            "Il token serve solo a leggere le Release. Se uno non vale, l'app prova gli altri (personale, file, incluso)."), 0, 6);
 
         // La firma dell'eseguibile riguarda l'aggiornamento (cioè se il file in uso
         // è quello pubblicato): sta qui, accanto alla versione delle Release.
@@ -467,8 +467,10 @@ internal sealed class SettingsDialog : Form
         _token.Clear();
         TokenSaved = true;
         SetTokenStatus(
-            "Token rimosso: gli aggiornamenti automatici resteranno disattivati finché non ne inserisci uno nuovo.",
-            Theme.WarningInk);
+            EmbeddedUpdateToken.IsPresent
+                ? "Token personale rimosso: gli aggiornamenti continuano con il token incluso nell'app."
+                : "Token rimosso: gli aggiornamenti automatici resteranno disattivati finché non ne inserisci uno nuovo.",
+            EmbeddedUpdateToken.IsPresent ? Theme.MutedInk : Theme.WarningInk);
     }
 
     /// <summary>Valida i valori e chiude la finestra solo se sono utilizzabili.</summary>

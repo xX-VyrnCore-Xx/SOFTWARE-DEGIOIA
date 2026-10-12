@@ -21,19 +21,23 @@ internal sealed record UpdateInfo(
 internal sealed record TokenCheckResult(bool Succeeded, string Message);
 
 /// <summary>Esito di un controllo aggiornamenti: nessun errore, nessun aggiornamento o errore leggibile.</summary>
-internal sealed record UpdateCheckResult(bool Succeeded, UpdateInfo? Update, string? Error)
+internal sealed record UpdateCheckResult(bool Succeeded, UpdateInfo? Update, string? Error, bool IsTransient = false)
 {
     public static UpdateCheckResult UpToDate { get; } = new(true, null, null);
 
-    public static UpdateCheckResult Failed(string error) => new(false, null, error);
+    /// <param name="transient">Il problema passa da solo (rete assente, GitHub lento, limite di richieste): conviene riprovare presto.</param>
+    public static UpdateCheckResult Failed(string error, bool transient = false) => new(false, null, error, transient);
 }
 
 /// <summary>
 /// Legge le Release dal repository GitHub. La repo è **privata**, quindi ogni
-/// chiamata deve essere autenticata: il token (Personal Access Token con
-/// permesso "Contents: Read") viene letto dalla variabile d'ambiente
-/// PRESENZEFLOW_GITHUB_TOKEN oppure dal file github.token nella cartella dati.
-/// Il token non è mai incorporato nell'eseguibile.
+/// chiamata deve essere autenticata. I token si provano in quest'ordine: l'ultimo
+/// che ha funzionato, la variabile d'ambiente PRESENZEFLOW_GITHUB_TOKEN, quello
+/// incollato in Impostazioni, il file github.token nella cartella dati e infine
+/// quello **iniettato nella build** dalla CI (vedi <see cref="EmbeddedUpdateToken"/>):
+/// se uno è scaduto o revocato si passa al successivo, quindi gli aggiornamenti
+/// restano collegati. Le richieste di rete ripetono da sole i tentativi falliti
+/// per un problema transitorio (rete instabile, errori 5xx).
 /// </summary>
 internal static class UpdateService
 {
@@ -42,6 +46,23 @@ internal static class UpdateService
     public const string TokenEnvironmentVariable = "PRESENZEFLOW_GITHUB_TOKEN";
 
     private const string UserAgent = "PresenzeFlow-Updater";
+
+    /// <summary>Attesa di una richiesta all'API (non vale per lo scaricamento dell'installer).</summary>
+    private static readonly TimeSpan ApiTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>Pause fra i tentativi di una richiesta fallita per un problema transitorio.</summary>
+    internal static TimeSpan[] RetryDelays { get; set; } = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3)];
+
+    /// <summary>
+    /// Un solo client per tutta la vita del programma: il token viaggia nella
+    /// singola richiesta, quindi cambiare token non richiede un client nuovo e il
+    /// download di un installer non si interrompe se la richiesta successiva ne
+    /// crea un altro.
+    /// </summary>
+    private static readonly HttpClient SharedClient = CreateClient(null);
+
+    /// <summary>Ultimo token che GitHub ha accettato: viene riprovato per primo.</summary>
+    private static string? _workingToken;
 
     /// <summary>
     /// Token impostato in questa sessione dal dialogo Impostazioni: ha la
@@ -57,10 +78,41 @@ internal static class UpdateService
         "github.token");
 
     /// <summary>
-    /// Token di sola lettura: prima la variabile d'ambiente, poi il file locale.
-    /// Restituisce null se non è configurato nulla.
+    /// Token di sola lettura da usare per primo (null se non c'è nulla di
+    /// configurato né di incorporato). Per l'elenco completo vedi
+    /// <see cref="ResolveTokens"/>.
     /// </summary>
-    public static string? ResolveToken()
+    public static string? ResolveToken() => ResolveTokens().FirstOrDefault();
+
+    /// <summary>
+    /// Tutti i token disponibili, nell'ordine in cui vanno provati, senza
+    /// doppioni: l'ultimo che ha funzionato, poi quelli dell'utente (ambiente,
+    /// sessione, file) e per ultimo quello incorporato nella build.
+    /// </summary>
+    public static IReadOnlyList<string> ResolveTokens()
+    {
+        var tokens = new List<string>();
+        void Add(string? value)
+        {
+            if (!string.IsNullOrEmpty(value) && !tokens.Contains(value, StringComparer.Ordinal))
+            {
+                tokens.Add(value);
+            }
+        }
+
+        Add(_workingToken);
+        Add(ResolveUserToken());
+        Add(ReadFileToken());
+        Add(EmbeddedUpdateToken.Resolve());
+        return tokens;
+    }
+
+    /// <summary>
+    /// Token scelto dall'utente: prima la variabile d'ambiente, poi quello della
+    /// sessione e infine il file locale. Non comprende quello incorporato nella
+    /// build, che l'utente non deve vedere né modificare.
+    /// </summary>
+    public static string? ResolveUserToken()
     {
         var fromEnvironment = SanitizeToken(Environment.GetEnvironmentVariable(TokenEnvironmentVariable));
         if (fromEnvironment.Length > 0)
@@ -72,6 +124,11 @@ internal static class UpdateService
         {
             return fromSession;
         }
+        return ReadFileToken();
+    }
+
+    private static string? ReadFileToken()
+    {
         try
         {
             if (File.Exists(TokenFilePath))
@@ -134,7 +191,7 @@ internal static class UpdateService
         catch (UnauthorizedAccessException)
         {
         }
-        return "non configurato";
+        return EmbeddedUpdateToken.IsPresent ? "incluso nell'app" : "non configurato";
     }
 
     /// <summary>
@@ -170,6 +227,7 @@ internal static class UpdateService
             return false;
         }
         SessionToken = token;
+        _workingToken = null;
         return true;
     }
 
@@ -178,6 +236,7 @@ internal static class UpdateService
     {
         error = string.Empty;
         SessionToken = null;
+        _workingToken = null;
         try
         {
             if (File.Exists(TokenFilePath))
@@ -292,17 +351,26 @@ internal static class UpdateService
         string? endpointOverride,
         CancellationToken cancellationToken = default)
     {
-        var token = ResolveToken();
+        var hasToken = ResolveTokens().Count > 0;
         var endpoint = string.IsNullOrWhiteSpace(endpointOverride)
             ? $"https://api.github.com/repos/{DefaultOwner}/{DefaultRepository}/releases/latest"
             : endpointOverride.Trim();
         try
         {
-            using var client = CreateClient(token);
-            using var response = await client.GetAsync(endpoint, cancellationToken);
+            using var response = await SendWithFallbackAsync(
+                () => new HttpRequestMessage(HttpMethod.Get, endpoint),
+                HttpCompletionOption.ResponseContentRead,
+                ApiTimeout,
+                cancellationToken);
+            if (IsRateLimited(response))
+            {
+                return UpdateCheckResult.Failed(
+                    "GitHub ha temporaneamente limitato le richieste: il controllo riprenderà da solo fra poco.",
+                    transient: true);
+            }
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                return token is null
+                return !hasToken
                     ? UpdateCheckResult.Failed(
                         "Il repository delle Release è privato: per controllare gli aggiornamenti serve un token di sola lettura. " +
                         $"Imposta la variabile d'ambiente {TokenEnvironmentVariable} oppure il file {TokenFilePath}.")
@@ -311,7 +379,7 @@ internal static class UpdateService
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
                 return UpdateCheckResult.Failed(
-                    "Token GitHub non valido, scaduto o senza permesso di lettura dei contenuti (Contents: Read).");
+                    "Nessun token GitHub accettato: è non valido, scaduto o senza permesso di lettura dei contenuti (Contents: Read).");
             }
             response.EnsureSuccessStatusCode();
 
@@ -375,11 +443,11 @@ internal static class UpdateService
         }
         catch (HttpRequestException exception)
         {
-            return UpdateCheckResult.Failed($"Impossibile contattare GitHub: {exception.Message}");
+            return UpdateCheckResult.Failed($"Impossibile contattare GitHub: {exception.Message}", transient: true);
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return UpdateCheckResult.Failed("Il controllo degli aggiornamenti non ha ricevuto risposta in tempo.");
+            return UpdateCheckResult.Failed("Il controllo degli aggiornamenti non ha ricevuto risposta in tempo.", transient: true);
         }
         catch (JsonException)
         {
@@ -397,12 +465,41 @@ internal static class UpdateService
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        using var client = CreateClient(ResolveToken());
-        using var request = new HttpRequestMessage(HttpMethod.Get, update.InstallerApiUrl);
-        request.Headers.Accept.ParseAdd("application/octet-stream");
-        using var response = await client.SendAsync(
-            request,
+        // Una rete instabile può interrompere il trasferimento a metà: si riprova
+        // da capo (al massimo tre volte) prima di arrendersi.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await DownloadOnceAsync(update, destinationPath, progress, cancellationToken);
+                return;
+            }
+            catch (Exception exception) when (
+                attempt < 3 &&
+                !cancellationToken.IsCancellationRequested &&
+                exception is HttpRequestException or IOException)
+            {
+                progress?.Report(0);
+                await Task.Delay(TimeSpan.FromSeconds(2 * attempt), cancellationToken);
+            }
+        }
+    }
+
+    private static async Task DownloadOnceAsync(
+        UpdateInfo update,
+        string destinationPath,
+        IProgress<int>? progress,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendWithFallbackAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, update.InstallerApiUrl);
+                request.Headers.Accept.ParseAdd("application/octet-stream");
+                return request;
+            },
             HttpCompletionOption.ResponseHeadersRead,
+            null,
             cancellationToken);
         response.EnsureSuccessStatusCode();
 
@@ -438,15 +535,15 @@ internal static class UpdateService
         Version version,
         CancellationToken cancellationToken = default)
     {
-        var token = ResolveToken();
         var baseEndpoint = $"https://api.github.com/repos/{DefaultOwner}/{DefaultRepository}/releases";
         try
         {
-            using var client = CreateClient(token);
             foreach (var tag in new[] { $"v{version.ToString(3)}", version.ToString(3) })
             {
-                using var response = await client.GetAsync(
-                    $"{baseEndpoint}/tags/{tag}",
+                using var response = await SendWithFallbackAsync(
+                    () => new HttpRequestMessage(HttpMethod.Get, $"{baseEndpoint}/tags/{tag}"),
+                    HttpCompletionOption.ResponseContentRead,
+                    ApiTimeout,
                     cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
@@ -484,10 +581,16 @@ internal static class UpdateService
         }
         try
         {
-            using var client = CreateClient(ResolveToken());
-            using var request = new HttpRequestMessage(HttpMethod.Get, update.ChecksumApiUrl);
-            request.Headers.Accept.ParseAdd("application/octet-stream");
-            using var response = await client.SendAsync(request, cancellationToken);
+            using var response = await SendWithFallbackAsync(
+                () =>
+                {
+                    var request = new HttpRequestMessage(HttpMethod.Get, update.ChecksumApiUrl);
+                    request.Headers.Accept.ParseAdd("application/octet-stream");
+                    return request;
+                },
+                HttpCompletionOption.ResponseContentRead,
+                ApiTimeout,
+                cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 return null;
@@ -514,13 +617,109 @@ internal static class UpdateService
         return actual.Equals(expectedHex.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// GitHub ha rifiutato la richiesta perché il limite di chiamate è esaurito
+    /// (non perché il token è sbagliato): provare un altro token non serve.
+    /// </summary>
+    internal static bool IsRateLimited(HttpResponseMessage response)
+    {
+        if (response.StatusCode != HttpStatusCode.Forbidden &&
+            response.StatusCode != HttpStatusCode.TooManyRequests)
+        {
+            return false;
+        }
+        if (response.Headers.RetryAfter is not null)
+        {
+            return true;
+        }
+        return response.Headers.TryGetValues("X-RateLimit-Remaining", out var values) &&
+               values.Any(value => value.Trim() == "0");
+    }
+
+    /// <summary>
+    /// Invia la richiesta provando i token disponibili uno dopo l'altro: se
+    /// GitHub risponde 401/403/404 con un token (scaduto, revocato o senza
+    /// accesso) si passa al successivo. Il token che funziona viene ricordato.
+    /// Il chiamante possiede e rilascia la risposta restituita.
+    /// </summary>
+    private static async Task<HttpResponseMessage> SendWithFallbackAsync(
+        Func<HttpRequestMessage> createRequest,
+        HttpCompletionOption completion,
+        TimeSpan? timeout,
+        CancellationToken cancellationToken)
+    {
+        var tokens = ResolveTokens();
+        var candidates = tokens.Count == 0 ? new string?[] { null } : tokens.Cast<string?>().ToArray();
+        HttpResponseMessage? last = null;
+        foreach (var candidate in candidates)
+        {
+            last?.Dispose();
+            last = await SendWithRetryAsync(candidate, createRequest, completion, timeout, cancellationToken);
+            var rejected = last.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.NotFound ||
+                           (last.StatusCode == HttpStatusCode.Forbidden && !IsRateLimited(last));
+            if (!rejected)
+            {
+                if (last.IsSuccessStatusCode && candidate is not null)
+                {
+                    _workingToken = candidate;
+                }
+                return last;
+            }
+        }
+        return last!;
+    }
+
+    /// <summary>Una richiesta con lo stesso token, ripetuta se il problema è transitorio.</summary>
+    private static async Task<HttpResponseMessage> SendWithRetryAsync(
+        string? token,
+        Func<HttpRequestMessage> createRequest,
+        HttpCompletionOption completion,
+        TimeSpan? timeout,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                using var request = createRequest();
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                }
+                using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                if (timeout is { } wait)
+                {
+                    limit.CancelAfter(wait);
+                }
+                var response = await SharedClient.SendAsync(request, completion, limit.Token);
+                if ((int)response.StatusCode >= 500 && attempt < RetryDelays.Length)
+                {
+                    response.Dispose();
+                    await Task.Delay(RetryDelays[attempt], cancellationToken);
+                    continue;
+                }
+                return response;
+            }
+            catch (Exception exception) when (
+                attempt < RetryDelays.Length &&
+                !cancellationToken.IsCancellationRequested &&
+                exception is HttpRequestException or TaskCanceledException)
+            {
+                await Task.Delay(RetryDelays[attempt], cancellationToken);
+            }
+        }
+    }
+
     private static HttpClient CreateClient(string? token)
     {
+        // Il proxy di sistema resta attivo (con le credenziali di Windows): in
+        // un'azienda l'uscita verso GitHub passa quasi sempre da lì.
         var client = new HttpClient(new SocketsHttpHandler
         {
             AllowAutoRedirect = true,
             UseCookies = false,
-            UseProxy = false,
+            UseProxy = true,
+            DefaultProxyCredentials = CredentialCache.DefaultCredentials,
             ConnectTimeout = TimeSpan.FromSeconds(10)
         })
         {
