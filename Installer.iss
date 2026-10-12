@@ -1,5 +1,5 @@
 #define AppName "PresenzeFlow"
-#define AppVersion "1.15.0"
+#define AppVersion "1.15.1"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 

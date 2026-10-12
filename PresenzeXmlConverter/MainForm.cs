@@ -69,7 +69,7 @@ internal sealed partial class MainForm : Form
         _applicationIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
         Icon = _applicationIcon;
 
-        Trace?.Measure("interfaccia", BuildLayout);
+        MeasureStartup("interfaccia", BuildLayout);
         EnableWorkbookDrop();
         // Una sola lettura per tutte le preferenze che servono all'avvio: prima
         // apriva una connessione al database per ciascuna.
@@ -92,11 +92,29 @@ internal sealed partial class MainForm : Form
         _lastSourceDirectory = startup["last-source-dir"].Length == 0 ? null : startup["last-source-dir"];
         _generationOptions = GenerationSettings.Read(_database);
         _ai.PreferredModel = ResolvePreferredModel(startup[AiModelSetting]);
-        Trace?.Measure("aggiornamenti", InitializeUpdates);
+        MeasureStartup("aggiornamenti", InitializeUpdates);
         SetupTrayIcon();
         UpdateButtons();
         // Il controllo dell'AI locale (una richiesta a Ollama) non deve mai
         // ritardare la comparsa della finestra: parte dopo che è già visibile.
+    }
+
+    /// <summary>
+    /// Esegue una fase di avvio, misurandola solo se la diagnostica è attiva.
+    /// L'azione gira SEMPRE: con <c>Trace?.Measure(...)</c> un tracciamento
+    /// spento (il caso normale) saltava anche l'azione, lasciando la finestra
+    /// vuota.
+    /// </summary>
+    private static void MeasureStartup(string phase, Action action)
+    {
+        if (Trace is null)
+        {
+            action();
+        }
+        else
+        {
+            Trace.Measure(phase, action);
+        }
     }
 
     protected override void OnLoad(EventArgs e)

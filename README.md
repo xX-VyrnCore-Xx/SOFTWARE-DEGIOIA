@@ -4,7 +4,7 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.15.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.15.1.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
 Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Minimo* `qwen2.5:0.5b` (~400 MB), *Rapido* `qwen2.5:1.5b` (~1 GB), *Consigliato* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Il modello consigliato è quello che l'app preferisce: entrambi partono da `qwen2.5:3b` perché è il più affidabile nell'abbinare colonne e codici. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
 
@@ -127,7 +127,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6.3 o successivo, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.15.0.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.15.1.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).

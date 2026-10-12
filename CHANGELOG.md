@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.15.0] - Corrente
+## [1.15.1] - Corrente
+
+### 🩹 Correzioni
+- **Finestra vuota e Excel non importabile**: nella 1.15.0 la costruzione dell'interfaccia passava da `Trace?.Measure(...)`; con la diagnostica di avvio spenta (il caso normale) l'operatore `?.` saltava l'intera chiamata e l'interfaccia non veniva mai costruita — nessun pulsante, nessuna dashboard, nessuna importazione. Ora le fasi di avvio passano da `MeasureStartup`, che esegue **sempre** l'azione e la misura solo se richiesto. Stessa correzione per l'inizializzazione degli aggiornamenti
+- Nuovo test di regressione che vieta `Trace?.Measure(...)` nei sorgenti della finestra
+
+---
+
+## [1.15.0] - Precedente
 
 ### 🧭 Nuova struttura della finestra
 - **Barra di navigazione laterale** con quattro sezioni — *Dashboard*, *Nuova conversione*, *Gestione codici*, *Storico esportazioni* — disegnata con la palette dell'app (voci alte 46 px, icona, barretta laterale e fondo chiaro sulla voce attiva), con navigazione da tastiera (frecce, Home/End) e nome accessibile per i lettori di schermo
