@@ -67,6 +67,7 @@ internal sealed partial class MainForm : Form
         Icon = _applicationIcon;
 
         BuildLayout();
+        EnableWorkbookDrop();
         _companyCode.Value = _database.GetSetting("company-code") ?? string.Empty;
         _lastExportDirectory = _database.GetSetting("last-export-dir");
         _xmlRefreshDebounce.Tick += (_, _) =>
@@ -126,6 +127,43 @@ internal sealed partial class MainForm : Form
         {
             MinimumSize = clampedMinimum;
         }
+    }
+
+    /// <summary>
+    /// Il foglio Excel si può anche trascinare sulla finestra: è la stessa cosa
+    /// del dialogo di apertura, senza doverlo cercare. Durante una conversione il
+    /// trascinamento non è accettato, per non sovrapporre due importazioni.
+    /// </summary>
+    private void EnableWorkbookDrop()
+    {
+        AllowDrop = true;
+        DragEnter += (_, e) =>
+        {
+            e.Effect = !_isBusy && WorkbookDrop.FirstWorkbookPath(DroppedPaths(e.Data)) is not null
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
+        };
+        DragDrop += async (_, e) =>
+        {
+            var path = WorkbookDrop.FirstWorkbookPath(DroppedPaths(e.Data));
+            if (!_isBusy && path is not null)
+            {
+                await LoadWorkbookAsync(path);
+            }
+        };
+    }
+
+    /// <summary>
+    /// Percorsi trascinati sulla finestra (vuoto se il trascinamento non porta file).
+    /// </summary>
+    private static string[] DroppedPaths(IDataObject? data) =>
+        data?.GetData(DataFormats.FileDrop) as string[] ?? Array.Empty<string>();
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        // Il titolo nativo segue l'intestazione scura dell'app (Windows 10/11).
+        WindowChrome.Apply(Handle);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -232,13 +270,23 @@ internal sealed partial class MainForm : Form
             return;
         }
 
+        await LoadWorkbookAsync(picker.FileName);
+    }
+
+    /// <summary>
+    /// Importa il foglio indicato: ci arrivano sia il dialogo di apertura sia il
+    /// file trascinato sulla finestra, così le due strade si comportano allo
+    /// stesso modo (stesso controllo dei codici, stesse segnalazioni).
+    /// </summary>
+    private async Task LoadWorkbookAsync(string path)
+    {
         try
         {
             SetBusy(true, "Lettura del file Excel in corso…");
             WorkbookInspection inspection;
             try
             {
-                inspection = await Task.Run(() => AttendanceWorkbookReader.Inspect(picker.FileName));
+                inspection = await Task.Run(() => AttendanceWorkbookReader.Inspect(path));
             }
             finally
             {
@@ -276,15 +324,15 @@ internal sealed partial class MainForm : Form
             SetSourceProblems(read.Problems);
             _inspection = inspection;
             _columns = columns;
-            _sourcePath = picker.FileName;
-            LoadSheetNames(picker.FileName);
-            var sourceDirectory = Path.GetDirectoryName(picker.FileName);
+            _sourcePath = path;
+            LoadSheetNames(path);
+            var sourceDirectory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(sourceDirectory))
             {
                 _lastSourceDirectory = sourceDirectory;
                 _database.SaveSetting("last-source-dir", sourceDirectory);
             }
-            _fileLabel.Text = Path.GetFileName(picker.FileName);
+            _fileLabel.Text = Path.GetFileName(path);
             ClearGeneratedPreview();
             ResetReview();
             UpdateWorkflowSummary();

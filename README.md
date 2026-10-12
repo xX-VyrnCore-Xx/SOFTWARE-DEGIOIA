@@ -17,7 +17,7 @@ Durante la disinstallazione puoi scegliere se rimuovere il programma mantenendo 
 ## Utilizzo
 
 1. **Azienda Zucchetti**: Inserisci il codice azienda ufficiale PAGHE (fino a 6 caratteri).
-2. **File sorgente**: Importa un file `.xlsx` con un foglio di richieste. Il controllo del file limita:
+2. **File sorgente**: Importa un file `.xlsx` con un foglio di richieste — con il pulsante *Apri*, con `Ctrl+O` oppure **trascinandolo sulla finestra**. Il controllo del file limita:
    - Dimensione archivio ZIP: 50 MB
    - Dimensione espansa: 150 MB
    - Righe foglio: 100.000
@@ -239,6 +239,12 @@ In azienda la stessa operazione si distribuisce con Criteri di gruppo; per rende
 ### Nota importante
 
 Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica l'installer da Internet: diventa attendibile solo sui PC dove il certificato pubblico è installato. Per una firma riconosciuta da tutti serve un certificato emesso da una CA pubblica (a pagamento) o un servizio di firma gestito. Senza firma l'app funziona comunque: Windows mostra solo l'avviso "editore sconosciuto" al primo avvio. La verifica nel workflow non pretende una catena attendibile sul runner (il certificato è autofirmato): controlla firma, hash e impronta del certificato.
+
+## Novità v1.12.0
+
+- **Barra del titolo in tema**: il titolo della finestra è scuro come l'intestazione dell'app (prima era chiaro e la finestra sembrava composta da due programmi) e su Windows 11 la finestra ha gli **angoli arrotondati**; la scelta si adatta da sola alla versione di Windows
+- **Trascina il foglio Excel sulla finestra**: si importa senza aprire il dialogo; vengono accettati solo fogli `.xlsx` esistenti e durante una conversione il trascinamento non è accettato
+- **Firma digitale visibile nell'app**: in *Impostazioni → Aggiornamenti* è indicato se l'eseguibile in esecuzione è firmato, da chi e fino a quando
 
 ## Novità v1.11.0
 

@@ -4,7 +4,26 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.11.0] - Corrente
+## [1.12.0] - Corrente
+
+### 🪟 Grafica Windows
+- **La barra del titolo segue il tema dell'app**: era chiara sopra l'intestazione scura, e la finestra sembrava composta da due programmi. Ora il titolo è scuro anche a livello di sistema, con gli **angoli arrotondati** su Windows 11. L'attributo si adatta alla versione di Windows (20 da Windows 10 1903, 19 sulle precedenti) e si prova anche l'alternativa, perché la versione riportata dal sistema può essere quella dichiarata nel manifesto dell'eseguibile; se il sistema non lo conosce la finestra resta standard, senza errori
+- Il chrome nativo non tocca il disegno dei contenuti: nessun colore di sistema entra nella verifica grafica
+
+### 📥 Trascinamento del foglio Excel
+- Il file `.xlsx` si può **trascinare direttamente sulla finestra**, senza aprire il dialogo di apertura: vengono accettati solo fogli Excel esistenti (cartelle, file di altro tipo, file temporanei di Excel e trascinamenti multipli vengono ignorati: si prende il primo foglio valido) e durante una conversione il trascinamento non è accettato
+- Dialogo di apertura e trascinamento passano dallo **stesso percorso** (`LoadWorkbookAsync`), quindi si comportano allo stesso modo
+
+### 🔏 Firma digitale visibile nell'app
+- In **Impostazioni → Aggiornamenti** compare lo stato dell'eseguibile in esecuzione: *"Eseguibile firmato digitalmente da DeGioia (valido fino al 11/10/2029)"* oppure *"Eseguibile non firmato digitalmente"*: si vede subito se il file installato è quello pubblicato
+- La lettura della firma non solleva mai eccezioni (eseguibile non firmato, file illeggibile, sistema che non sa leggerla)
+
+### ✅ Verifiche
+- **165 test di logica, tutti verdi** (13 nuovi): scelta dell'attributo del titolo scuro e degli angoli arrotondati per versione di Windows, applicazione del chrome che non solleva errori, regole del trascinamento (estensioni accettate, primo file valido, cartelle e file inesistenti ignorati), editore letto dal soggetto del certificato e riga della firma
+
+---
+
+## [1.11.0] - Precedente
 
 ### 📊 Analisi dei file Excel
 - Righe problematiche **segnalate e non bloccanti**: ogni riga scartata riporta numero e motivo (data illeggibile, durata non riconosciuta, codice troppo lungo, date invertite) e l'elenco compare nei Controlli

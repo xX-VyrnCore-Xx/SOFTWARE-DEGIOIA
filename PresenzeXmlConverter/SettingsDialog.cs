@@ -240,6 +240,17 @@ internal sealed class SettingsDialog : Form
             AutoEllipsis = true,
             Margin = Padding.Empty
         }, 0, 6);
+
+        body.Controls.Add(new Label
+        {
+            Text = ExecutableSignature.DescribeCurrentExecutable(),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.FaintInk,
+            Font = Theme.Fonts.Tiny,
+            AutoEllipsis = true,
+            Margin = new Padding(0, 2, 0, 0)
+        }, 0, 7);
         return card;
     }
 
@@ -279,8 +290,13 @@ internal sealed class SettingsDialog : Form
         var card = CreateCard(
             "Aggiornamenti dalle Release GitHub",
             "PresenzeFlow legge le Release del repository: la repo è privata, quindi serve un token di sola lettura.",
-            316);
+            342);
         var body = (TableLayoutPanel)card.Controls[0]!;
+
+        // Una riga in più in fondo alla card (l'altezza sopra è cresciuta di altrettanto):
+        // dice se l'eseguibile in esecuzione è firmato, cioè se è quello pubblicato.
+        body.RowCount = 8;
+        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
 
         _autoCheck.Text = "Cerca aggiornamenti automaticamente all'avvio e durante l'uso";
         _autoCheck.Dock = DockStyle.Fill;
