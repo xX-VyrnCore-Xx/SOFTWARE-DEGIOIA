@@ -4,7 +4,28 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.12.0] - Corrente
+## [1.13.0] - Corrente
+
+### 🖼️ Grafica: fuori i colori di sistema che restavano
+- **Il dialogo Impostazioni è diviso in tre schede** (**Conversione**, **AI locale**, **Aggiornamenti**): ogni scheda entra intera nella finestra, quindi non compare più la barra di scorrimento grigia di sistema che prima accompagnava sempre il dialogo (il contenuto era alto 802 px in uno spazio di 632)
+- **Le altezze delle schede sono calcolate dalle righe** (`SettingsPageLayout`): la scheda *AI locale* era alta 150 px per righe che ne chiedevano 142 solo per i campi usati, quindi l'ultima riga di testo (modello installato) finiva fuori dal bordo della card; ora l'altezza è la somma delle righe, in un unico posto e verificata da un test
+- **Le novità di una Release** non usano più la casella di testo con la barra nativa: il testo viene impaginato alla larghezza disponibile e scorre con una **barra disegnata con il tema dell'app** (rotellina, trascinamento del pollice, clic sulla pista); un pulsante **Copia note** copia il testo negli appunti e conferma per qualche secondo
+- **Il campo delle chiusure aziendali** non mostra più la barra grigia di sistema: si scorre con la rotellina o con i tasti, come negli altri campi
+- **La versione in esecuzione** compare anche nell'intestazione delle Impostazioni (`PresenzeFlow 1.13.0 · regole di conversione, aggiornamenti e modello AI locale`)
+- **I pulsanti del piè di pagina non sono più tagliati**: *Salva impostazioni* e *Annulla* erano alti 40 px in una riga che ne lasciava 30, quindi il bordo inferiore finiva fuori dalla finestra; ora l'altezza del piè di pagina è la somma del messaggio di errore e dei pulsanti (`SettingsPageLayout`)
+- **La firma digitale dell'eseguibile** è passata nella scheda **Aggiornamenti** (riguarda l'aggiornamento, non la conversione) e la finestra è più compatta: 760x640 invece di 760x780
+
+### 📋 Area di revisione
+- **Stato vuoto nelle griglie**: quando non c'è nulla da mostrare la griglia lo dice ("Importa un foglio Excel…" oppure "Nessun movimento corrisponde alla ricerca." per un filtro senza risultati) invece di restare un rettangolo bianco che sembra un caricamento non riuscito
+- **Pulsanti non più tagliati**: nella scheda **Controlli** la fascia dei comandi era più bassa dei pulsanti (28 px utili per pulsanti alti 31) e il loro bordo inferiore veniva tagliato di 3 px; nella fascia dell'area di revisione un pixel di spaziatura interna tagliava *Copia XML* e *Scarica XML*
+
+### ✅ Verifiche
+- **184 test di logica** (17 nuovi): geometria della barra temizzata (pollice sempre dentro la pista, scorrimento sempre dentro i limiti, rotellina, trascinamento, clic sulla pista, contenuto che entra senza barra) e conti delle schede Impostazioni (ogni scheda entra nella finestra minima e in quella predefinita, ogni riga lascia spazio al controllo che ospita, le tre schede si costruiscono dalle righe condivise e il dialogo non usa barre di scorrimento di sistema)
+- **Il test grafico copre tutte le schede**: oltre alla finestra principale (che ora viene disegnata anche su *Anteprima XML* e *Controlli*, prima solo sulla scheda aperta all'avvio) sono controllati i due dialoghi che ne restavano fuori, **Impostazioni** (tutte e tre le schede) e **Novità** (con note lunghe, quindi con la barra da disegnare): nessun colore di sistema, nessun testo tagliato, nessun controllo sovrapposto
+
+---
+
+## [1.12.0] - Precedente
 
 ### 🪟 Grafica Windows
 - **La barra del titolo segue il tema dell'app**: era chiara sopra l'intestazione scura, e la finestra sembrava composta da due programmi. Ora il titolo è scuro anche a livello di sistema, con gli **angoli arrotondati** su Windows 11. L'attributo si adatta alla versione di Windows (20 da Windows 10 1903, 19 sulle precedenti) e si prova anche l'alternativa, perché la versione riportata dal sistema può essere quella dichiarata nel manifesto dell'eseguibile; se il sistema non lo conosce la finestra resta standard, senza errori

@@ -12,6 +12,17 @@ internal sealed partial class MainForm
     /// <summary>Indice della scheda "Controlli" fra le pagine dell'area di revisione.</summary>
     private const int ReviewTabIndex = 2;
 
+    /// <summary>
+    /// Testo mostrato quando la griglia non ha nessuna riga da mostrare: senza,
+    /// l'area di revisione resta un rettangolo bianco e sembra che il programma
+    /// non abbia caricato nulla.
+    /// </summary>
+    private const string EmptyMovementsText =
+        "Importa un foglio Excel (oppure trascinalo qui) e genera l'anteprima per vedere i movimenti.";
+
+    /// <summary>Stato vuoto quando è la ricerca a non trovare nulla.</summary>
+    private const string NoMovementsFoundText = "Nessun movimento corrisponde alla ricerca.";
+
     private const int SearchFieldWidth = 220;
     private const int CopyXmlButtonWidth = 108;
     private const int ExportXmlButtonWidth = 114;
@@ -691,13 +702,15 @@ internal sealed partial class MainForm
         _previewSearch.Margin = new Padding(0, 0, 10, 0);
         _previewSearch.TextChanged += (_, _) => FilterMovements();
 
+        // Nessuna spaziatura interna: campo e pulsanti sono alti quanto la fascia,
+        // e un pixel di margine in più tagliava il bordo inferiore dei pulsanti.
         var toolbarActions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
             BackColor = Color.Transparent,
-            Padding = new Padding(0, 1, 0, 0),
+            Padding = Padding.Empty,
             Margin = Padding.Empty
         };
 
@@ -777,6 +790,7 @@ internal sealed partial class MainForm
             _xmlRefreshDebounce.Stop();
             RefreshXmlFromPreview();
         };
+        _movementsGrid.EmptyStateText = EmptyMovementsText;
         movementPage.Controls.Add(_movementsGrid);
 
         var xmlPage = new Panel { BackColor = Theme.EditorFill, Padding = new Padding(0), Margin = Padding.Empty };
@@ -935,6 +949,7 @@ internal sealed partial class MainForm
 
         _isApplyingFilter = true;
         var terms = MovementSearch.SplitTerms(_previewSearch.Value);
+        _movementsGrid.EmptyStateText = terms.Count == 0 ? EmptyMovementsText : NoMovementsFoundText;
         var visible = 0;
         try
         {

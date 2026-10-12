@@ -3,10 +3,17 @@ using System.Globalization;
 namespace PresenzeXmlConverter;
 
 /// <summary>
-/// Impostazioni dell'applicazione in un unico posto: regole di conversione
-/// (giornata standard, sabati, chiusure aziendali), collegamento alle Release
-/// GitHub con il token di sola lettura e modello AI preferito. Il token viene
-/// verificato e attivato subito, senza riavviare il programma.
+/// Impostazioni dell'applicazione in un unico posto, divise in tre schede:
+/// Conversione (regole di calcolo), AI locale e Aggiornamenti (collegamento alle
+/// Release GitHub con il token di sola lettura). Il token viene verificato e
+/// attivato subito, senza riavviare il programma.
+///
+/// Le schede tengono ogni gruppo di campi entro l'altezza della finestra, così
+/// il dialogo non ha bisogno di scorrere: la barra di scorrimento nativa di
+/// Windows resta grigia anche in una finestra dipinta con il tema dell'app.
+/// Le altezze delle righe stanno in <see cref="SettingsPageLayout"/> perché una
+/// scheda più bassa delle righe che contiene schiaccia i campi e taglia l'ultima
+/// riga di testo (era il caso della scheda "AI locale").
 /// </summary>
 internal sealed class SettingsDialog : Form
 {
@@ -36,7 +43,7 @@ internal sealed class SettingsDialog : Form
         AutoUpdateCheck = autoUpdateCheck;
         PreferredModel = preferredModel;
 
-        // I due pulsanti del token servono già mentre si costruisce la card
+        // I due pulsanti del token servono già mentre si costruisce la scheda
         // degli aggiornamenti: vanno creati prima del layout.
         _verifyTokenButton = Theme.CreateButton("Verifica e salva token", Theme.ButtonTone.Positive, compact: true);
         _clearTokenButton = Theme.CreateButton("Rimuovi token", Theme.ButtonTone.Neutral, compact: true);
@@ -47,8 +54,8 @@ internal sealed class SettingsDialog : Form
         MinimizeBox = false;
         MaximizeBox = false;
         ShowInTaskbar = false;
-        MinimumSize = new Size(660, 560);
-        ClientSize = new Size(760, 780);
+        MinimumSize = new Size(SettingsPageLayout.MinimumWindowWidth, SettingsPageLayout.MinimumWindowHeight);
+        ClientSize = new Size(SettingsPageLayout.DefaultClientWidth, SettingsPageLayout.DefaultClientHeight);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
         Theme.StyleDialog(this);
@@ -59,14 +66,14 @@ internal sealed class SettingsDialog : Form
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            Padding = new Padding(20, 16, 20, 16),
+            Padding = new Padding(20, SettingsPageLayout.WindowPadding / 2, 20, SettingsPageLayout.WindowPadding / 2),
             BackColor = Theme.Canvas,
             Margin = Padding.Empty
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, SettingsPageLayout.HeaderRow));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, SettingsPageLayout.FooterRow));
         Controls.Add(root);
 
         var heading = new TableLayoutPanel
@@ -78,8 +85,10 @@ internal sealed class SettingsDialog : Form
             Margin = Padding.Empty
         };
         heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        heading.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        // Titolo (34 px: il font dei titoli è alto una trentina di pixel) e
+        // sottotitolo su una riga sola, che resta dentro la riga dichiarata.
+        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         heading.Controls.Add(new Label
         {
             Text = "Impostazioni",
@@ -91,7 +100,7 @@ internal sealed class SettingsDialog : Form
         }, 0, 0);
         heading.Controls.Add(new Label
         {
-            Text = "Regole di conversione, aggiornamenti dalle Release GitHub e modello AI locale.",
+            Text = $"PresenzeFlow {ExecutableSignature.DisplayVersion}  ·  regole di conversione, aggiornamenti e modello AI locale.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.TopLeft,
             ForeColor = Theme.MutedInk,
@@ -100,30 +109,24 @@ internal sealed class SettingsDialog : Form
         }, 0, 1);
         root.Controls.Add(heading, 0, 0);
 
-        var scroll = new Panel
+        // Card bianca con le schede: stesso schema della finestra principale, così
+        // l'intestazione della card e la scheda attiva non mostrano colori di sistema.
+        var shell = new SurfacePanel
         {
             Dock = DockStyle.Fill,
-            AutoScroll = true,
-            BackColor = Theme.Canvas,
+            SurfaceFill = Theme.Surface,
+            SurfaceBorder = Theme.Divider,
+            Radius = 12,
+            Padding = new Padding(16, SettingsPageLayout.ShellPadding / 2, 16, SettingsPageLayout.ShellPadding / 2),
             Margin = Padding.Empty
         };
-        var content = new TableLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            ColumnCount = 1,
-            BackColor = Theme.Canvas,
-            Margin = Padding.Empty,
-            Padding = Padding.Empty
-        };
-        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        scroll.Controls.Add(content);
-        root.Controls.Add(scroll, 0, 1);
-
-        content.Controls.Add(BuildConversionCard());
-        content.Controls.Add(BuildAiCard());
-        content.Controls.Add(BuildUpdateCard());
+        var tabs = new ThemedTabControl { Dock = DockStyle.Fill, Margin = Padding.Empty };
+        tabs.AddPage("Conversione", BuildConversionPage());
+        tabs.AddPage("AI locale", BuildAiPage());
+        tabs.AddPage("Aggiornamenti", BuildUpdatePage());
+        tabs.SelectedIndex = 0;
+        shell.Controls.Add(tabs);
+        root.Controls.Add(shell, 0, 1);
 
         var footer = new TableLayoutPanel
         {
@@ -134,7 +137,10 @@ internal sealed class SettingsDialog : Form
             Margin = Padding.Empty
         };
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        footer.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+        // Messaggio di errore e pulsanti: le due righe sommano esattamente il piè
+        // di pagina dichiarato in SettingsPageLayout (prima i pulsanti da 40 px
+        // finivano in 30 px e il bordo inferiore veniva tagliato).
+        footer.RowStyles.Add(new RowStyle(SizeType.Absolute, SettingsPageLayout.FooterMessageRow));
         footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         _errorLabel.Dock = DockStyle.Fill;
         _errorLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -153,11 +159,11 @@ internal sealed class SettingsDialog : Form
             Margin = Padding.Empty
         };
         var save = Theme.CreateButton("Salva impostazioni", Theme.ButtonTone.Primary);
-        save.Size = new Size(190, 40);
+        save.Size = new Size(190, SettingsPageLayout.ActionButtonHeight);
         save.Margin = new Padding(8, 0, 0, 0);
         save.Click += (_, _) => TryCommit();
         var cancel = Theme.CreateButton("Annulla", Theme.ButtonTone.Neutral);
-        cancel.Size = new Size(130, 40);
+        cancel.Size = new Size(130, SettingsPageLayout.ActionButtonHeight);
         cancel.DialogResult = DialogResult.Cancel;
         actions.Controls.Add(save);
         actions.Controls.Add(cancel);
@@ -178,13 +184,44 @@ internal sealed class SettingsDialog : Form
     /// <summary>True se in questa sessione è stato salvato un token valido.</summary>
     public bool TokenSaved { get; private set; }
 
-    private SurfacePanel BuildConversionCard()
+    /// <summary>
+    /// Pagina di una scheda: le righe sono quelle dichiarate in
+    /// <see cref="SettingsPageLayout"/>, quindi l'altezza della scheda e quella
+    /// del suo contenuto non possono separarsi.
+    /// </summary>
+    private static (Panel Page, TableLayoutPanel Body) CreatePage(IReadOnlyList<int> rows)
     {
-        var card = CreateCard(
-            "Conversione",
-            "Come vengono distribuite le ore della richiesta sui giorni lavorativi.",
-            274);
-        var body = (TableLayoutPanel)card.Controls[0]!;
+        var page = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        var body = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = rows.Count,
+            BackColor = Theme.Surface,
+            Padding = new Padding(0, SettingsPageLayout.PagePadding / 2, 0, SettingsPageLayout.PagePadding / 2),
+            Margin = Padding.Empty
+        };
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        foreach (var height in rows)
+        {
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+        }
+        page.Controls.Add(body);
+        return (page, body);
+    }
+
+    /// <summary>Scheda "Conversione": giornata standard, sabato e chiusure aziendali.</summary>
+    private Control BuildConversionPage()
+    {
+        var (page, body) = CreatePage(SettingsPageLayout.ConversionRows);
+
+        body.Controls.Add(CreateHint(
+            "Come vengono distribuite le ore della richiesta sui giorni lavorativi."), 0, 0);
 
         body.Controls.Add(CreateFieldLabel(
             $"Ore di una giornata standard  (in {_referenceYear} la durata della richiesta viene divisa sui giorni lavorativi)"), 0, 1);
@@ -209,7 +246,7 @@ internal sealed class SettingsDialog : Form
             "Chiusure aziendali aggiuntive (oltre alle festività nazionali): una data per riga o separate da virgola — es. 02/06, 24/12"), 0, 4);
         _holidays.Dock = DockStyle.Fill;
         _holidays.Multiline = true;
-        _holidays.ScrollBars = ScrollBars.Vertical;
+        _holidays.ScrollBars = ScrollBars.None;
         _holidays.BorderStyle = BorderStyle.None;
         _holidays.BackColor = Theme.FieldFill;
         _holidays.ForeColor = Theme.Ink;
@@ -217,7 +254,9 @@ internal sealed class SettingsDialog : Form
         _holidays.Text = GenerationSettings.FormatHolidays(Options.ExtraHolidays, _referenceYear)
             .Replace(", ", Environment.NewLine);
         _holidays.Margin = Padding.Empty;
-        // Cornice temizzata al posto del bordo grigio di sistema della casella.
+        // Cornice temizzata al posto del bordo grigio di sistema della casella. La
+        // barra di scorrimento nativa resterebbe grigia anche qui: il campo mostra
+        // quattro righe e la rotellina e i tasti continuano a scorrere il testo.
         var holidaysFrame = new SurfacePanel
         {
             Dock = DockStyle.Fill,
@@ -230,37 +269,18 @@ internal sealed class SettingsDialog : Form
         holidaysFrame.Controls.Add(_holidays);
         body.Controls.Add(holidaysFrame, 0, 5);
 
-        body.Controls.Add(new Label
-        {
-            Text = "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore.",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.FaintInk,
-            Font = Theme.Fonts.Tiny,
-            AutoEllipsis = true,
-            Margin = Padding.Empty
-        }, 0, 6);
-
-        body.Controls.Add(new Label
-        {
-            Text = ExecutableSignature.DescribeCurrentExecutable(),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.FaintInk,
-            Font = Theme.Fonts.Tiny,
-            AutoEllipsis = true,
-            Margin = new Padding(0, 2, 0, 0)
-        }, 0, 7);
-        return card;
+        body.Controls.Add(CreateNote(
+            "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore."), 0, 6);
+        return page;
     }
 
-    private SurfacePanel BuildAiCard()
+    /// <summary>Scheda "AI locale": modello preferito e modello effettivamente installato.</summary>
+    private Control BuildAiPage()
     {
-        var card = CreateCard(
-            "AI locale (facoltativa)",
-            "L'AI gestisce solo suggerimenti: l'XML viene sempre validato e scritto dal programma.",
-            150);
-        var body = (TableLayoutPanel)card.Controls[0]!;
+        var (page, body) = CreatePage(SettingsPageLayout.AiRows);
+
+        body.Controls.Add(CreateHint(
+            "L'AI gestisce solo suggerimenti: l'XML viene sempre validato e scritto dal programma."), 0, 0);
 
         body.Controls.Add(CreateFieldLabel(
             "Modello preferito (tag Ollama completo, es. qwen2.5:3b). Vuoto = scelta automatica."), 0, 1);
@@ -269,34 +289,20 @@ internal sealed class SettingsDialog : Form
         _model.InputFont = Theme.Fonts.Field;
         _model.Placeholder = LocalAiAssistant.DefaultModel;
         _model.Value = PreferredModel ?? string.Empty;
-        _model.Margin = new Padding(0, 2, 0, 6);
+        _model.Margin = new Padding(0, 2, 0, 8);
         body.Controls.Add(_model, 0, 2);
 
-        body.Controls.Add(new Label
-        {
-            Text = _installedModelText,
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.MutedInk,
-            Font = Theme.Fonts.Tiny,
-            AutoEllipsis = true,
-            Margin = Padding.Empty
-        }, 0, 3);
-        return card;
+        body.Controls.Add(CreateNote(_installedModelText), 0, 3);
+        return page;
     }
 
-    private SurfacePanel BuildUpdateCard()
+    /// <summary>Scheda "Aggiornamenti": ricerca automatica, token delle Release, firma.</summary>
+    private Control BuildUpdatePage()
     {
-        var card = CreateCard(
-            "Aggiornamenti dalle Release GitHub",
-            "PresenzeFlow legge le Release del repository: la repo è privata, quindi serve un token di sola lettura.",
-            342);
-        var body = (TableLayoutPanel)card.Controls[0]!;
+        var (page, body) = CreatePage(SettingsPageLayout.UpdateRows);
 
-        // Una riga in più in fondo alla card (l'altezza sopra è cresciuta di altrettanto):
-        // dice se l'eseguibile in esecuzione è firmato, cioè se è quello pubblicato.
-        body.RowCount = 8;
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        body.Controls.Add(CreateHint(
+            "PresenzeFlow legge le Release del repository: la repo è privata, quindi serve un token di sola lettura."), 0, 0);
 
         _autoCheck.Text = "Cerca aggiornamenti automaticamente all'avvio e durante l'uso";
         _autoCheck.Dock = DockStyle.Fill;
@@ -315,7 +321,7 @@ internal sealed class SettingsDialog : Form
         _token.Placeholder = "github_pat_… oppure ghp_…";
         _token.Input.UseSystemPasswordChar = true;
         _token.Input.Text = UpdateService.ResolveToken() ?? string.Empty;
-        _token.Margin = new Padding(0, 2, 0, 6);
+        _token.Margin = new Padding(0, 2, 0, 8);
         body.Controls.Add(_token, 0, 3);
 
         var tokenActions = new FlowLayoutPanel
@@ -346,90 +352,46 @@ internal sealed class SettingsDialog : Form
             Theme.MutedInk);
         body.Controls.Add(_tokenStatus, 0, 5);
 
-        body.Controls.Add(new Label
-        {
-            Text = "Il token serve solo a leggere le Release e scaricare l'installer: senza di esso l'app resta funzionante ma non riceve aggiornamenti.",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.FaintInk,
-            Font = Theme.Fonts.Tiny,
-            AutoEllipsis = true,
-            Margin = Padding.Empty
-        }, 0, 6);
-        return card;
+        body.Controls.Add(CreateNote(
+            "Il token serve solo a leggere le Release e scaricare l'installer: senza di esso l'app resta funzionante ma non riceve aggiornamenti."), 0, 6);
+
+        // La firma dell'eseguibile riguarda l'aggiornamento (cioè se il file in uso
+        // è quello pubblicato): sta qui, accanto alla versione delle Release.
+        body.Controls.Add(CreateNote(ExecutableSignature.DescribeCurrentExecutable()), 0, 7);
+        return page;
     }
 
-    /// <summary>Card con titolo, sottotitolo e corpo a righe fisse.</summary>
-    private static SurfacePanel CreateCard(string title, string subtitle, int height)
+    /// <summary>Sottotitolo della scheda: una frase, fino a due righe.</summary>
+    private static Label CreateHint(string text) => new()
     {
-        var card = new SurfacePanel
-        {
-            Dock = DockStyle.Top,
-            Height = height,
-            SurfaceFill = Theme.Surface,
-            SurfaceBorder = Theme.Divider,
-            Radius = 12,
-            Padding = new Padding(16, 12, 16, 12),
-            Margin = new Padding(0, 0, 0, 12)
-        };
-        var body = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 7,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
-        body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        Text = text,
+        Dock = DockStyle.Fill,
+        TextAlign = ContentAlignment.TopLeft,
+        ForeColor = Theme.MutedInk,
+        Font = Theme.Fonts.Tiny,
+        AutoEllipsis = true,
+        Margin = Padding.Empty
+    };
 
-        var heading = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-        heading.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        heading.Controls.Add(new Label
-        {
-            Text = title,
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.Ink,
-            Font = Theme.Fonts.SmallBold,
-            Margin = Padding.Empty
-        }, 0, 0);
-        heading.Controls.Add(new Label
-        {
-            Text = subtitle,
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.TopLeft,
-            ForeColor = Theme.MutedInk,
-            Font = Theme.Fonts.Tiny,
-            AutoEllipsis = true,
-            Margin = Padding.Empty
-        }, 0, 1);
-        body.Controls.Add(heading, 0, 0);
-        card.Controls.Add(body);
-        return card;
-    }
-
+    /// <summary>Testo guida di un campo.</summary>
     private static Label CreateFieldLabel(string text) => new()
     {
         Text = text,
         Dock = DockStyle.Fill,
         TextAlign = ContentAlignment.MiddleLeft,
         ForeColor = Theme.MutedInk,
+        Font = Theme.Fonts.Tiny,
+        AutoEllipsis = true,
+        Margin = Padding.Empty
+    };
+
+    /// <summary>Riga informativa in fondo alla scheda.</summary>
+    private static Label CreateNote(string text) => new()
+    {
+        Text = text,
+        Dock = DockStyle.Fill,
+        TextAlign = ContentAlignment.MiddleLeft,
+        ForeColor = Theme.FaintInk,
         Font = Theme.Fonts.Tiny,
         AutoEllipsis = true,
         Margin = Padding.Empty

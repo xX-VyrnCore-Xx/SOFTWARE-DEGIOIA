@@ -12,6 +12,15 @@ internal static class ExecutableSignature
     internal const string NotSignedText = "Eseguibile non firmato digitalmente";
 
     /// <summary>
+    /// Versione dell'eseguibile in esecuzione a tre cifre (es. "1.12.0"), letta
+    /// dall'assembly del programma e non da una costante: non può restare
+    /// indietro rispetto a quanto è stato pubblicato. La usano il titolo della
+    /// finestra e le Impostazioni.
+    /// </summary>
+    public static string DisplayVersion { get; } =
+        typeof(ExecutableSignature).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+
+    /// <summary>
     /// Riga da mostrare: editore e scadenza se il file è firmato, altrimenti una
     /// dicitura esplicita. Non solleva mai eccezioni: la lettura della firma non
     /// deve impedire l'apertura delle Impostazioni.

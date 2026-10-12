@@ -37,7 +37,10 @@ internal sealed partial class MainForm
             Margin = Padding.Empty
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        // La fascia dei comandi è alta quanto serve ai pulsanti (30 px) più la
+        // spaziatura interna e il margine: con una riga più bassa il bordo
+        // inferiore dei due pulsanti veniva tagliato di 3 px.
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
 
@@ -100,6 +103,8 @@ internal sealed partial class MainForm
         page.Controls.Add(toolbar, 0, 0);
 
         _findingsGrid.ReadOnly = true;
+        _findingsGrid.EmptyStateText =
+            "Nessuna segnalazione: importa un foglio Excel e genera l'anteprima per controllare i movimenti.";
         _findingsGrid.Columns.Add(CreateGridColumn("severity", "Gravità", 22, true));
         _findingsGrid.Columns.Add(CreateGridColumn("message", "Segnalazione", 78, true));
         _findingsGrid.CellFormatting += FormatFindingCell;

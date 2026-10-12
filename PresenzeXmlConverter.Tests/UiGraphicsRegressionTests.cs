@@ -26,11 +26,37 @@ public class UiGraphicsRegressionTests
             Application.DoEvents();
             form.PerformLayout();
             Application.DoEvents();
-            var clipped = CollectClippedLabels(form, report);
-            // Due controlli nella stessa cella di una tabella si sovrappongono e
-            // scompaginano le altezze delle righe: qui vengono segnalati subito.
-            var overlaps = CollectCellOverlaps(form, report);
-            var gray = GrayReport(Render(form));
+            var clipped = new List<string>();
+            var overlaps = new List<string>();
+            var gray = 0.0;
+            var grayRegions = string.Empty;
+            // Ogni scheda dell'area di revisione viene disegnata e controllata:
+            // una scheda lasciata fuori dal test può nascondere un testo tagliato.
+            foreach (var (select, what) in RenderStates(form))
+            {
+                select();
+                Application.DoEvents();
+                form.PerformLayout();
+                Application.DoEvents();
+                // Due controlli nella stessa cella di una tabella si sovrappongono e
+                // scompaginano le altezze delle righe: qui vengono segnalati subito.
+                var overlapsHere = CollectCellOverlaps(form, report);
+                if (!string.IsNullOrEmpty(overlapsHere))
+                {
+                    overlaps.Add($"{what}:{Environment.NewLine}{overlapsHere}");
+                }
+                var clippedHere = CollectClippedLabels(form, report);
+                if (!string.IsNullOrEmpty(clippedHere))
+                {
+                    clipped.Add($"{what}:{Environment.NewLine}{clippedHere}");
+                }
+                var snapshot = GrayReport(Render(form));
+                if (snapshot.Ratio > gray)
+                {
+                    gray = snapshot.Ratio;
+                    grayRegions = $"{what}: {snapshot.Regions}";
+                }
+            }
             // Diagnostica nel messaggio di errore: se il layout viene compresso
             // serve sapere con quale schermo e quale finestra è successo.
             report.AppendLine(
@@ -39,7 +65,12 @@ public class UiGraphicsRegressionTests
                 $"area di lavoro {Screen.FromControl(form).WorkingArea.Width}x{Screen.FromControl(form).WorkingArea.Height}, " +
                 $"scala del sistema {form.DeviceDpi} dpi.");
             form.Dispose();
-            return (clipped: clipped, overlaps: overlaps, gray: gray.Ratio, regions: gray.Regions, report: report.ToString());
+            return (
+                clipped: string.Join(Environment.NewLine, clipped),
+                overlaps: string.Join(Environment.NewLine, overlaps),
+                gray: gray,
+                regions: grayRegions,
+                report: report.ToString());
         });
         if (result is null)
         {
@@ -84,7 +115,7 @@ public class UiGraphicsRegressionTests
         var result = RunOnStaThread(() =>
         {
             var report = new StringBuilder();
-            var clipped = string.Empty;
+            var problems = new List<string>();
             var gray = 0.0;
             var grayRegions = string.Empty;
             foreach (var dialog in new Form[]
@@ -103,7 +134,22 @@ public class UiGraphicsRegressionTests
                              "AI locale",
                              "Download del modello qwen2.5:1.5b",
                              "Connessione a Ollama…"),
-                         new UpdateProgressDialog("1.0.0")
+                         new UpdateProgressDialog("1.0.0"),
+                         // Impostazioni: ogni scheda entra intera nella finestra, quindi
+                         // il dialogo non ha barre di scorrimento di sistema.
+                         new SettingsDialog(
+                             GenerationOptions.Default,
+                             DateTime.Now.Year,
+                             true,
+                             null,
+                             "Nessun modello locale installato: l'AI resta facoltativa."),
+                         // Novità di una Release: note lunghe, con la barra di
+                         // scorrimento disegnata con il tema dell'app.
+                         new ReleaseNotesDialog(
+                             "Novità di PresenzeFlow",
+                             "Riepilogo delle modifiche di questa versione.",
+                             LongReleaseNotes,
+                             true)
                      })
             {
                 using (dialog)
@@ -113,23 +159,39 @@ public class UiGraphicsRegressionTests
                     dialog.Show();
                     Application.DoEvents();
                     dialog.PerformLayout();
-                    clipped = CollectClippedLabels(dialog, report);
-                    var snapshot = GrayReport(Render(dialog));
-                    if (snapshot.Ratio > gray)
+                    foreach (var (select, what) in RenderStates(dialog))
                     {
-                        gray = snapshot.Ratio;
-                        grayRegions = snapshot.Regions;
+                        select();
+                        Application.DoEvents();
+                        dialog.PerformLayout();
+                        var clippedHere = CollectClippedLabels(dialog, report);
+                        if (!string.IsNullOrEmpty(clippedHere))
+                        {
+                            problems.Add($"{dialog.GetType().Name}, {what}:{Environment.NewLine}{clippedHere}");
+                        }
+                        var snapshot = GrayReport(Render(dialog));
+                        if (snapshot.Ratio > gray)
+                        {
+                            gray = snapshot.Ratio;
+                            grayRegions = $"{dialog.GetType().Name}, {what}: {snapshot.Regions}";
+                        }
                     }
                     dialog.Hide();
                 }
-                Assert.True(string.IsNullOrEmpty(clipped), clipped);
             }
-            return (clipped: clipped, gray: gray, regions: grayRegions, report: report.ToString());
+            return (
+                problems: string.Join(Environment.NewLine, problems),
+                gray: gray,
+                regions: grayRegions,
+                report: report.ToString());
         });
         if (result is null)
         {
             return;
         }
+        Assert.True(
+            result.Value.problems.Length == 0,
+            result.Value.problems + Environment.NewLine + result.Value.report);
         // Resta solo il pulsante a tendina nativo delle caselle combinate,
         // che Windows disegna sempre in grisaglia.
         Assert.True(
@@ -137,6 +199,80 @@ public class UiGraphicsRegressionTests
             $"Colori di sistema non temizzati nei dialoghi ({result.Value.gray:P2}). " +
             $"Aree grigie: {result.Value.regions}. {result.Value.report}");
     }
+
+    /// <summary>
+    /// Stati in cui disegnare un dialogo: ogni scheda, se ne ha (un dialogo senza
+    /// schede viene disegnato una volta sola). Rende visibile la verifica anche
+    /// sulle parti che non comparirebbero aprendo la finestra.
+    /// </summary>
+    private static IEnumerable<(Action Select, string What)> RenderStates(Form dialog)
+    {
+        var tabs = new List<ThemedTabControl>();
+        CollectTabs(dialog, tabs);
+        if (tabs.Count == 0)
+        {
+            yield return (() => { }, "finestra");
+            yield break;
+        }
+        foreach (var tab in tabs)
+        {
+            for (var index = 0; index < tab.PageCount; index++)
+            {
+                var target = index;
+                var host = tab;
+                yield return (() => host.SelectedIndex = target, $"scheda \"{index + 1} di {tab.PageCount}\"");
+            }
+        }
+    }
+
+    private static void CollectTabs(Control root, List<ThemedTabControl> found)
+    {
+        if (root is ThemedTabControl tab)
+        {
+            found.Add(tab);
+        }
+        foreach (Control child in root.Controls)
+        {
+            CollectTabs(child, found);
+        }
+    }
+
+    /// <summary>
+    /// Note di una Release abbastanza lunghe da non entrare nella finestra: è il
+    /// caso in cui la barra di scorrimento deve essere disegnata dal programma e
+    /// non da Windows.
+    /// </summary>
+    private const string LongReleaseNotes = """
+        ### Grafica Windows
+        - La barra del titolo segue il tema dell'app: era chiara sopra l'intestazione scura.
+        - Titolo e angoli arrotondati si adattano alla versione di Windows in uso.
+        - Il titolo della finestra mostra la versione in esecuzione.
+
+        ### Trascinamento del foglio Excel
+        - Il file si può trascinare direttamente sulla finestra, senza aprire il dialogo.
+        - Vengono accettati solo fogli Excel esistenti: cartelle e altri file sono ignorati.
+        - Dialogo di apertura e trascinamento passano dallo stesso percorso.
+
+        ### Firma digitale
+        - Il workflow di Release non pubblica più eseguibili non firmati.
+        - Il certificato pubblico segue la Release e viene allegato.
+        - In Impostazioni si legge se l'eseguibile in uso è firmato.
+
+        ### Analisi del foglio
+        - Le righe problematiche vengono segnalate e non bloccate.
+        - Il foglio di un file con più fogli si cambia senza reimportare il file.
+        - Intestazioni, date e durate vengono riconosciute in più formati.
+
+        ### Controlli
+        - Elenco unico ordinato per gravità, con doppio clic per raggiungere il movimento.
+        - I controlli si aggiornano a ogni modifica della griglia.
+        - Copia elenco per condividere le segnalazioni con chi le deve risolvere.
+
+        ### Impostazioni
+        - Giornata standard, sabato lavorativo e chiusure aziendali configurabili.
+        - Token delle Release verificato e attivato senza riavviare il programma.
+        - Modello AI preferito, con scelta automatica se non indicato.
+        """;
 
     private static T? RunOnStaThread<T>(Func<T> probe)
         where T : struct

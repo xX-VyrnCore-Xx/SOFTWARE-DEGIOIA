@@ -44,6 +44,49 @@ internal sealed class ThemedGrid : DataGridView
         DefaultCellStyle.Padding = new Padding(9, 0, 5, 0);
         AlternatingRowsDefaultCellStyle.BackColor = Theme.AltRow;
     }
+
+    /// <summary>
+    /// Testo mostrato al centro quando non c'e' nessuna riga visibile (griglia
+    /// ancora vuota, oppure filtro che non trova nulla): senza, l'area di
+    /// revisione resta un rettangolo bianco e sembra che il programma non abbia
+    /// caricato niente. Non e' un'etichetta ma testo dipinto, quindi non entra
+    /// nei controlli del layout.
+    /// </summary>
+    public string EmptyStateText { get; set; } = string.Empty;
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        if (EmptyStateText.Length == 0 || HasVisibleRows || ClientSize.Width < 80)
+        {
+            return;
+        }
+        var top = ColumnHeadersVisible ? ColumnHeadersHeight : 0;
+        var bounds = new Rectangle(0, top, ClientSize.Width, Math.Max(1, ClientSize.Height - top));
+        TextRenderer.DrawText(
+            e.Graphics,
+            EmptyStateText,
+            Theme.Fonts.Small,
+            bounds,
+            Theme.FaintInk,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+    }
+
+    /// <summary>Almeno una riga visibile: quando il filtro non trova nulla si mostra lo stato vuoto.</summary>
+    private bool HasVisibleRows
+    {
+        get
+        {
+            foreach (DataGridViewRow row in Rows)
+            {
+                if (row.Visible)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
 }
 
 /// <summary>
@@ -329,6 +372,9 @@ internal sealed class ThemedTabControl : Control
         set => SelectTab(value);
     }
 
+    /// <summary>Numero di schede aggiunte: il test grafico le disegna tutte.</summary>
+    public int PageCount => _pages.Count;
+
     public void AddPage(string title, Control page)
     {
         page.Dock = DockStyle.Fill;
@@ -493,5 +539,213 @@ internal sealed class StatusPill : Control
             textBounds,
             _ink,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+    }
+}
+
+/// <summary>
+/// Testo lungo scorrevole disegnato con la palette dell'app: le novità di una
+/// Release possono essere lunghe e la barra di scorrimento nativa di Windows
+/// resta grigia anche dentro una finestra dipinta a mano. Il testo viene
+/// impaginato alla larghezza disponibile e si può scorrere con la rotellina,
+/// trascinando il pollice o cliccando sulla pista; il pollice ha i colori del
+/// tema. Il testo resta esposto all'accessibilità tramite <see cref="Control.Text"/>.
+/// </summary>
+internal sealed class NoteTextView : Control
+{
+    private const int TextPadding = 2;
+    private string _text = string.Empty;
+    private ScrollBarLayout _layout;
+    private int _requestedOffset;
+    private bool _dragging;
+    private bool _pointerOnThumb;
+    private int _grabOffset;
+
+    public NoteTextView()
+    {
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+        BackColor = Theme.FieldFill;
+        ForeColor = Theme.InkSecondary;
+        Font = Theme.Fonts.Small;
+        TabStop = false;
+        AccessibleRole = AccessibleRole.StaticText;
+    }
+
+    /// <summary>Testo da mostrare.</summary>
+    public string Value
+    {
+        get => _text;
+        set
+        {
+            _text = value ?? string.Empty;
+            Text = _text;
+            _requestedOffset = 0;
+            Recalculate();
+        }
+    }
+
+    /// <summary>Altezza che serve al testo impaginato alla larghezza attuale.</summary>
+    public int TextHeight { get; private set; }
+
+    /// <summary>Il testo non entra tutto: c'è la barra da disegnare.</summary>
+    public bool NeedsScroll => _layout.NeedsScroll;
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        Recalculate();
+    }
+
+    /// <summary>
+    /// Ricalcola l'impaginazione: prima lasciando la fascia alla barra, poi (se
+    /// il testo entrava) con tutta la larghezza. Il conto si ferma qui, così la
+    /// barra non compare e sparisce una volta per ogni ridimensionamento.
+    /// </summary>
+    public void Recalculate()
+    {
+        if (ClientSize.Width <= 0 || ClientSize.Height <= 0)
+        {
+            return;
+        }
+        var height = MeasureHeight(ClientSize.Width - ScrollBarLayout.TrackWidth);
+        _layout = ScrollBarLayout.Compute(ClientSize.Width, ClientSize.Height, height, _requestedOffset);
+        if (!_layout.NeedsScroll)
+        {
+            height = MeasureHeight(ClientSize.Width);
+            _layout = ScrollBarLayout.Compute(ClientSize.Width, ClientSize.Height, height, _requestedOffset);
+        }
+        _requestedOffset = _layout.Offset;
+        TextHeight = height;
+        Invalidate();
+    }
+
+    /// <summary>Porta il testo alla posizione indicata (viene riportata dentro i limiti).</summary>
+    public void ScrollTo(int offset)
+    {
+        _requestedOffset = offset;
+        _layout = ScrollBarLayout.Compute(ClientSize.Width, ClientSize.Height, TextHeight, offset);
+        _requestedOffset = _layout.Offset;
+        Invalidate();
+    }
+
+    private int MeasureHeight(int width) =>
+        string.IsNullOrEmpty(_text)
+            ? 0
+            : TextRenderer.MeasureText(
+                  _text,
+                  Font,
+                  new Size(Math.Max(1, width - (TextPadding * 2)), int.MaxValue),
+                  TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height + TextPadding;
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        using (var background = new SolidBrush(BackColor))
+        {
+            e.Graphics.FillRectangle(background, ClientRectangle);
+        }
+        if (_text.Length > 0)
+        {
+            var bounds = new Rectangle(
+                TextPadding,
+                TextPadding - _layout.Offset,
+                Math.Max(1, _layout.ContentWidth - (TextPadding * 2)),
+                Math.Max(1, TextHeight));
+            TextRenderer.DrawText(
+                e.Graphics,
+                _text,
+                Font,
+                bounds,
+                ForeColor,
+                TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+        }
+        DrawThumb(e.Graphics);
+    }
+
+    private void DrawThumb(Graphics graphics)
+    {
+        if (!_layout.NeedsScroll)
+        {
+            return;
+        }
+        var bounds = new Rectangle(
+            _layout.ThumbLeft,
+            _layout.ThumbTop + 1,
+            ScrollBarLayout.ThumbWidth,
+            Math.Max(4, _layout.ThumbHeight - 2));
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = Theme.RoundedRectangle(bounds, ScrollBarLayout.ThumbWidth / 2);
+        using var brush = new SolidBrush(_dragging || _pointerOnThumb ? Theme.MutedInk : Theme.DividerStrong);
+        graphics.FillPath(brush, path);
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        if (_layout.NeedsScroll)
+        {
+            ScrollTo(_layout.OffsetAfterWheel(e.Delta));
+        }
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left || !_layout.HitsTrack(e.X, ClientSize.Width))
+        {
+            return;
+        }
+        if (_layout.HitsThumb(e.Y))
+        {
+            _dragging = true;
+            _grabOffset = e.Y - _layout.ThumbTop;
+            Capture = true;
+        }
+        else
+        {
+            ScrollTo(_layout.OffsetAfterTrackClick(e.Y));
+        }
+        Invalidate();
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        if (_dragging)
+        {
+            ScrollTo(_layout.OffsetForThumbTop(e.Y - _grabOffset));
+            return;
+        }
+        var onThumb = _layout.HitsTrack(e.X, ClientSize.Width) && _layout.HitsThumb(e.Y);
+        if (onThumb == _pointerOnThumb)
+        {
+            return;
+        }
+        _pointerOnThumb = onThumb;
+        Cursor = onThumb ? Cursors.Hand : Cursors.Default;
+        Invalidate();
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        if (!_dragging)
+        {
+            return;
+        }
+        _dragging = false;
+        Capture = false;
+        Invalidate();
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (!_pointerOnThumb)
+        {
+            return;
+        }
+        _pointerOnThumb = false;
+        Cursor = Cursors.Default;
+        Invalidate();
     }
 }
