@@ -23,9 +23,13 @@ internal sealed partial class MainForm
     /// <summary>Stato vuoto quando è la ricerca a non trovare nulla.</summary>
     private const string NoMovementsFoundText = "Nessun movimento corrisponde alla ricerca.";
 
-    private const int SearchFieldWidth = 220;
-    private const int CopyXmlButtonWidth = 108;
-    private const int ExportXmlButtonWidth = 114;
+    // Le tre misure sono tarate sulla finestra più piccola consentita: con la
+    // barra di navigazione laterale l'area di revisione ha ~400 px per i comandi,
+    // e con i valori precedenti (220+108+114) i pulsanti uscivano dal bordo
+    // destro. Restano comodi: il campo di ricerca regge l'intero testo guida.
+    private const int SearchFieldWidth = 170;
+    private const int CopyXmlButtonWidth = 92;
+    private const int ExportXmlButtonWidth = 100;
 
     /// <summary>
     /// Larghezza della fascia di azioni dell'area di revisione: la somma dei
@@ -382,6 +386,9 @@ internal sealed partial class MainForm
         reviewLayout.Controls.Add(BuildPreviewToolbar(), 0, 1);
         reviewLayout.Controls.Add(BuildPreview(), 0, 2);
         root.Controls.Add(BuildFooter(), 0, 2);
+        // La schermata di conversione appena costruita entra nella struttura a
+        // sezioni, con la barra di navigazione a sinistra (MainForm.Shell.cs).
+        BuildShell(root, workspace);
         UpdateWorkflowSummary();
         UpdateButtons();
     }
@@ -406,6 +413,7 @@ internal sealed partial class MainForm
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 296));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -456,6 +464,7 @@ internal sealed partial class MainForm
         };
         titles.Controls.Add(subtitle, 0, 2);
         body.Controls.Add(titles, 1, 0);
+        body.Controls.Add(BuildHeaderSearch(), 2, 0);
 
         // Azioni sempre a portata di mano nell'intestazione: aggiornamenti e
         // impostazioni non devono costringere a cercare fra le schede.
@@ -499,7 +508,7 @@ internal sealed partial class MainForm
         _reviewStatusBadge.AccessibleName = "Stato dell'anteprima";
         _reviewStatusBadge.AccessibleRole = AccessibleRole.StaticText;
         headerSide.Controls.Add(_reviewStatusBadge, 0, 1);
-        body.Controls.Add(headerSide, 2, 0);
+        body.Controls.Add(headerSide, 3, 0);
 
         // Accento sfumato in cima all'header: la card resta la stessa, ma con un
         // tocco di profondità in più. La riga è fissa (4 px) e il corpo riempie il resto.
@@ -747,7 +756,10 @@ internal sealed partial class MainForm
         _exportButton.Size = new Size(ExportXmlButtonWidth, 32);
         _exportButton.Margin = new Padding(6, 0, 0, 0);
         _exportButton.Click += (_, _) => ExportXml();
-        Describe(_exportButton, "Salva XML", "Salva il file XML TRRIPW nella cartella che scegli (Ctrl+S).");
+        Describe(
+            _exportButton,
+            "Scarica XML",
+            "Salva il file XML TRRIPW nella cartella che scegli (Ctrl+S).");
 
         toolbarActions.Controls.Add(_exportButton);
         toolbarActions.Controls.Add(_copyXmlButton);

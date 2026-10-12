@@ -109,6 +109,86 @@ public class UiGraphicsRegressionTests
         Assert.Equal($"PresenzeFlow {version}", result.Value.title);
     }
 
+    /// <summary>
+    /// Ogni sezione della barra di navigazione viene disegnata e controllata.
+    /// Una sezione che non è quella aperta all'avvio non verrebbe mai resa: un
+    /// testo tagliato o due controlli sovrapposti (dashboard, codici, storico)
+    /// resterebbero invisibili fino al primo utente.
+    /// </summary>
+    [Fact]
+    public void EverySectionOfTheWindowIsFullyThemedAndNothingIsClipped()
+    {
+        var result = RunOnStaThread(() =>
+        {
+            var report = new StringBuilder();
+            var problems = new List<string>();
+            var overlaps = new List<string>();
+            var gray = 0.0;
+            var grayRegions = string.Empty;
+            var form = new MainForm();
+            form.StartPosition = FormStartPosition.Manual;
+            form.Location = new Point(-4000, -4000);
+            form.Show();
+            Application.DoEvents();
+            form.PerformLayout();
+            Application.DoEvents();
+            for (var section = 0; section < form.SectionCount; section++)
+            {
+                form.ShowSection(section);
+                // Dentro la sezione vengono selezionate anche le sue schede (area
+                // di revisione e griglie dei codici): nessuna resta fuori.
+                foreach (var (select, what) in RenderStates(form))
+                {
+                    select();
+                    Application.DoEvents();
+                    form.PerformLayout();
+                    Application.DoEvents();
+                    var overlapsHere = CollectCellOverlaps(form, report);
+                    if (!string.IsNullOrEmpty(overlapsHere))
+                    {
+                        overlaps.Add($"sezione {section}, {what}:{Environment.NewLine}{overlapsHere}");
+                    }
+                    var clippedHere = CollectClippedLabels(form, report);
+                    if (!string.IsNullOrEmpty(clippedHere))
+                    {
+                        problems.Add($"sezione {section}, {what}:{Environment.NewLine}{clippedHere}");
+                    }
+                    var snapshot = GrayReport(Render(form));
+                    if (snapshot.Ratio > gray)
+                    {
+                        gray = snapshot.Ratio;
+                        grayRegions = $"sezione {section}, {what}: {snapshot.Regions}";
+                    }
+                }
+            }
+            report.AppendLine(
+                $"Diagnostica: finestra {form.ClientSize.Width}x{form.ClientSize.Height}, " +
+                $"{form.SectionCount} sezioni, area di lavoro " +
+                $"{Screen.FromControl(form).WorkingArea.Width}x{Screen.FromControl(form).WorkingArea.Height}.");
+            form.Dispose();
+            return (
+                clipped: string.Join(Environment.NewLine, problems),
+                overlaps: string.Join(Environment.NewLine, overlaps),
+                gray,
+                regions: grayRegions,
+                report: report.ToString());
+        });
+        if (result is null)
+        {
+            return;
+        }
+        Assert.True(
+            string.IsNullOrEmpty(result.Value.clipped),
+            result.Value.clipped + Environment.NewLine + result.Value.report);
+        Assert.True(
+            string.IsNullOrEmpty(result.Value.overlaps),
+            result.Value.overlaps + Environment.NewLine + result.Value.report);
+        Assert.True(
+            result.Value.gray < 0.002,
+            $"Colori di sistema non temizzati nelle sezioni ({result.Value.gray:P2}). " +
+            $"Aree grigie: {result.Value.regions}. {result.Value.report}");
+    }
+
     [Fact]
     public void DialogsAreFullyThemed()
     {

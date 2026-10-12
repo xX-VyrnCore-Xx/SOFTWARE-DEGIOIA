@@ -4,7 +4,37 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.14.0] - Corrente
+## [1.15.0] - Corrente
+
+### 🧭 Nuova struttura della finestra
+- **Barra di navigazione laterale** con quattro sezioni — *Dashboard*, *Nuova conversione*, *Gestione codici*, *Storico esportazioni* — disegnata con la palette dell'app (voci alte 46 px, icona, barretta laterale e fondo chiaro sulla voce attiva), con navigazione da tastiera (frecce, Home/End) e nome accessibile per i lettori di schermo
+- **Campo di ricerca nell'intestazione**: filtra i movimenti da qualunque sezione e porta l'utente dove i risultati si vedono
+- Le schede dell'area di revisione restano dov'erano, dentro la sezione di conversione; le scorciatoie `Ctrl+0…5` aprono la sezione giusta invece di cambiare scheda in una sezione nascosta
+- Larghezze dei comandi dell'area di revisione ritarate (ricerca 170 px, *Copia XML* 92, *Scarica XML* 100) perché le tre sezioni nuove non possono comprimere l'area di lavoro nemmeno nella finestra minima di 1024 px
+
+### 📊 Dashboard
+- **Card di riepilogo** con richieste lette, dipendenti, movimenti generati e ore assegnate, tutte calcolate da un unico posto (`DashboardSummary`): nessun conto duplicato nel codice dell'interfaccia
+- **File sorgente**: nome del foglio e stato della conversione in una frase; **azioni rapide** (apri file, genera anteprima, gestione codici, storico) e **ultime esportazioni** con doppio clic per aprire la cartella del file
+- Importando un file l'app passa da sola alla sezione di conversione: i codici da verificare sono cambiati
+
+### 🗂️ Gestione codici e 🕘 Storico esportazioni
+- **Gestione codici** è ora una sezione della finestra: le due griglie (dipendenti e giustificativi) sono estratte in un pannello riusabile (`MappingEditorPanel`) usato **sia** dalla sezione **sia** dal dialogo "Codici PAGHE": una sola logica di validazione, non due copie
+- **Storico esportazioni** (nuovo): ogni XML salvato viene registrato nel database locale con data, file, cartella, dipendenti, movimenti e ore; la sezione li elenca con *Apri cartella*, *Copia percorso* e *Svuota storico* (i file su disco non vengono mai toccati). Lo storico è limitato alle **200 esportazioni** più recenti
+- Database locale portato allo **schema 2** con la tabella `Exports`; preferenze e abbinamenti già presenti restano intatti, e un database di versione superiore viene rifiutato invece di essere aperto a metà
+
+### ⚡ Apertura più rapida
+- **`PublishReadyToRun`** nel publish: il codice gestito dell'interfaccia viene compilato in anticipo, così la finestra non paga la compilazione JIT al primo utilizzo (vale per la Release; le risorse localizzate delle dipendenze non vengono più incluse nel pacchetto)
+- **Nessuna attesa per dati che non servono a disegnare**: lo storico delle esportazioni e lo stato del motore AI locale vengono letti **dopo** che la finestra è visibile
+- **Preferenze di avvio lette in una sola query** (prima ogni impostazione apriva la propria connessione a SQLite)
+- **Diagnostica su richiesta**: con la variabile d'ambiente `PRESENZEFLOW_TRACE_STARTUP=1` l'app scrive in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\startup.log` la durata di ogni fase di avvio, ordinata dalla più lenta: senza numeri la velocità resta un'impressione
+
+### ✅ Verifiche
+- **15 test in più**: dashboard (conteggi e descrizioni), storico (data leggibile "oggi/ieri", formattazione, riepilogo), persistenza e ordinamento dello storico nel database, rifiuto di uno schema più recente
+- **Il test grafico controlla ogni sezione**: dashboard, conversione (con tutte le sue schede), gestione codici e storico vengono disegnati e verificati (nessun testo tagliato, nessun controllo sovrapposto, nessun colore di sistema) — prima veniva controllata solo la schermata aperta all'avvio
+
+---
+
+## [1.14.0] - Precedente
 
 ### 🪟 Struttura Windows
 - **Il manifesto dichiara le versioni di Windows supportate**: mancava il blocco `supportedOS`, quindi Windows rispondeva a `Environment.OSVersion` con la versione "compatibile" 6.2. Il titolo scuro funzionava per tentativi, ma gli **angoli arrotondati di Windows 11** (concessi solo da build 22000) non venivano mai richiesti: la finestra restava a spigoli vivi pur essendo su Windows 11. Ora la build riportata dal sistema è quella reale

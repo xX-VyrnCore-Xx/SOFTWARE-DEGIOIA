@@ -4,6 +4,13 @@ namespace PresenzeXmlConverter;
 
 internal sealed class LocalDatabase
 {
+    /// <summary>
+    /// Versione dello schema: 1 = preferenze e abbinamenti, 2 = storico delle
+    /// esportazioni. Un database di versione superiore è stato scritto da una
+    /// build più recente e non va aperto a metà.
+    /// </summary>
+    public const int CurrentSchemaVersion = 2;
+
     private readonly string _connectionString;
 
     public LocalDatabase()
@@ -132,7 +139,7 @@ internal sealed class LocalDatabase
         using var versionCommand = connection.CreateCommand();
         versionCommand.CommandText = "PRAGMA user_version;";
         var schemaVersion = Convert.ToInt32(versionCommand.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
-        if (schemaVersion > 1)
+        if (schemaVersion > CurrentSchemaVersion)
         {
             throw new InvalidDataException(
                 $"Il database PresenzeFlow usa una versione non supportata ({schemaVersion}).");
@@ -152,11 +159,22 @@ internal sealed class LocalDatabase
                 Name TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
                 Code TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS Exports (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ExportedAtUtc TEXT NOT NULL,
+                FileName TEXT NOT NULL,
+                FilePath TEXT NOT NULL,
+                CompanyCode TEXT NOT NULL,
+                Employees INTEGER NOT NULL,
+                Movements INTEGER NOT NULL,
+                TotalMinutes INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS Exports_ExportedAtUtc ON Exports (ExportedAtUtc DESC);
             """;
         command.ExecuteNonQuery();
 
         using var updateVersion = connection.CreateCommand();
-        updateVersion.CommandText = "PRAGMA user_version = 1;";
+        updateVersion.CommandText = $"PRAGMA user_version = {CurrentSchemaVersion};";
         updateVersion.ExecuteNonQuery();
 
         // Il controllo d'integrità è importante ma non serve a ogni avvio:
@@ -224,6 +242,112 @@ internal sealed class LocalDatabase
         command.ExecuteNonQuery();
         return connection;
     }
+
+    /* --------------------- Storico delle esportazioni -------------------- */
+
+    /// <summary>
+    /// Registra un'esportazione e fa scorrere le più vecchie fuori dalla
+    /// finestra conservata: lo storico serve a ricordare le ultime consegne, non
+    /// a crescere per sempre.
+    /// </summary>
+    public void SaveExport(ExportRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        using (var insert = connection.CreateCommand())
+        {
+            insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT INTO Exports
+                    (ExportedAtUtc, FileName, FilePath, CompanyCode, Employees, Movements, TotalMinutes)
+                VALUES ($at, $name, $path, $company, $employees, $movements, $minutes);
+                """;
+            insert.Parameters.AddWithValue("$at", record.ExportedAtUtc.ToUniversalTime().ToString("O"));
+            insert.Parameters.AddWithValue("$name", record.FileName ?? string.Empty);
+            insert.Parameters.AddWithValue("$path", record.FilePath ?? string.Empty);
+            insert.Parameters.AddWithValue("$company", record.CompanyCode ?? string.Empty);
+            insert.Parameters.AddWithValue("$employees", record.Employees);
+            insert.Parameters.AddWithValue("$movements", record.Movements);
+            insert.Parameters.AddWithValue("$minutes", record.TotalMinutes);
+            insert.ExecuteNonQuery();
+        }
+
+        using (var prune = connection.CreateCommand())
+        {
+            prune.Transaction = transaction;
+            prune.CommandText = """
+                DELETE FROM Exports
+                WHERE Id NOT IN (
+                    SELECT Id FROM Exports ORDER BY ExportedAtUtc DESC, Id DESC LIMIT $keep
+                );
+                """;
+            prune.Parameters.AddWithValue("$keep", ExportHistory.MaximumEntries);
+            prune.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    /// <summary>Le esportazioni più recenti, dalla più nuova alla più vecchia.</summary>
+    public IReadOnlyList<ExportRecord> GetExports(int limit = ExportHistory.MaximumEntries)
+    {
+        var take = Math.Clamp(limit, 1, ExportHistory.MaximumEntries);
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ExportedAtUtc, FileName, FilePath, CompanyCode, Employees, Movements, TotalMinutes
+            FROM Exports
+            ORDER BY ExportedAtUtc DESC, Id DESC
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$limit", take);
+        using var reader = command.ExecuteReader();
+        var records = new List<ExportRecord>();
+        while (reader.Read())
+        {
+            records.Add(new ExportRecord(
+                ParseTimestamp(reader.GetString(0)),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetInt32(4),
+                reader.GetInt32(5),
+                reader.GetInt32(6)));
+        }
+        return records;
+    }
+
+    public int GetExportCount()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM Exports;";
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Svuota lo storico (i file XML su disco non vengono toccati).</summary>
+    public void ClearExports()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM Exports;";
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Un istante illeggibile non deve far saltare l'apertura dello storico: si
+    /// ripiega su DateTime.MinValue e la voce resta visibile ma in fondo.
+    /// </summary>
+    private static DateTime ParseTimestamp(string raw) =>
+        DateTime.TryParse(
+            raw,
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.RoundtripKind,
+            out var parsed)
+            ? parsed.ToUniversalTime()
+            : DateTime.MinValue;
 
     private Dictionary<string, string> ReadMappings(string table)
     {

@@ -69,10 +69,15 @@ internal sealed partial class MainForm : Form
         _applicationIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
         Icon = _applicationIcon;
 
-        BuildLayout();
+        Trace?.Measure("interfaccia", BuildLayout);
         EnableWorkbookDrop();
-        _companyCode.Value = _database.GetSetting("company-code") ?? string.Empty;
-        _lastExportDirectory = _database.GetSetting("last-export-dir");
+        // Una sola lettura per tutte le preferenze che servono all'avvio: prima
+        // apriva una connessione al database per ciascuna.
+        var startup = Trace is null
+            ? ReadStartupSettings()
+            : Trace.Measure("preferenze", ReadStartupSettings);
+        _companyCode.Value = startup["company-code"];
+        _lastExportDirectory = startup["last-export-dir"].Length == 0 ? null : startup["last-export-dir"];
         _xmlRefreshDebounce.Tick += (_, _) =>
         {
             _xmlRefreshDebounce.Stop();
@@ -84,13 +89,14 @@ internal sealed partial class MainForm : Form
             _companyCodeSaveDebounce.Stop();
             SaveCompanyCode();
         };
-        _lastSourceDirectory = _database.GetSetting("last-source-dir");
+        _lastSourceDirectory = startup["last-source-dir"].Length == 0 ? null : startup["last-source-dir"];
         _generationOptions = GenerationSettings.Read(_database);
-        _ai.PreferredModel = ResolvePreferredModel();
-        InitializeUpdates();
+        _ai.PreferredModel = ResolvePreferredModel(startup[AiModelSetting]);
+        Trace?.Measure("aggiornamenti", InitializeUpdates);
         SetupTrayIcon();
         UpdateButtons();
-        UpdateAiStatusAsync();
+        // Il controllo dell'AI locale (una richiesta a Ollama) non deve mai
+        // ritardare la comparsa della finestra: parte dopo che è già visibile.
     }
 
     protected override void OnLoad(EventArgs e)
@@ -109,6 +115,19 @@ internal sealed partial class MainForm : Form
     {
         base.OnShown(e);
         FitToScreen();
+        // Dopo che la finestra è disegnata si riempiono i dati che non servono a
+        // vederla: lo storico delle esportazioni e lo stato del motore AI locale.
+        // Così l'apertura non aspetta né il database né la rete.
+        BeginInvoke(() =>
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+            LoadExportsNow();
+            UpdateAiStatusAsync();
+            Trace?.WriteTo(StartupLogPath);
+        });
     }
 
     /// <summary>
@@ -341,6 +360,11 @@ internal sealed partial class MainForm : Form
             UpdateWorkflowSummary();
             _previewTitleLabel.Text = "File importato · pronto per la conversione";
             _previewSubtitleLabel.Text = "Controlla l’azienda e i codici, quindi genera l’anteprima dei movimenti.";
+            // Un file appena importato porta l'utente dove si lavora, anche se era
+            // sulla dashboard: i codici da verificare sono cambiati.
+            _codesLoaded = false;
+            ShowSection(SectionConversion);
+            RefreshDashboard();
             SetStatus("●   File importato correttamente", false);
             UpdateButtons();
         }
@@ -658,6 +682,7 @@ internal sealed partial class MainForm : Form
                 _lastExportDirectory = directory;
                 _database.SaveSetting("last-export-dir", directory);
             }
+            RecordExport(picker.FileName, companyCode);
             SetStatus($"XML salvato: {picker.FileName}", false);
         }
         catch (Exception exception) when (
@@ -758,7 +783,7 @@ internal sealed partial class MainForm : Form
             return;
         }
 
-        var model = ResolvePreferredModel();
+        var model = ResolvePreferredModel(null);
         var download = MessageBox.Show(
             this,
             $"Scaricare il modello locale {model}? {DescribeModelSize(model)} " +
@@ -1133,10 +1158,10 @@ internal sealed partial class MainForm : Form
     /// Modello da usare: la scelta fatta in fase di installazione (file scritto
     /// dall'installer), poi quella salvata dall'utente, infine il predefinito.
     /// </summary>
-    private string ResolvePreferredModel()
+    private string ResolvePreferredModel(string? storedSetting)
     {
         var fromInstaller = ReadInstallerModelMarker();
-        var stored = _database.GetSetting(AiModelSetting);
+        var stored = storedSetting ?? _database.GetSetting(AiModelSetting);
         return OllamaSetup.ResolvePreferredModel(fromInstaller, stored) ?? LocalAiAssistant.DefaultModel;
     }
 

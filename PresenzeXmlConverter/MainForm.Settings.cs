@@ -107,9 +107,12 @@ internal sealed partial class MainForm
             Ctrl+G   Genera anteprima e XML
             Ctrl+S   Salva l'XML su file
             Ctrl+F   Cerca nei movimenti
+            Ctrl+0   Sezione Dashboard
             Ctrl+1   Scheda Movimenti
             Ctrl+2   Scheda Anteprima XML
             Ctrl+3   Scheda Controlli
+            Ctrl+4   Sezione Gestione codici
+            Ctrl+5   Sezione Storico esportazioni
             Ctrl+,   Impostazioni
             F1       Questo elenco
             """;
@@ -130,17 +133,33 @@ internal sealed partial class MainForm
                 ExportXml();
                 return true;
             case Keys.Control | Keys.F:
+                ShowSection(SectionConversion);
                 _previewTabs.SelectedIndex = 0;
                 _previewSearch.FocusInput();
                 return true;
+            // Le schede dell'area di revisione vivono dentro la sezione di
+            // conversione: la scorciatoia la apre, altrimenti il cambio di scheda
+            // non si vedrebbe.
+            case Keys.Control | Keys.D0:
+                ShowSection(SectionDashboard);
+                return true;
             case Keys.Control | Keys.D1:
+                ShowSection(SectionConversion);
                 _previewTabs.SelectedIndex = 0;
                 return true;
             case Keys.Control | Keys.D2:
+                ShowSection(SectionConversion);
                 _previewTabs.SelectedIndex = 1;
                 return true;
             case Keys.Control | Keys.D3:
+                ShowSection(SectionConversion);
                 _previewTabs.SelectedIndex = ReviewTabIndex;
+                return true;
+            case Keys.Control | Keys.D4:
+                ShowSection(SectionCodes);
+                return true;
+            case Keys.Control | Keys.D5:
+                ShowSection(SectionHistory);
                 return true;
             case Keys.Control | Keys.Oemcomma:
                 OpenSettings();
