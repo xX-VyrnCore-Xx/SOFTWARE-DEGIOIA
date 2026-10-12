@@ -1,0 +1,112 @@
+# Controlli automatici su ogni pull request e su ogni ramo diverso da main.
+#
+# Perche' esiste: i test giravano SOLO nel workflow di rilascio, cioe' DOPO il
+# merge su main. Un errore (test rosso, installer che non compila) veniva scoperto
+# a rilascio gia' partito e bloccava la Release. Qui gli stessi controlli girano
+# PRIMA del merge, cosi' main resta sempre rilasciabile.
+#
+# Consiglio (impostazione di GitHub, non automatizzabile da qui): Settings ->
+# Branches -> regola per "main" -> "Require status checks to pass before merging"
+# e selezionare "Test" e "Installer". Con la regola attiva un merge con test rossi
+# non e' possibile.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un nuovo push sullo stesso ramo annulla il controllo precedente, ormai superato.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      # Stesso controllo del rilascio: la versione del progetto e quella
+      # dell'installer devono coincidere, altrimenti la Release non parte.
+      - name: Coerenza delle versioni
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' PresenzeXmlConverter/PresenzeXmlConverter.csproj | head -n1)
+          installer=$(sed -n 's:.*#define AppVersion "\([^"]*\)".*:\1:p' Installer.iss | head -n1)
+          echo "csproj=$version · Installer.iss=$installer"
+          if [ -z "$version" ] || [ "$version" != "$installer" ]; then
+            echo "::error::La versione del .csproj ($version) e quella di Installer.iss ($installer) devono coincidere."
+            exit 1
+          fi
+
+      - name: Test
+        run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release
+
+      # Prova di punta a punta dell'iniezione del token: lo script riscrive il
+      # sorgente con un token finto e un test controlla che l'app lo ritrovi.
+      # Il token e' inventato: nessun secret in gioco (vale anche per le PR da fork).
+      - name: Iniezione del token (prova con un token finto)
+        shell: pwsh
+        env:
+          PRESENZEFLOW_GITHUB_TOKEN: ghp_ProvaIniezioneTokenFinto0123456789abcdef
+          PRESENZEFLOW_TEST_INJECTION: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\tools\Inject-UpdateToken.ps1
+          dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release --filter "FullyQualifiedName~InjectedToken"
+          if ($LASTEXITCODE -ne 0) { throw 'Il token iniettato non viene ritrovato dall''app.' }
+
+  installer:
+    name: Installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Compila l'app (single file, win-x64)
+        run: dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
+
+      - name: Verifica i file richiesti dall'installer
+        shell: pwsh
+        run: |
+          foreach ($file in @('dist\app\PresenzeFlow.exe', 'dist\app\e_sqlite3.dll')) {
+            if (-not (Test-Path $file)) {
+              throw "File mancante dopo il publish: $file (l'app installata non partirebbe)."
+            }
+          }
+
+      # L'installer ha il suo linguaggio (Pascal Script) e i suoi errori di
+      # sintassi emergono solo compilandolo: meglio saperlo prima del merge.
+      - name: Compila l'installer (senza firma)
+        shell: pwsh
+        run: |
+          $candidates = @(
+            'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+            'C:\Program Files\Inno Setup 6\ISCC.exe'
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+            if ($command) { $iscc = $command.Source }
+          }
+          if (-not $iscc) { throw 'ISCC.exe non trovato: Inno Setup 6 non e'' installato sul runner.' }
+          & $iscc Installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC e' terminato con codice ${LASTEXITCODE}: l'installer non compila." }
+          $version = (Select-String -Path Installer.iss -Pattern '#define AppVersion "([^"]+)"').Matches[0].Groups[1].Value
+          $installer = "dist\PresenzeFlow-Setup-$version.exe"
+          if (-not (Test-Path $installer)) { throw "Installer non generato: $installer" }
+          Get-Item $installer | Select-Object Name, Length

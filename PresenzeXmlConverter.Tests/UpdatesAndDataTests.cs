@@ -109,6 +109,25 @@ public class UpdatesAndDataTests
         }
     }
 
+    /// <summary>
+    /// Attivo solo nel passo di CI che inietta un token finto con lo script
+    /// (PRESENZEFLOW_TEST_INJECTION=1): verifica che ciò che scrive lo script
+    /// PowerShell sia ciò che legge l'app. Altrove non fa nulla.
+    /// </summary>
+    [Fact]
+    public void InjectedTokenIsFoundByTheApp()
+    {
+        if (Environment.GetEnvironmentVariable("PRESENZEFLOW_TEST_INJECTION") != "1")
+        {
+            return;
+        }
+
+        var expected = UpdateService.SanitizeToken(
+            Environment.GetEnvironmentVariable(UpdateService.TokenEnvironmentVariable));
+        Assert.False(string.IsNullOrEmpty(expected), "Il token finto non è impostato nell'ambiente.");
+        Assert.Equal(expected, EmbeddedUpdateToken.Resolve());
+    }
+
     /* ------------------------ Limite di richieste ------------------------ */
 
     [Fact]
