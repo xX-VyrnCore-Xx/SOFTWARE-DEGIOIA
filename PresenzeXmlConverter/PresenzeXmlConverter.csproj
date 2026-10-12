@@ -11,10 +11,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>PresenzeFlow</AssemblyName>
     <RootNamespace>PresenzeXmlConverter</RootNamespace>
-    <Version>1.9.0</Version>
-    <AssemblyVersion>1.9.0.0</AssemblyVersion>
-    <FileVersion>1.9.0.0</FileVersion>
-    <InformationalVersion>1.9.0</InformationalVersion>
+    <Version>1.10.0</Version>
+    <AssemblyVersion>1.10.0.0</AssemblyVersion>
+    <FileVersion>1.10.0.0</FileVersion>
+    <InformationalVersion>1.10.0</InformationalVersion>
     <Product>PresenzeFlow</Product>
     <AssemblyTitle>PresenzeFlow</AssemblyTitle>
     <Description>Conversione locale di presenze Excel in XML TRRIPW per Zucchetti.</Description>

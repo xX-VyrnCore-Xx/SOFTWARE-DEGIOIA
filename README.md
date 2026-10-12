@@ -4,9 +4,9 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.7.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6 per generare `dist/PresenzeFlow-Setup-1.10.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
-Durante l'installazione il wizard chiede se installare anche l'AI locale (Ollama + modello `qwen2.5:1.5b`, opzionale e deselezionabile): la conversione funziona comunque senza. Se **Ollama è già presente** viene scaricato soltanto il modello, senza reinstallare il motore. L'eseguibile e l'installer vengono **firmati** quando il certificato è configurato (vedi "Firma digitale"): un file firmato viene controllato più in fretta al primo avvio.
+Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Veloce* `qwen2.5:0.5b` (~400 MB), *Consigliato* `qwen2.5:1.5b` (~1 GB), *Qualità* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer vengono **firmati** quando il certificato è configurato (vedi "Firma digitale"): un file firmato viene controllato più in fretta al primo avvio.
 
 **Primo avvio**: al primo lancio subito dopo l'installazione Windows Defender analizza l'eseguibile (circa 160 MB non firmato digitalmente) e la finestra può impare anche 15-20 secondi ad apparire; dai lanci successivi l'avvio è immediato (misurato: ~0,5 s). La firma digitale dell'eseguibile riduce ulteriormente questa attesa.
 
@@ -103,7 +103,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.6.0.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.10.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).
@@ -162,6 +162,22 @@ Per usare un feed diverso (es. un mirror interno) imposta la preferenza `update-
 
 **Rete**: l'unico traffico verso Internet è il controllo delle Release su `api.github.com`, autenticato con il token locale. L'AI resta rigidamente in locale su `127.0.0.1:11434`.
 
+## AI locale (Ollama)
+
+L'assistente AI è **opzionale** e gira interamente sul PC (Ollama su `127.0.0.1:11434`); la conversione Excel → XML non ne ha bisogno.
+
+### In fase di installazione
+- l'installer scarica l'installer ufficiale di Ollama **solo se il motore non è già presente**; il download mostra una barra di avanzamento reale, si può annullare e viene ritentato fino a tre volte se la rete è instabile;
+- Ollama viene riconosciuto anche nelle **installazioni con cartella personalizzata** (`OllamaSetup.exe /DIR=…`), cercando anche nel registro delle installazioni e nel `PATH`;
+- il modello scelto viene scaricato **solo se non è già presente**; la scelta è ricordata in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\ai-model.txt` e riproposta agli aggiornamenti successivi;
+- in disinstallazione viene rimosso **solo il modello scelto per PresenzeFlow**: Ollama e gli altri modelli restano intatti.
+
+### Dall'app (menu "Configura AI locale")
+- se Ollama è installato ma non attivo, l'app prova ad avviarlo e attende che risponda (fino a 15 secondi): nessuna reinstallazione;
+- se Ollama manca, l'app prova prima con **winget** (`Ollama.Ollama`, modalità silenziosa) e, se winget non è disponibile o fallisce, scarica l'installer ufficiale con barra di avanzamento; se l'installazione silenziosa non produce risultati viene riproposto l'installer visibile;
+- il download del modello avviene in streaming con **percentuale reale** (byte di tutti i blocchi dello stream `/api/pull`), annullabile; prima di partire l'app verifica che ci siano **almeno 2,5 GB liberi**;
+- il modello in uso è quello **preferito** (scelta in installazione, poi quella salvata dall'utente) e il confronto avviene sul nome completo con il tag, quindi non viene richiesto un modello diverso da quello installato.
+
 ## Firma digitale (opzionale)
 
 L'eseguibile e l'installer possono essere **firmati**. La firma identifica l'editore e riduce l'attesa del primo avvio (Windows Defender controlla con più fiducia un eseguibile firmato).
@@ -194,6 +210,15 @@ In azienda la stessa operazione si distribuisce con Criteri di gruppo; per rende
 ### Nota importante
 
 Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica l'installer da Internet: diventa attendibile solo sui PC dove il certificato pubblico è installato. Per una firma riconosciuta da tutti serve un certificato emesso da una CA pubblica (a pagamento) o un servizio di firma gestito. Senza firma l'app funziona comunque: Windows mostra solo l'avviso "editore sconosciuto" al primo avvio.
+
+## Novità v1.10.0
+
+- **Installazione dell'AI locale rifatta**: download di Ollama con barra di avanzamento, annullamento e fino a 3 tentativi automatici (prima era un comando silenzioso che sembrava bloccato)
+- **Scelta del modello in fase di installazione**: Veloce (~400 MB), Consigliato (~1 GB), Qualità (~2 GB) o nessun modello; la scelta viene riproposta agli aggiornamenti successivi
+- **Niente download inutili**: se il modello è già presente il passo viene saltato; Ollama viene riconosciuto anche se installato in una cartella personalizzata (registro + `PATH`) e il `pull` usa il percorso corretto (prima con Ollama in un'altra cartella il modello non veniva mai scaricato)
+- **Installazione più rapida e diagnosticabile**: `MinVersion` (Windows 10 1607) con messaggio chiaro sui sistemi non supportati, compressione parallela, log di ogni installazione in `%TEMP%`, token di GitHub rimosso in disinstallazione
+- **Nell'app**: installazione di Ollama tramite winget quando disponibile (con ritorno automatico all'installer ufficiale), download del modello con percentuale reale e annullabile, controllo dello spazio su disco, modello preferito coerente con l'installer
+- **91 test di logica** (31 nuovi) e controlli automatici sullo script dell'installer: costanti `{#…}` definite, blocchi Pascal bilanciati, versione allineata al `.csproj`
 
 ## Novità v1.9.0
 

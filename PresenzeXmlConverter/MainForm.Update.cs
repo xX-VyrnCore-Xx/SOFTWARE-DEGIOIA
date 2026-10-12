@@ -172,7 +172,7 @@ internal sealed partial class MainForm
             await UpdateService.DownloadAsync(
                 update,
                 destination,
-                new Progress<int>(progress.SetProgress),
+                new Progress<int>(percent => progress.SetProgress(percent, $"Scaricamento in corso… {percent}%")),
                 progress.Token);
             progress.SetProgress(100);
 

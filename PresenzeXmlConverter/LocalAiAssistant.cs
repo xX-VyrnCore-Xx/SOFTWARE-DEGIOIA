@@ -30,6 +30,13 @@ internal sealed partial class LocalAiAssistant
         MaxResponseContentBufferSize = 4 * 1024 * 1024
     };
 
+    /// <summary>
+    /// Modello preferito: la scelta fatta in fase di installazione o salvata
+    /// dall'utente. Ha la precedenza su <see cref="PreferredModels"/>, ma viene
+    /// usato solo se è davvero installato.
+    /// </summary>
+    public string? PreferredModel { get; set; }
+
     /// <summary>Modello effettivamente in uso, rilevato tra quelli installati.</summary>
     public string ActiveModel { get; private set; } = DefaultModel;
 
@@ -58,9 +65,10 @@ internal sealed partial class LocalAiAssistant
     }
 
     /// <summary>
-    /// Sceglie il miglior modello tra quelli installati: preferisce i modelli della lista
-    /// in ordine di preferenza, accetta qualsiasi variante "qwen2.5" e infine qualsiasi
-    /// modello presente (l'attività è comunque validata lato codice).
+    /// Sceglie il miglior modello tra quelli installati: prima il modello
+    /// preferito (scelto in fase di installazione o dall'utente), poi i modelli
+    /// piccoli e veloci, infine qualsiasi variante "qwen2.5" e qualsiasi altro
+    /// modello presente (le modifiche sono comunque validate lato codice).
     /// </summary>
     public async Task<string?> ResolveModelAsync(CancellationToken cancellationToken = default)
     {
@@ -70,17 +78,24 @@ internal sealed partial class LocalAiAssistant
         var installed = document.RootElement.GetProperty("models").EnumerateArray()
             .Select(model => model.GetProperty("name").GetString() ?? string.Empty)
             .Where(name => name.Length > 0)
-            .Select(name => name.Split(':')[0])
-            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        foreach (var preferred in PreferredModels)
+        var preferences = new List<string>();
+        if (PreferredModel is not null)
         {
-            var baseName = preferred.Split(':')[0];
-            if (installed.Contains(baseName, StringComparer.OrdinalIgnoreCase))
+            preferences.Add(PreferredModel);
+        }
+        preferences.AddRange(PreferredModels);
+
+        // Il confronto è sul nome COMPLETO (tag incluso): "qwen2.5:1.5b" non
+        // deve essere usato quando l'unico modello installato è il 3b.
+        foreach (var preferred in preferences)
+        {
+            var match = installed.FirstOrDefault(name => MatchesModelReference(name, preferred));
+            if (match is not null)
             {
-                ActiveModel = preferred;
-                return preferred;
+                ActiveModel = match;
+                return match;
             }
         }
 
@@ -95,14 +110,68 @@ internal sealed partial class LocalAiAssistant
         return installed.Length > 0 ? installed[0] : null;
     }
 
-    public async Task DownloadModelAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Un nome senza tag equivale a ":latest"; il confronto ignora le maiuscole
+    /// ma non il tag, così non si sceglie un modello diverso da quello voluto.
+    /// </summary>
+    internal static bool MatchesModelReference(string installedName, string? preference)
     {
-        using var response = await Client.PostAsJsonAsync(
-            "api/pull",
-            new { name = DefaultModel, stream = false },
+        if (string.IsNullOrWhiteSpace(preference))
+        {
+            return false;
+        }
+        var name = installedName.Trim();
+        var wanted = preference.Trim();
+        if (string.Equals(name, wanted, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        if (!wanted.Contains(':'))
+        {
+            return string.Equals(name, wanted + ":latest", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Scarica un modello mostrando l'avanzamento reale: lo stream NDJSON di
+    /// Ollama riporta i byte scaricati blob per blob.
+    /// </summary>
+    public async Task PullModelAsync(
+        string model,
+        IProgress<(string Status, int Percent)>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/pull")
+        {
+            Content = JsonContent.Create(new { name = model, stream = true })
+        };
+        using var response = await Client.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
         response.EnsureSuccessStatusCode();
-        ActiveModel = DefaultModel;
+
+        var tracker = new OllamaPullTracker();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(stream);
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        {
+            tracker.Consume(line);
+            if (tracker.Error is not null)
+            {
+                throw new InvalidOperationException($"Ollama non ha potuto scaricare il modello: {tracker.Error}");
+            }
+            progress?.Report((tracker.Status, tracker.Percent));
+        }
+
+        if (!tracker.IsComplete && await ResolveModelAsync(cancellationToken) is null)
+        {
+            throw new InvalidOperationException(
+                "Il download del modello non è stato completato: riprova quando la connessione è stabile.");
+        }
+        ActiveModel = model;
+        progress?.Report(("Completato", 100));
     }
 
     public async Task<ColumnSelection?> SuggestColumnsAsync(

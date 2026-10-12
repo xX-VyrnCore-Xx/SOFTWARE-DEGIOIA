@@ -58,7 +58,14 @@ public class UiGraphicsRegressionTests
                              new Dictionary<string, string> { ["Ferie"] = "F01", ["Malattia"] = "" },
                              new[] { "Malattia" },
                              new[] { "Malattia" },
-                             new Dictionary<string, string> { ["Malattia"] = "M01" })
+                             new Dictionary<string, string> { ["Malattia"] = "M01" }),
+                         // Finestre di avanzamento riusate da aggiornamenti, Ollama
+                         // e download del modello AI locale.
+                         new ProgressDialog(
+                             "AI locale",
+                             "Download del modello qwen2.5:1.5b",
+                             "Connessione a Ollama…"),
+                         new UpdateProgressDialog("1.0.0")
                      })
             {
                 using (dialog)

@@ -1,10 +1,11 @@
+using System.Text.RegularExpressions;
+
 namespace PresenzeXmlConverter.Tests;
 
 /// <summary>
-/// Guardia di regressione: l'app è single-file ma le librerie native (SQLite)
-/// restano file separati nella cartella di publish. Se l'installer non le copia,
-/// l'app installata termina all'avvio con DllNotFoundException senza mostrare
-/// alcuna finestra ("non si avvia mai").
+/// Guardie di regressione sull'installer: è il primo contatto dell'utente e non
+/// è eseguibile nei test (richiede Windows, Inno Setup e una vera rete), quindi
+/// le sue proprietà essenziali vengono verificate leggendo lo script.
 /// </summary>
 public class InstallerPackagingTests
 {
@@ -19,7 +20,7 @@ public class InstallerPackagingTests
         }
 
         var script = File.ReadAllText(Path.Combine(repositoryRoot, "Installer.iss"));
-        Assert.Contains(@"Source: ""dist\app\e_sqlite3.dll""", script, StringComparison.Ordinal);
+        Assert.Contains(@"; Source: ""dist\app\e_sqlite3.dll""", script, StringComparison.Ordinal);
 
         var publishDirectory = Path.Combine(repositoryRoot, "dist", "app");
         if (Directory.Exists(publishDirectory))
@@ -28,6 +29,199 @@ public class InstallerPackagingTests
                 File.Exists(Path.Combine(publishDirectory, "e_sqlite3.dll")),
                 "Il publish single-file deve produrre dist/app/e_sqlite3.dll: senza quel file l'app installata non si avvia.");
         }
+    }
+
+    /// <summary>
+    /// Il download di Ollama è passato da un comando PowerShell silenzioso (nessuna
+    /// barra di avanzamento, nessun annullamento, nessun secondo tentativo) alla
+    /// pagina di download nativa di Inno Setup.
+    /// </summary>
+    [Fact]
+    public void OllamaIsDownloadedWithAProgressPageAndRetries()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        Assert.Contains("CreateDownloadPage", script, StringComparison.Ordinal);
+        Assert.Contains("DownloadPage.Download", script, StringComparison.Ordinal);
+        Assert.Contains("DownloadPage.AbortedByUser", script, StringComparison.Ordinal);
+        Assert.Contains("function TryDownloadOllama", script, StringComparison.Ordinal);
+        Assert.Contains("for Attempt := 1 to 3 do", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("Invoke-WebRequest", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OllamaIsDetectedAlsoWhenInstalledInACustomFolder()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        Assert.Contains("RegGetSubkeyNames", script, StringComparison.Ordinal);
+        Assert.Contains(@"Software\Microsoft\Windows\CurrentVersion\Uninstall", script, StringComparison.Ordinal);
+        Assert.Contains("WOW6432Node", script, StringComparison.Ordinal);
+        Assert.Contains("InstallLocation", script, StringComparison.Ordinal);
+        Assert.Contains("FileSearch('ollama.exe', GetEnv('Path'))", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheAiModelIsChosenByTheUserAndNotDownloadedTwice()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        Assert.Contains("TNewRadioButton", script, StringComparison.Ordinal);
+        Assert.Contains("ModelFast", script, StringComparison.Ordinal);
+        Assert.Contains("ModelBalanced", script, StringComparison.Ordinal);
+        Assert.Contains("ModelQuality", script, StringComparison.Ordinal);
+        Assert.Contains("ModelAlreadyDownloaded", script, StringComparison.Ordinal);
+        Assert.Contains("manifests-v2", script, StringComparison.Ordinal);
+        Assert.Contains("ai-model.txt", script, StringComparison.Ordinal);
+        // Il modello preferito viene riproposto: un aggiornamento non lo cambia.
+        Assert.Contains("InstalledModelFromMarker", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheInstallerRequiresASupportedWindowsAndLogsEveryInstallation()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        Assert.Contains("MinVersion=", script, StringComparison.Ordinal);
+        Assert.Contains("SetupLogging=yes", script, StringComparison.Ordinal);
+        Assert.Contains("LZMAUseSeparateProcess=yes", script, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Il workflow rifiuta di pubblicare se le versioni non coincidono; questo
+    /// test lo segnala prima, direttamente sul PC dello sviluppatore.
+    /// </summary>
+    [Fact]
+    public void TheInstallerVersionMatchesTheApplicationVersion()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        if (repositoryRoot is null)
+        {
+            return;
+        }
+        var project = File.ReadAllText(Path.Combine(repositoryRoot, "PresenzeXmlConverter", "PresenzeXmlConverter.csproj"));
+        var script = File.ReadAllText(Path.Combine(repositoryRoot, "Installer.iss"));
+
+        var projectVersion = Regex.Match(project, @"<Version>([^<]+)</Version>").Groups[1].Value;
+        var installerVersion = Regex.Match(script, "#define AppVersion \"([^\"]+)\"").Groups[1].Value;
+
+        Assert.False(string.IsNullOrEmpty(projectVersion), "Versione non trovata in PresenzeXmlConverter.csproj.");
+        Assert.Equal(projectVersion, installerVersion);
+    }
+
+    /// <summary>
+    /// Le costanti ISPP referenziate con {#Nome} devono esistere: un refuso qui
+    /// compila lo script con un valore sbagliato (o non compila affatto in CI).
+    /// </summary>
+    [Fact]
+    public void EveryPreprocessorConstantUsedIsDefined()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        var defined = Regex.Matches(script, @"^\s*#define\s+(\w+)", RegexOptions.Multiline)
+            .Select(match => match.Groups[1].Value)
+            .ToHashSet(StringComparer.Ordinal);
+        var used = Regex.Matches(script, @"\{#(\w+)\}")
+            .Select(match => match.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal);
+
+        Assert.Empty(used.Where(name => !defined.Contains(name)));
+    }
+
+    /// <summary>
+    /// Il Pascal dello script non è compilabile in questo ambiente: un controllo
+    /// di bilanciamento dei blocchi intercetta gli errori più comuni (un begin
+    /// senza end) prima che rompano la Release.
+    /// </summary>
+    [Fact]
+    public void ThePascalCodeSectionHasBalancedBlocks()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+        var code = script[script.IndexOf("\n[Code]\n", StringComparison.Ordinal)..];
+        var stripped = StripCommentsAndStrings(code);
+
+        var opens = CountWords(stripped, "begin") + CountWords(stripped, "try") +
+                    CountWords(stripped, "case") + CountWords(stripped, "record");
+        var closes = CountWords(stripped, "end");
+
+        Assert.Equal(opens, closes);
+        Assert.Equal(0, stripped.Count(character => character == '(') - stripped.Count(character => character == ')'));
+    }
+
+    private static int CountWords(string text, string word) =>
+        Regex.Matches(text, $@"\b{word}\b").Count;
+
+    private static string StripCommentsAndStrings(string code)
+    {
+        var builder = new System.Text.StringBuilder();
+        for (var index = 0; index < code.Length; index++)
+        {
+            var character = code[index];
+            if (character == '{')
+            {
+                var closing = code.IndexOf('}', index);
+                index = closing < 0 ? code.Length : closing;
+                continue;
+            }
+            if (character == '/' && index + 1 < code.Length && code[index + 1] == '/')
+            {
+                var newline = code.IndexOf('\n', index);
+                index = newline < 0 ? code.Length : newline;
+                continue;
+            }
+            if (character == '\'')
+            {
+                index++;
+                while (index < code.Length)
+                {
+                    if (code[index] != '\'')
+                    {
+                        index++;
+                        continue;
+                    }
+                    if (index + 1 < code.Length && code[index + 1] == '\'')
+                    {
+                        index += 2;
+                        continue;
+                    }
+                    break;
+                }
+                builder.Append("''");
+                continue;
+            }
+            builder.Append(character);
+        }
+        return builder.ToString();
+    }
+
+    private static string? ReadInstallerScript()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        return repositoryRoot is null ? null : File.ReadAllText(Path.Combine(repositoryRoot, "Installer.iss"));
     }
 
     private static string? FindRepositoryRoot()

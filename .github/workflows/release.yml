@@ -154,6 +154,17 @@ jobs:
             if ($command) { $iscc = $command.Source }
           }
           if (-not $iscc) { throw 'ISCC.exe non trovato: Inno Setup 6 non è installato sul runner.' }
+
+          # Installer.iss usa CreateDownloadPage (pagina di download di Ollama con
+          # barra di avanzamento), disponibile da Inno Setup 6.1: su una versione
+          # più vecchia lo script non compilerebbe, meglio un errore chiaro qui.
+          $version = (Get-Item $iscc).VersionInfo.ProductVersion
+          $major = [int]($version -split '\.')[0]
+          $minor = [int]($version -split '\.')[1]
+          if ($major -lt 6 -or ($major -eq 6 -and $minor -lt 1)) {
+            throw "Inno Setup $version trovato: la pagina di download richiede Inno Setup 6.1 o successivo."
+          }
+          Write-Host "Inno Setup $version"
           "path=$iscc" >> $env:GITHUB_OUTPUT
           Write-Host "Uso $iscc"
 

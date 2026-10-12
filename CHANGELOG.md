@@ -4,7 +4,38 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.9.0] - Corrente
+## [1.10.0] - Corrente
+
+### ⬇️ Installazione dell'AI locale riscritta
+- **Barra di avanzamento reale nel download di Ollama**: l'installer ufficiale viene scaricato con la pagina di download di Inno Setup (`CreateDownloadPage`), quindi con percentuale visibile, possibilità di **annullare** e **fino a 3 tentativi automatici** su rete instabile; prima era un comando PowerShell silenzioso che sembrava bloccato
+- **Riconoscimento robusto di Ollama**: oltre alle cartelle documentate vengono controllati il **registro delle installazioni** (`InstallLocation`, anche in `WOW6432Node`) e il `PATH`, quindi un'installazione in una cartella personalizzata non viene più scambiata per "da installare"
+- **Il modello viene scaricato davvero, ovunque sia Ollama**: il passo `ollama pull` usava sempre `%LOCALAPPDATA%\Programs\Ollama\ollama.exe`; con Ollama installato altrove il download veniva saltato in silenzio. Ora il percorso viene risolto come nel riconoscimento
+- **Scelta della dimensione del modello** in una pagina dedicata: *Veloce* `qwen2.5:0.5b` (~400 MB), *Consigliato* `qwen2.5:1.5b` (~1 GB), *Qualità* `qwen2.5:3b` (~2 GB) oppure *nessun modello adesso*; la scelta viene riproposta agli aggiornamenti (file `ai-model.txt`)
+- **Niente download inutili**: se il modello è già presente (`manifests`, `ollama.com` o `manifests-v2`, rispettando `OLLAMA_MODELS`) il passo viene saltato
+- **Disinstallazione mirata**: viene rimosso solo il modello scelto per PresenzeFlow, mai un modello usato da altri programmi
+
+### 🖥️ Installazione più rapida e diagnosticabile
+- `MinVersion` (Windows 10 1607): su un sistema non supportato l'installer lo dice subito, invece di installare un'app che non parte
+- `LZMANumBlockThreads=4` e `LZMAUseSeparateProcess=yes`: compressione più rapida in CI e minor memoria durante l'installazione
+- `SetupLogging=yes`: ogni installazione scrive un log in `%TEMP%`, così un problema segnalato dall'utente è ricostruibile
+- Il file `github.token` viene rimosso insieme ai dati locali durante la disinstallazione
+- Nuova opzione "nessun collegamento nel menu Start" (`AllowNoIcons`)
+
+### 🤖 Nell'app: Ollama senza reinstallazioni
+- Nuova logica pura `OllamaSetup` (percorsi candidati, cartelle dei manifest, comandi winget, interpretazione dell'avanzamento) interamente coperta da test
+- **Installazione tramite winget** quando disponibile, con **ritorno automatico all'installer ufficiale** se winget manca o fallisce; se l'installazione silenziosa non produce risultati viene riproposto l'installer visibile
+- **Download del modello con percentuale reale**: lo stream NDJSON di `/api/pull` viene tradotto in avanzamento (byte di tutti i blocchi) in una finestra dedicata e annullabile; prima un download da circa un gigabyte avveniva senza alcun riscontro
+- **Controllo dello spazio su disco** (2,5 GB) prima di avviare il download
+- **Modello preferito coerente con l'installer**, letto da `ai-model.txt`; il confronto avviene sul **nome completo con il tag**, quindi non viene più richiesto `qwen2.5:1.5b` quando l'unico modello installato è il `3b`
+- La finestra di avanzamento è ora una sola e condivisa (`ProgressDialog`) tra aggiornamenti, Ollama e modelli, con il conteggio delle righe del layout allineato agli stili dichiarati
+
+### ✅ Verifiche
+- **91 test di logica, tutti verdi** (31 nuovi: 24 su Ollama e modelli, 7 sull'installer), compresi i controlli automatici che ogni costante `{#…}` usata sia definita, che i blocchi Pascal siano bilanciati e che la versione dell'installer coincida con quella del progetto
+- Le due finestre di avanzamento sono entrate nel test di regressione grafica (eseguito su Windows in CI)
+
+---
+
+## [1.9.0] - Precedente
 
 ### ⚡ Installazione e avvio più veloci
 - **Ollama già installato**: l'installer salta download e installazione del motore (`Check: OllamaMissing`) e scarica **solo il modello**; anche l'app, se trova Ollama installato ma non attivo, prova ad avviarlo e attende che risponda, senza reinstallare nulla
