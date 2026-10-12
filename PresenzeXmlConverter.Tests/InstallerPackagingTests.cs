@@ -332,6 +332,65 @@ public class InstallerPackagingTests
     }
 
     /// <summary>
+    /// In Inno Setup 6 'String' e' Unicode e 'AnsiString' e' un tipo distinto. Per un
+    /// parametro 'var' il compilatore NON applica la conversione implicita, quindi
+    /// LoadStringFromFile(FileName, var S: AnsiString) rifiuta una variabile String
+    /// con "Type mismatch" e la compilazione dell'installer si ferma (è accaduto
+    /// davvero, e la Release non veniva pubblicata). Non avendo qui un compilatore
+    /// Inno, è questa guardia a verificare i tipi dei parametri AnsiString.
+    /// </summary>
+    [Fact]
+    public void AnsiStringFileFunctionsReceiveAnsiStringArguments()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        // I commenti non fanno parte del codice: vanno tolti prima di cercare le chiamate.
+        var code = Regex.Replace(script, @"\{[^}]*\}", " ");
+        code = Regex.Replace(code, @"//[^\n]*", " ");
+
+        // funzione di Inno Setup -> indice (0-based) del parametro AnsiString.
+        // LoadStringFromFile/LoadStringFromLockedFile/RegQueryBinaryValue lo hanno 'var'
+        // (nessuna conversione possibile); SaveStringToFile lo ha 'const', ma qui si
+        // preferisce comunque la conversione esplicita UTF8Encode.
+        var ansiParameters = new Dictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["LoadStringFromFile"] = 1,
+            ["LoadStringFromLockedFile"] = 1,
+            ["RegQueryBinaryValue"] = 3,
+            ["SaveStringToFile"] = 1,
+        };
+
+        foreach (var (functionName, index) in ansiParameters)
+        {
+            foreach (Match call in Regex.Matches(code, $@"\b{functionName}\s*\(", RegexOptions.IgnoreCase))
+            {
+                var arguments = SplitArguments(code, call.Index + call.Length);
+                Assert.True(
+                    arguments.Count > index,
+                    $"{functionName}: manca l'argomento {index + 1} nella chiamata.");
+
+                var argument = arguments[index].Trim();
+                if (Regex.IsMatch(argument, @"^UTF8(Encode|Decode)\(", RegexOptions.IgnoreCase))
+                {
+                    continue; // conversione esplicita: i tipi sono a posto
+                }
+
+                Assert.Matches(@"^[A-Za-z_][A-Za-z0-9_]*$", argument);
+                var declared = DeclaredTypesInEnclosingRoutine(code, call.Index, argument);
+                Assert.True(
+                    declared.Contains("AnsiString"),
+                    $"{functionName}: '{argument}' è dichiarato {string.Join("/", declared.Length == 0 ? ["non trovato"] : declared)} " +
+                    "ma il parametro attende AnsiString. In Inno Setup 6 'String' e 'AnsiString' sono tipi distinti e per un parametro var " +
+                    "non c'è conversione implicita: dichiara la variabile AnsiString e converti con UTF8Decode/UTF8Encode.");
+            }
+        }
+    }
+
+    /// <summary>
     /// Tipi del Pascal Script di Inno Setup 6, ricavati dalle fonti ufficiali della
     /// 6.7 (tipi, enumerazioni e classi registrati dal compilatore). 'HKEY' NON è fra
     /// questi: in Inno Setup 6 le chiavi di registro sono costanti Integer e un
@@ -437,6 +496,102 @@ public class InstallerPackagingTests
             used.Add(value);
         }
     }
+
+    /// <summary>
+    /// Divide gli argomenti di una chiamata a partire dal carattere dopo la parentesi
+    /// aperta, rispettando parentesi, quadre e stringhe annidate.
+    /// </summary>
+    private static List<string> SplitArguments(string text, int start)
+    {
+        var arguments = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var depth = 1;
+        var inString = false;
+        for (var i = start; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c == '\'')
+            {
+                inString = !inString;
+            }
+            if (!inString)
+            {
+                if (c == '(' || c == '[')
+                {
+                    depth++;
+                }
+                else if (c == ']')
+                {
+                    depth--;
+                }
+                else if (c == ')')
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        break;
+                    }
+                }
+                else if (c == ',' && depth == 1)
+                {
+                    arguments.Add(current.ToString());
+                    current.Clear();
+                    continue;
+                }
+            }
+            current.Append(c);
+        }
+
+        var last = current.ToString().Trim();
+        if (last.Length > 0)
+        {
+            arguments.Add(last);
+        }
+        return arguments;
+    }
+
+    /// <summary>
+    /// Tipi con cui è dichiarata una variabile nella routine che contiene la
+    /// posizione indicata (o fra le dichiarazioni globali se non è una variabile
+    /// locale): la ricerca per nome e basta confonderebbe omonimi in routine diverse.
+    /// </summary>
+    private static string[] DeclaredTypesInEnclosingRoutine(string script, int position, string variable)
+    {
+        var routineStarts = Regex.Matches(script, @"(?m)^(function|procedure)\s+", RegexOptions.IgnoreCase)
+            .Select(match => match.Index)
+            .ToList();
+
+        var bodyStart = 0;
+        var bodyEnd = script.Length;
+        foreach (var routineStart in routineStarts)
+        {
+            if (routineStart <= position)
+            {
+                bodyStart = routineStart;
+                bodyEnd = script.Length;
+            }
+            else
+            {
+                bodyEnd = routineStart;
+                break;
+            }
+        }
+
+        var local = DeclaredTypes(script.Substring(bodyStart, bodyEnd - bodyStart), variable);
+        if (local.Length > 0)
+        {
+            return local;
+        }
+
+        var globals = routineStarts.Count > 0 ? script.Substring(0, routineStarts[0]) : script;
+        return DeclaredTypes(globals, variable);
+    }
+
+    private static string[] DeclaredTypes(string text, string variable) =>
+        Regex.Matches(text, $@"(?m)^\s*{Regex.Escape(variable)}\s*:\s*([A-Za-z_][A-Za-z0-9_]*)\s*;")
+            .Select(match => match.Groups[1].Value)
+            .Distinct()
+            .ToArray();
 
     private static string? ReadReleaseWorkflow()
     {

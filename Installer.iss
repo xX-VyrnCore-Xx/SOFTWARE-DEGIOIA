@@ -275,17 +275,22 @@ end;
   oppure da un file github.token lasciato accanto all'installer. Se non c'è
   nulla, l'app lo chiede al primo avvio: qui non si inventa nulla e un token
   già presente non viene mai sovrascritto con un valore vuoto. }
+{ Nota sui tipi: In Inno Setup 6 'String' e' Unicode e 'AnsiString' e' un tipo
+  distinto. LoadStringFromFile vuole 'var S: AnsiString' e per un parametro var
+  non esiste conversione implicita: passare una variabile String farebbe fallire
+  la compilazione dell'installer con "Type mismatch" (errore realmente occorso).
+  Si usa quindi una variabile AnsiString e la conversione esplicita UTF8Decode. }
 function ProvidedGithubToken(): String;
 var
-  Value: String;
+  Raw: AnsiString;
   Source: String;
 begin
   Result := Trim(ExpandConstant('{param:GITHUBTOKEN|}'));
   if Result = '' then
   begin
     Source := AddBackslash(ExpandConstant('{src}')) + GithubTokenName;
-    if FileExists(Source) and LoadStringFromFile(Source, Value) then
-      Result := Trim(Value);
+    if FileExists(Source) and LoadStringFromFile(Source, Raw) then
+      Result := Trim(UTF8Decode(Raw));
   end;
   { Spazi e a capo vengono comunque ripuliti dall'app quando legge il file. }
   Result := Trim(Result);
@@ -301,7 +306,7 @@ begin
     Exit;
   Target := AddBackslash(DataDirectory()) + GithubTokenName;
   ForceDirectories(DataDirectory());
-  if SaveStringToFile(Target, Token, False) then
+  if SaveStringToFile(Target, UTF8Encode(Token), False) then
     Log('Token GitHub delle Release salvato: l''app si collega subito agli aggiornamenti.')
   else
     Log('Token GitHub non salvato: l''app lo chiederà al primo avvio.');
@@ -311,14 +316,15 @@ end;
 function InstalledModelFromMarker(): String;
 var
   MarkerPath: String;
-  Value: String;
+  Raw: AnsiString;
 begin
   Result := '';
   MarkerPath := AddBackslash(DataDirectory()) + ModelMarkerName;
   if not FileExists(MarkerPath) then
     Exit;
-  if LoadStringFromFile(MarkerPath, Value) then
-    Result := Trim(Value);
+  { AnsiString + UTF8Decode come in ProvidedGithubToken: vedi la nota sui tipi. }
+  if LoadStringFromFile(MarkerPath, Raw) then
+    Result := Trim(UTF8Decode(Raw));
 end;
 
 { Il modello è già nella cartella dei modelli di Ollama? In tal caso "ollama pull"
@@ -705,7 +711,7 @@ begin
   if ModelToPull <> '' then
   begin
     ForceDirectories(DataDirectory());
-    if not SaveStringToFile(MarkerPath, ModelToPull, False) then
+    if not SaveStringToFile(MarkerPath, UTF8Encode(ModelToPull), False) then
       Log('Non è stato possibile salvare il modello preferito: l''app userà il modello predefinito.');
   end
   else
