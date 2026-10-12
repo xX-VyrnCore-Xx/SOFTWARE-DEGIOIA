@@ -147,7 +147,9 @@ internal sealed partial class MainForm
 
     private void BuildLayout()
     {
-        Text = "PresenzeFlow";
+        // Il titolo della finestra non si tocca qui: lo assegna il costruttore con
+        // la versione in esecuzione (WindowCaption). Rimetterlo senza versione
+        // annullava quella assegnazione.
         MinimumSize = new Size(SetupCardLayout.MinimumWindowWidth, SetupCardLayout.MinimumWindowHeight);
         Size = new Size(1360, 860);
         BackColor = Theme.Canvas;

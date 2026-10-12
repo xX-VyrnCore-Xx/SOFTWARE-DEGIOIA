@@ -40,6 +40,57 @@ public class DesktopIntegrationTests
         WindowChrome.Apply(new IntPtr(1234));
     }
 
+    [Fact]
+    public void TheWindowTitleIsAssignedOnceAndCarriesTheRunningVersion()
+    {
+        var root = FindSourceRoot();
+        Assert.True(
+            root is not null,
+            "Sorgenti di MainForm non trovati: la guardia non ha potuto controllare nulla.");
+        var lines = MainFormSourceLines(root!).ToList();
+
+        // Nessuna parte di MainForm deve stare fuori da MainForm*.cs: la guardia legge
+        // solo quei file, quindi un file con un altro nome le sfuggirebbe in silenzio.
+        foreach (var path in Directory.GetFiles(Path.Combine(root!, "PresenzeXmlConverter"), "*.cs"))
+        {
+            if (Path.GetFileName(path).StartsWith("MainForm", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            Assert.DoesNotContain(
+                "partial class MainForm",
+                File.ReadAllText(path),
+                StringComparison.Ordinal);
+        }
+
+        // Solo assegnazioni alla proprietà della finestra: quelle dentro un
+        // inizializzatore di oggetto (etichette, pulsanti) finiscono con la virgola.
+        var assignments = lines
+            .Where(line => line.Text.TrimStart().StartsWith("Text = ", StringComparison.Ordinal)
+                           && line.Text.TrimEnd().EndsWith(";", StringComparison.Ordinal))
+            .ToList();
+
+        // Due assegnazioni si sovrascrivono a vicenda: era proprio il difetto
+        // trovato dai test, con il layout che rimetteva il titolo senza versione
+        // dopo che il costruttore lo aveva messo con la versione.
+        Assert.True(
+            assignments.Count == 1,
+            "Il titolo della finestra va assegnato una sola volta, invece: " +
+            string.Join(" | ", assignments.Select(line => $"{line.File}:{line.Number} {line.Text.Trim()}")));
+        // Deve portare la versione in esecuzione: o la stringa condivisa WindowCaption
+        // o comunque la versione dell'assembly, mai un titolo fisso.
+        Assert.True(
+            assignments[0].Text.Contains("WindowCaption", StringComparison.Ordinal)
+            || assignments[0].Text.Contains("RunningVersion", StringComparison.Ordinal),
+            $"Il titolo della finestra non porta la versione: {assignments[0].Text.Trim()}");
+
+        // Il tooltip dell'icona di sistema usa la stessa stringa: chi tiene l'app
+        // nell'area di notifica deve capire quale build sta usando.
+        Assert.Contains(
+            lines,
+            line => line.Text.Contains("_trayIcon.Text = WindowCaption", StringComparison.Ordinal));
+    }
+
     /* --------------------------- Trascinamento ---------------------------- */
 
     [Theory]
@@ -125,5 +176,42 @@ public class DesktopIntegrationTests
         // l'apertura delle Impostazioni.
         var text = ExecutableSignature.DescribeCurrentExecutable();
         Assert.False(string.IsNullOrWhiteSpace(text));
+    }
+
+    /// <summary>
+    /// Righe dei sorgenti di MainForm, con file e numero di riga: serve alle
+    /// guardie sul codice che non possono girare come verifica di comportamento.
+    /// </summary>
+    private static IEnumerable<(string File, int Number, string Text)> MainFormSourceLines(string root)
+    {
+        foreach (var path in Directory.GetFiles(Path.Combine(root, "PresenzeXmlConverter"), "MainForm*.cs")
+                     .OrderBy(path => path, StringComparer.Ordinal))
+        {
+            var number = 0;
+            foreach (var line in File.ReadLines(path))
+            {
+                number++;
+                yield return (Path.GetFileName(path), number, line);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Cartella che contiene i sorgenti: si risale dalla cartella di esecuzione
+    /// finché non si trova PresenzeXmlConverter/MainForm.cs (nella repository è la
+    /// radice, nel runner di sola logica la copia dei sorgenti).
+    /// </summary>
+    private static string? FindSourceRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "PresenzeXmlConverter", "MainForm.cs")))
+            {
+                return directory.FullName;
+            }
+            directory = directory.Parent;
+        }
+        return null;
     }
 }

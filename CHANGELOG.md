@@ -25,8 +25,9 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 - `tools/New-CodeSigningCertificate.ps1` salva la password anche in `codesign\PASSWORD.txt`: trascriverla a mano era il modo più facile di sbagliarla
 
 ### ✅ Verifiche
-- **166 test di logica, tutti verdi** (14 nuovi): scelta dell'attributo del titolo scuro e degli angoli arrotondati per versione di Windows, applicazione del chrome che non solleva errori, regole del trascinamento (estensioni accettate, primo file valido, cartelle e file inesistenti ignorati), editore letto dal soggetto del certificato e riga della firma
-- Verifica grafica (solo Windows/CI) che il titolo della finestra porti davvero la versione dell'eseguibile, così titolo e versione non possono separarsi
+- **167 test di logica, tutti verdi** (15 nuovi): scelta dell'attributo del titolo scuro e degli angoli arrotondati per versione di Windows, applicazione del chrome che non solleva errori, regole del trascinamento (estensioni accettate, primo file valido, cartelle e file inesistenti ignorati), editore letto dal soggetto del certificato e riga della firma
+- Il titolo della finestra è **assegnato in un solo posto e con la versione**: la guardia impedisce che una seconda assegnazione lo sovrascriva (era proprio il difetto trovato dal test grafico in CI: il costruttore lo metteva con la versione e la costruzione del layout lo rimetteva senza)
+- Verifica grafica (solo Windows/CI) che il titolo della finestra porti davvero la versione dell'eseguibile, così titolo e versione non possono separarsi: è la verifica che ha trovato l'assegnazione doppia del titolo
 
 ---
 

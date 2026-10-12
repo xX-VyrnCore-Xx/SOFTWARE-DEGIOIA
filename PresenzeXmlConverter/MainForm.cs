@@ -55,9 +55,10 @@ internal sealed partial class MainForm : Form
 
     public MainForm()
     {
-        // La versione nel titolo dice a colpo d'occhio quale build e' installata:
-        // con le Release automatiche se ne succedono anche piu' d'una al giorno.
-        Text = $"PresenzeFlow {RunningVersion.ToString(3)}";
+        // Il titolo dice a colpo d'occhio quale build è installata: con le Release
+        // automatiche se ne succedono anche più d'una al giorno. Assegnato solo qui:
+        // il layout non lo tocca più, altrimenti sovrascriverebbe la versione.
+        Text = WindowCaption;
         StartPosition = FormStartPosition.CenterScreen;
         // Le dimensioni sono espresse a 96 DPI: con lo scaling DPI tutte le posizioni
         // e i caratteri crescono insieme, così niente testo più grande della sua scatola.
@@ -207,7 +208,7 @@ internal sealed partial class MainForm : Form
     private void SetupTrayIcon()
     {
         _trayIcon.Icon = _applicationIcon;
-        _trayIcon.Text = $"PresenzeFlow {RunningVersion.ToString(3)}";
+        _trayIcon.Text = WindowCaption;
         var menu = new ContextMenuStrip();
         menu.Items.Add("Apri PresenzeFlow", null, (_, _) => RestoreFromTray());
         AddUpdateCommands(menu);

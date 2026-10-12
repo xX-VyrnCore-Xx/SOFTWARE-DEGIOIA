@@ -31,6 +31,14 @@ internal sealed partial class MainForm
     private static Version RunningVersion =>
         typeof(MainForm).Assembly.GetName().Version ?? new Version(1, 0, 0, 0);
 
+    /// <summary>
+    /// Nome della finestra con la versione in esecuzione: si legge dall'assembly,
+    /// quindi non può restare indietro rispetto a quanto pubblicato. Va assegnato
+    /// in un solo posto (il costruttore), perché una seconda assegnazione
+    /// sovrascriverebbe la versione: è esattamente il difetto trovato dai test.
+    /// </summary>
+    private static string WindowCaption => $"PresenzeFlow {RunningVersion.ToString(3)}";
+
     private void InitializeUpdates()
     {
         // Primo avvio: se la repo è privata e il token non c'è, conviene chiederlo
