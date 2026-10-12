@@ -159,12 +159,22 @@ jobs:
           # barra di avanzamento), disponibile da Inno Setup 6.1: su una versione
           # più vecchia lo script non compilerebbe, meglio un errore chiaro qui.
           $version = (Get-Item $iscc).VersionInfo.ProductVersion
-          $major = [int]($version -split '\.')[0]
-          $minor = [int]($version -split '\.')[1]
-          if ($major -lt 6 -or ($major -eq 6 -and $minor -lt 1)) {
-            throw "Inno Setup $version trovato: la pagina di download richiede Inno Setup 6.1 o successivo."
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            # Versione non dichiarata: non si può verificare, ma nemmeno bloccare la build.
+            Write-Warning 'Versione di Inno Setup non rilevata: se lo script non compila, aggiorna a Inno Setup 6.1 o successivo.'
+          } else {
+            $parts = $version.Split('.')
+            $major = 0
+            $minor = 0
+            if ($parts.Count -ge 2) {
+              [void][int]::TryParse($parts[0], [ref]$major)
+              [void][int]::TryParse($parts[1], [ref]$minor)
+            }
+            if ($major -lt 6 -or ($major -eq 6 -and $minor -lt 1)) {
+              throw "Inno Setup $version trovato: la pagina di download di Ollama richiede Inno Setup 6.1 o successivo."
+            }
+            Write-Host "Inno Setup $version"
           }
-          Write-Host "Inno Setup $version"
           "path=$iscc" >> $env:GITHUB_OUTPUT
           Write-Host "Uso $iscc"
 
