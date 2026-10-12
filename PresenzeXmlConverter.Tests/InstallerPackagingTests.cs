@@ -505,6 +505,43 @@ public class InstallerPackagingTests
     }
 
     /// <summary>
+    /// I due secret del certificato arrivano da un copia-incolla: uno spazio o un
+    /// a capo di troppo fanno fallire l'apertura del .pfx con "The specified network
+    /// password is not correct" — che sembra una password sbagliata anche quando è
+    /// solo un a capo. Il workflow li ripulisce e, quando il .pfx non si apre,
+    /// scrive nel log le impronte (mai i valori) per capire quale non corrisponde.
+    /// </summary>
+    [Fact]
+    public void ReleaseWorkflowToleratesPastedSecretsAndExplainsTheFailure()
+    {
+        var workflow = ReadReleaseWorkflow();
+        if (workflow is null)
+        {
+            return;
+        }
+
+        // Spazi e a capo rimossi da entrambi i secret.
+        Assert.Contains(@"-replace '\s', ''", workflow, StringComparison.Ordinal);
+        Assert.Contains(@"-replace '[\r\n]', ''", workflow, StringComparison.Ordinal);
+        // Diagnostica senza valori segreti: lunghezza e impronta dei due secret.
+        Assert.Contains("Diagnostica del certificato", workflow, StringComparison.Ordinal);
+        Assert.Contains("password $($password.Length) caratteri (sha256 $passwordHash)", workflow, StringComparison.Ordinal);
+        Assert.Contains("sha256 $pfxHash", workflow, StringComparison.Ordinal);
+        // Messaggio che dice la cosa giusta: i due secret devono venire dallo stesso
+        // certificato, e la password è quella salvata accanto al .pfx.
+        Assert.Contains("devono venire dallo stesso certificato", workflow, StringComparison.Ordinal);
+        Assert.Contains(@"codesign\PASSWORD.txt", workflow, StringComparison.Ordinal);
+
+        // Lo script che crea il certificato salva la password su file: copiarla dal
+        // terminale era il modo più facile di sbagliarla.
+        var script = ReadToolScript("New-CodeSigningCertificate.ps1");
+        if (script is not null)
+        {
+            Assert.Contains("PASSWORD.txt", script, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
     /// Tipi del Pascal Script di Inno Setup 6, ricavati dalle fonti ufficiali della
     /// 6.7 (tipi, enumerazioni e classi registrati dal compilatore). 'HKEY' NON è fra
     /// questi: in Inno Setup 6 le chiavi di registro sono costanti Integer e un

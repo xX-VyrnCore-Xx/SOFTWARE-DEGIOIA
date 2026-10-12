@@ -118,20 +118,41 @@ jobs:
             exit 0
           }
 
+          # I due secret arrivano da un copia-incolla: spazi, a capo o righe
+          # spezzate farebbero fallire l'apertura di un .pfx per il resto valido.
+          $base64 = $env:PFX_BASE64 -replace '\s', ''
+          $password = ($env:PFX_PASSWORD -replace '[\r\n]', '').Trim()
+          if ($base64 -ne $env:PFX_BASE64 -or $password -ne $env:PFX_PASSWORD) {
+            Write-Host 'I secret del certificato contenevano spazi o a capo: sono stati rimossi prima dell''uso.'
+          }
+
           # .NET diretto invece di Import-PfxCertificate: nessuna dipendenza dal
           # modulo PKI e messaggi di errore comprensibili.
-          try { $bytes = [Convert]::FromBase64String($env:PFX_BASE64.Trim()) }
+          try { $bytes = [Convert]::FromBase64String($base64) }
           catch { throw 'CODE_SIGNING_PFX_BASE64 non e'' Base64 valido: ricrealo con .\tools\New-CodeSigningCertificate.ps1' }
           if ($bytes.Length -lt 4 -or $bytes[0] -ne 0x30 -or $bytes[1] -ne 0x82) {
             throw 'CODE_SIGNING_PFX_BASE64 non contiene un file .pfx: incolla il contenuto di codesign\PresenzeFlow-codesign.pfx.base64.txt'
           }
 
+          # Diagnostica senza valori segreti: le impronte permettono di capire se i
+          # due secret vengono dallo stesso certificato (una password presa da un
+          # altro certificato e' l'errore piu' frequente).
+          $sha256 = [System.Security.Cryptography.SHA256]::Create()
+          $pfxHash = [BitConverter]::ToString($sha256.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant()
+          $passwordHash = [BitConverter]::ToString(
+            $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($password))).Replace('-', '').ToLowerInvariant()
+          $diagnostics = "pfx $($bytes.Length) byte (sha256 $pfxHash), password $($password.Length) caratteri (sha256 $passwordHash)"
+          Write-Host "Diagnostica del certificato: $diagnostics"
+
           $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet -bor `
                    [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::UserKeySet
           try {
-            $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($bytes, $env:PFX_PASSWORD, $flags)
+            $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($bytes, $password, $flags)
           } catch {
-            throw "Il .pfx non si apre: CODE_SIGNING_PFX_PASSWORD e'' la password stampata da New-CodeSigningCertificate.ps1? Dettaglio: $($_.Exception.Message)"
+            throw ("Il .pfx non si apre: i due secret devono venire dallo stesso certificato. " +
+              "La password e' quella salvata accanto al .pfx (codesign\PASSWORD.txt, oppure quella stampata da " +
+              ".\tools\New-CodeSigningCertificate.ps1): non basta che sia lunga uguale, deve essere quella di QUEL .pfx. " +
+              "Diagnostica: $diagnostics. Dettaglio di Windows: $($_.Exception.Message)")
           }
           if (-not $certificate.HasPrivateKey) { throw 'Il certificato non ha la chiave privata: senza di essa non si puo'' firmare.' }
 

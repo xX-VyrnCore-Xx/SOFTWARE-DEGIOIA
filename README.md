@@ -214,8 +214,10 @@ L'eseguibile e l'installer **sono firmati**: la firma identifica l'editore e rid
 Lo script crea un **certificato di firma autofirmato** per l'azienda e prepara la cartella `codesign/` (esclusa da git, non committarla) con:
 
 - `PresenzeFlow-codesign.pfx.base64.txt` → da incollare nel secret GitHub **CODE_SIGNING_PFX_BASE64**
-- la **password** stampata dallo script → secret **CODE_SIGNING_PFX_PASSWORD**
+- `PASSWORD.txt` → la password del `.pfx`, da copiare nel secret **CODE_SIGNING_PFX_PASSWORD**
 - `PresenzeFlow-codesign.cer` → certificato pubblico da rendere attendibile sui PC
+
+I due secret devono venire dallo **stesso** certificato e vanno **copiati dal file**, non trascritti: la password di un altro certificato (o con uno spazio in più) fa fallire la firma con *"The specified network password is not correct"*, che sembra una password sbagliata anche quando è solo un a capo di troppo. Il workflow ripulisce da sé spazi e a capo e, se il `.pfx` non si apre, scrive nel log le **impronte** dei due secret (lunghezza e SHA-256, mai i valori): così si capisce subito quale dei due non corrisponde.
 
 Il workflow firma eseguibile e installer **solo se i due secret esistono**, e li verifica entrambi (che la firma ci sia, che l'hash corrisponda e che il certificato sia quello atteso). Senza certificato il workflow **si ferma** e dice quale dei due secret manca: nessuna Release esce non firmata per distrazione.
 

@@ -18,8 +18,13 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 - In **Impostazioni → Aggiornamenti** compare lo stato dell'eseguibile in esecuzione: *"Eseguibile firmato digitalmente da DeGioia (valido fino al 11/10/2029)"* oppure *"Eseguibile non firmato digitalmente"*: si vede subito se il file installato è quello pubblicato
 - La lettura della firma non solleva mai eccezioni (eseguibile non firmato, file illeggibile, sistema che non sa leggerla)
 
+### 🔐 Diagnostica della firma in Release
+- I due secret del certificato vengono **ripuliti da spazi e a capo** prima dell'uso: un copia-incolla li aggiunge facilmente e il `.pfx` non si apriva più con l'errore di Windows *"The specified network password is not correct"*, che sembra una password sbagliata anche quando è solo un a capo di troppo
+- Se il `.pfx` non si apre, il log mostra **lunghezza e impronta SHA-256** dei due secret (mai i valori): con quelle si riconosce subito un `.pfx` troncato o una password presa da un altro certificato
+- `tools/New-CodeSigningCertificate.ps1` salva la password anche in `codesign\PASSWORD.txt`: trascriverla a mano era il modo più facile di sbagliarla
+
 ### ✅ Verifiche
-- **165 test di logica, tutti verdi** (13 nuovi): scelta dell'attributo del titolo scuro e degli angoli arrotondati per versione di Windows, applicazione del chrome che non solleva errori, regole del trascinamento (estensioni accettate, primo file valido, cartelle e file inesistenti ignorati), editore letto dal soggetto del certificato e riga della firma
+- **166 test di logica, tutti verdi** (14 nuovi): scelta dell'attributo del titolo scuro e degli angoli arrotondati per versione di Windows, applicazione del chrome che non solleva errori, regole del trascinamento (estensioni accettate, primo file valido, cartelle e file inesistenti ignorati), editore letto dal soggetto del certificato e riga della firma
 
 ---
 
