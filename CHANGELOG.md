@@ -9,6 +9,7 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 ### 🪟 Grafica Windows
 - **La barra del titolo segue il tema dell'app**: era chiara sopra l'intestazione scura, e la finestra sembrava composta da due programmi. Ora il titolo è scuro anche a livello di sistema, con gli **angoli arrotondati** su Windows 11. L'attributo si adatta alla versione di Windows (20 da Windows 10 1903, 19 sulle precedenti) e si prova anche l'alternativa, perché la versione riportata dal sistema può essere quella dichiarata nel manifesto dell'eseguibile; se il sistema non lo conosce la finestra resta standard, senza errori
 - Il chrome nativo non tocca il disegno dei contenuti: nessun colore di sistema entra nella verifica grafica
+- Il **titolo della finestra** e il tooltip dell'icona nell'area di notifica mostrano la **versione in esecuzione** (`PresenzeFlow 1.12.0`), letta dall'eseguibile: senza aprire le Impostazioni si capisce subito quale build è installata, utile ora che le Release automatiche si succedono anche più volte al giorno
 
 ### 📥 Trascinamento del foglio Excel
 - Il file `.xlsx` si può **trascinare direttamente sulla finestra**, senza aprire il dialogo di apertura: vengono accettati solo fogli Excel esistenti (cartelle, file di altro tipo, file temporanei di Excel e trascinamenti multipli vengono ignorati: si prende il primo foglio valido) e durante una conversione il trascinamento non è accettato
@@ -25,6 +26,7 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 ### ✅ Verifiche
 - **166 test di logica, tutti verdi** (14 nuovi): scelta dell'attributo del titolo scuro e degli angoli arrotondati per versione di Windows, applicazione del chrome che non solleva errori, regole del trascinamento (estensioni accettate, primo file valido, cartelle e file inesistenti ignorati), editore letto dal soggetto del certificato e riga della firma
+- Verifica grafica (solo Windows/CI) che il titolo della finestra porti davvero la versione dell'eseguibile, così titolo e versione non possono separarsi
 
 ---
 

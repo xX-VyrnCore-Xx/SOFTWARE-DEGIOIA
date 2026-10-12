@@ -57,6 +57,27 @@ public class UiGraphicsRegressionTests
             $"Aree grigie: {result.Value.regions}. {result.Value.report}");
     }
 
+    /// <summary>
+    /// Titolo e tooltip della tray portano la versione in esecuzione: e' il modo
+    /// piu' rapido per sapere quale build e' installata, senza aprire nulla.
+    /// </summary>
+    [Fact]
+    public void MainWindowTitleCarriesTheRunningVersion()
+    {
+        var result = RunOnStaThread(() =>
+        {
+            using var form = new MainForm();
+            return (title: form.Text, ok: true);
+        });
+        if (result is null)
+        {
+            return;
+        }
+        var version = typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
+        Assert.False(string.IsNullOrWhiteSpace(version), "la versione dell'assembly non e' leggibile");
+        Assert.Equal($"PresenzeFlow {version}", result.Value.title);
+    }
+
     [Fact]
     public void DialogsAreFullyThemed()
     {

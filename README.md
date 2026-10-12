@@ -244,7 +244,7 @@ Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica 
 
 ## Novità v1.12.0
 
-- **Barra del titolo in tema**: il titolo della finestra è scuro come l'intestazione dell'app (prima era chiaro e la finestra sembrava composta da due programmi) e su Windows 11 la finestra ha gli **angoli arrotondati**; la scelta si adatta da sola alla versione di Windows
+- **Barra del titolo in tema**: il titolo della finestra è scuro come l'intestazione dell'app (prima era chiaro e la finestra sembrava composta da due programmi) e su Windows 11 la finestra ha gli **angoli arrotondati**; la scelta si adatta da sola alla versione di Windows. Nel titolo della finestra (e nel tooltip dell'icona vicino all'orologio) compare la **versione in esecuzione**, così si vede subito quale build è installata
 - **Trascina il foglio Excel sulla finestra**: si importa senza aprire il dialogo; vengono accettati solo fogli `.xlsx` esistenti e durante una conversione il trascinamento non è accettato
 - **Firma digitale visibile nell'app**: in *Impostazioni → Aggiornamenti* è indicato se l'eseguibile in esecuzione è firmato, da chi e fino a quando
 
