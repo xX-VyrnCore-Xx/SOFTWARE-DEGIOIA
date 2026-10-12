@@ -216,6 +216,64 @@ jobs:
       - name: Test
         run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release
 
+      # Token di sola lettura per gli aggiornamenti: viene iniettato (offuscato) nel
+      # codice PRIMA della compilazione, quindi ogni installer esce con gli
+      # aggiornamenti gia' collegati e senza token nel repository.
+      # Il secret si chiama PRESENZEFLOW_GITHUB_TOKEN (fine-grained, SOLO
+      # "Contents: Read-only" su questo repository). Il token e' offuscato, non
+      # cifrato: chi ha l'eseguibile puo' estrarlo, per questo non deve poter
+      # scrivere ne' leggere altro.
+      - name: Inietta il token di aggiornamento
+        shell: pwsh
+        env:
+          PRESENZEFLOW_GITHUB_TOKEN: ${{ secrets.PRESENZEFLOW_GITHUB_TOKEN }}
+          ALLOW_RELEASE_WITHOUT_UPDATE_TOKEN: ${{ vars.ALLOW_RELEASE_WITHOUT_UPDATE_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ([string]::IsNullOrWhiteSpace($env:PRESENZEFLOW_GITHUB_TOKEN)) {
+            if ($env:ALLOW_RELEASE_WITHOUT_UPDATE_TOKEN -eq 'true') {
+              $relaxed = 'Release SENZA token di aggiornamento incluso: secret PRESENZEFLOW_GITHUB_TOKEN assente e ALLOW_RELEASE_WITHOUT_UPDATE_TOKEN=true.'
+              Write-Warning $relaxed
+              $relaxed | Out-File $env:GITHUB_STEP_SUMMARY -Append
+              exit 0
+            }
+            @(
+              'Il secret PRESENZEFLOW_GITHUB_TOKEN non e'' configurato: senza di esso gli installer'
+              'uscirebbero senza token e le app installate non riceverebbero aggiornamenti.'
+              ''
+              'Come sistemarlo (una volta sola):'
+              '  1. GitHub -> Settings -> Developer settings -> Fine-grained tokens -> Generate new token'
+              '     Repository access: solo questo repository. Permessi: Contents = Read-only (nient''altro).'
+              '     Scadenza: la piu'' lunga consentita (alla scadenza gli aggiornamenti si fermano).'
+              '  2. Settings -> Secrets and variables -> Actions -> New repository secret:'
+              '       PRESENZEFLOW_GITHUB_TOKEN = il token appena creato'
+              ''
+              'Per pubblicare comunque una Release senza token, imposta la variabile'
+              'ALLOW_RELEASE_WITHOUT_UPDATE_TOKEN=true (Settings -> Secrets and variables -> Actions -> Variables).'
+            ) | ForEach-Object { Write-Host $_ }
+            throw 'Token di aggiornamento non configurato (secret PRESENZEFLOW_GITHUB_TOKEN).'
+          }
+
+          # Un token gia' scaduto o senza accesso non va distribuito: si prova ORA
+          # a leggere le Release come fara' l'app.
+          $token = $env:PRESENZEFLOW_GITHUB_TOKEN.Trim()
+          $headers = @{
+            Authorization          = "Bearer $token"
+            Accept                 = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent'           = 'PresenzeFlow-Build'
+          }
+          try {
+            Invoke-RestMethod -Uri "https://api.github.com/repos/$($env:REPOSITORY)/releases?per_page=1" -Headers $headers | Out-Null
+          } catch {
+            throw "Il token PRESENZEFLOW_GITHUB_TOKEN non puo' leggere le Release di $($env:REPOSITORY): $($_.Exception.Message). Controlla scadenza e permesso Contents = Read-only."
+          }
+
+          .\tools\Inject-UpdateToken.ps1
+          "### Token di aggiornamento`nIncluso (offuscato) nella build: le app installate ricevono gli aggiornamenti senza configurazione." | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
       - name: Compila l'app (single file, win-x64)
         run: dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 

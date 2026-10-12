@@ -1,5 +1,5 @@
 #define AppName "PresenzeFlow"
-#define AppVersion "1.15.1"
+#define AppVersion "1.16.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 
@@ -759,6 +759,26 @@ begin
     RefreshAiPage(nil);
 end;
 
+{ Interruttore presente sulla riga di comando del disinstallatore (senza distinzione fra maiuscole e minuscole). }
+function UninstallSwitchPresent(const Switch: String): Boolean;
+var
+  Index: Integer;
+begin
+  Result := False;
+  for Index := 1 to ParamCount do
+    if CompareText(ParamStr(Index), Switch) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+{ Cartella dei dati con un nome inatteso: non si elimina mai ricorsivamente. }
+function DataDirectoryIsSafeToDelete(): Boolean;
+begin
+  Result := CompareText(ExtractFileName(RemoveBackslash(DataDirectory())), 'PresenzeXmlConverter') = 0;
+end;
+
 function InitializeUninstall: Boolean;
 var
   Answer: Integer;
@@ -767,27 +787,43 @@ begin
   Result := True;
   RemoveLocalData := False;
   RemoveAiModel := False;
+  { Disinstallazione silenziosa: i dati si CONSERVANO, a meno che non sia
+    richiesto /DELETEDATA (la cancellazione non deve mai essere una sorpresa). }
   if UninstallSilent then
+  begin
+    RemoveLocalData := UninstallSwitchPresent('/DELETEDATA') and not UninstallSwitchPresent('/KEEPDATA');
     Exit;
+  end;
 
   NewLine := Chr(13) + Chr(10);
   Answer := MsgBox(
-    'PresenzeFlow: vuoi eliminare anche i dati locali (mapping dipendenti, giustificativi e codice azienda)?' +
-    NewLine + NewLine +
-    'Sì: rimuovi i dati locali dell''app.' + NewLine +
-    'No: disinstalla il programma ma conserva i dati per una reinstallazione.' +
-    NewLine + NewLine +
-    'Annulla: interrompi la disinstallazione.',
+    'Vuoi CONSERVARE i dati di PresenzeFlow?' + NewLine + NewLine +
+    'Sono il database locale con gli abbinamenti dei dipendenti e dei giustificativi, il codice azienda, ' +
+    'lo storico delle esportazioni e i backup automatici.' + NewLine + NewLine +
+    'Sì: conserva i dati. Se reinstalli PresenzeFlow li ritrovi com''erano.' + NewLine +
+    'No: elimina i dati.' + NewLine +
+    'Annulla: interrompi la disinstallazione.' + NewLine + NewLine +
+    'Cartella dei dati: ' + DataDirectory(),
     mbConfirmation,
     MB_YESNOCANCEL
   );
 
-  if Answer = IDYES then
-    RemoveLocalData := True
-  else if Answer = IDCANCEL then
+  if Answer = IDCANCEL then
   begin
     Result := False;
     Exit;
+  end;
+
+  if Answer = IDNO then
+  begin
+    { L'eliminazione e' definitiva: serve una seconda conferma, con "No" preselezionato. }
+    if MsgBox(
+      'Confermi l''eliminazione DEFINITIVA di database, backup e storico delle esportazioni?' + NewLine + NewLine +
+      'L''operazione non si può annullare. I file XML già salvati sul disco non vengono toccati.',
+      mbConfirmation,
+      MB_YESNO or MB_DEFBUTTON2
+    ) = IDYES then
+      RemoveLocalData := True;
   end;
 
   // Seconda domanda: solo se Ollama è presente chiedi se rimuovere il modello.
@@ -818,7 +854,6 @@ end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   DataDirectoryPath: String;
-  SetupDirectory: String;
   ModelName: String;
   ExePath: String;
   DataRemoved: Boolean;
@@ -836,28 +871,34 @@ begin
       Exec(ExePath, 'rm ' + ModelName, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
 
-  if (CurUninstallStep <> usPostUninstall) or not RemoveLocalData then
+  if CurUninstallStep <> usPostUninstall then
     Exit;
 
-  DataDirectoryPath := DataDirectory();
-  SetupDirectory := AddBackslash(DataDirectoryPath) + 'setup';
+  if not RemoveLocalData then
+  begin
+    { Dati conservati: restano database, backup, storico, token e impostazioni. }
+    Log('Dati locali conservati in ' + DataDirectory());
+    Exit;
+  end;
 
-  DataRemoved := DeleteDataFile(AddBackslash(DataDirectoryPath) + 'settings.db-wal');
-  DataRemoved := DeleteDataFile(AddBackslash(DataDirectoryPath) + 'settings.db-shm') and DataRemoved;
-  DataRemoved := DeleteDataFile(AddBackslash(DataDirectoryPath) + 'settings.db') and DataRemoved;
-  DeleteDataFile(AddBackslash(DataDirectoryPath) + ModelMarkerName);
-  // Il token di accesso alle Release private non deve restare sul PC.
-  DeleteDataFile(AddBackslash(DataDirectoryPath) + 'github.token');
-  DeleteFile(AddBackslash(SetupDirectory) + '{#OllamaSetupName}');
-  RemoveDir(SetupDirectory);
-  RemoveDir(DataDirectoryPath);
+  DataDirectoryPath := DataDirectory();
+  if not DataDirectoryIsSafeToDelete() then
+  begin
+    Log('Cartella dei dati con nome inatteso: nessuna eliminazione ricorsiva (' + DataDirectoryPath + ').');
+    Exit;
+  end;
+
+  { Database (con file WAL/SHM), backup, copie di file danneggiati, token, marcatore
+    del modello AI, installer di Ollama scaricato e log: tutto cio' che PresenzeFlow
+    ha creato nella propria cartella dei dati. }
+  DataRemoved := (not DirExists(DataDirectoryPath)) or DelTree(DataDirectoryPath, True, True, True);
   RemoveDir(ExtractFileDir(DataDirectoryPath));
 
-  if not DataRemoved then
+  if (not DataRemoved) or DirExists(DataDirectoryPath) then
     MsgBox(
-      'Il programma è stato disinstallato, ma non è stato possibile rimuovere tutti i file locali.' +
+      'Il programma è stato disinstallato, ma non è stato possibile rimuovere tutti i dati locali.' +
       Chr(13) + Chr(10) +
-      'Chiudi le altre istanze dell''app e, se necessario, elimina manualmente settings.db in:' +
+      'Chiudi le altre istanze dell''app e, se necessario, elimina manualmente la cartella:' +
       Chr(13) + Chr(10) +
       DataDirectoryPath,
       mbError,

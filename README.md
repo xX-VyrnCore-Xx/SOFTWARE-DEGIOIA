@@ -4,7 +4,7 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.15.1.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.16.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
 Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Minimo* `qwen2.5:0.5b` (~400 MB), *Rapido* `qwen2.5:1.5b` (~1 GB), *Consigliato* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Il modello consigliato è quello che l'app preferisce: entrambi partono da `qwen2.5:3b` perché è il più affidabile nell'abbinare colonne e codici. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
 
@@ -127,7 +127,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6.3 o successivo, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.15.1.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.16.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).
@@ -247,6 +247,14 @@ In azienda la stessa operazione si distribuisce con Criteri di gruppo; per rende
 ### Nota importante
 
 Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica l'installer da Internet: diventa attendibile solo sui PC dove il certificato pubblico è installato. Per una firma riconosciuta da tutti serve un certificato emesso da una CA pubblica (a pagamento) o un servizio di firma gestito. Senza firma l'app funziona comunque: Windows mostra solo l'avviso "editore sconosciuto" al primo avvio. La verifica nel workflow non pretende una catena attendibile sul runner (il certificato è autofirmato): controlla firma, hash e impronta del certificato.
+
+## Aggiornamenti, token e dati (v1.16.0)
+
+**Token incluso nella build.** Crea un token fine-grained con repository *solo questo* e permesso **Contents → Read-only**, scadenza la più lunga possibile, e salvalo come secret `PRESENZEFLOW_GITHUB_TOKEN` (Settings → Secrets and variables → Actions). Il workflow di rilascio lo verifica e lo inietta, offuscato, in ogni installer: le app installate si collegano da sole alle Release. Se il secret manca il rilascio si ferma; per pubblicare comunque imposta la variabile `ALLOW_RELEASE_WITHOUT_UPDATE_TOKEN=true`. Il token è offuscato, non cifrato: non dargli permessi diversi da quello di lettura.
+
+**Dati locali.** Database, backup automatici (ultimi 10), copie di file danneggiati e token personale stanno in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter`. All'avvio il database si ripara da solo (ripristino dall'ultimo backup valido). Dal menu dell'icona in tray: *Stato del database…*, *Backup dei dati ora*, *Apri cartella dei dati*.
+
+**Disinstallazione.** Il disinstallatore chiede se conservare o eliminare i dati (eliminare richiede una seconda conferma). In silenzioso i dati si conservano: usa `/DELETEDATA` per eliminarli.
 
 ## Novità v1.15.0
 

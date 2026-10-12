@@ -6,7 +6,7 @@ namespace PresenzeXmlConverter;
 
 internal sealed partial class MainForm : Form
 {
-    private readonly LocalDatabase _database = new();
+    private readonly LocalDatabase _database = OpenDatabase();
     private readonly LocalAiAssistant _ai = new();
     private readonly RoundedField _companyCode = new();
     private readonly Label _fileLabel = new();
@@ -144,6 +144,7 @@ internal sealed partial class MainForm : Form
             }
             LoadExportsNow();
             UpdateAiStatusAsync();
+            StartDatabaseMaintenance();
             Trace?.WriteTo(StartupLogPath);
         });
     }
@@ -237,6 +238,8 @@ internal sealed partial class MainForm : Form
         }
 
         SaveWindowBounds();
+        // Chiusura vera: copia di sicurezza se serve e registro WAL riportato nel file.
+        _database.MaintainOnExit();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         base.OnFormClosing(e);
@@ -249,6 +252,7 @@ internal sealed partial class MainForm : Form
         var menu = new ContextMenuStrip();
         menu.Items.Add("Apri PresenzeFlow", null, (_, _) => RestoreFromTray());
         AddUpdateCommands(menu);
+        AddDataCommands(menu);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Esci definitivamente", null, (_, _) =>
         {

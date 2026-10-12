@@ -23,6 +23,11 @@ internal sealed partial class MainForm
     /// il programma aperto per ore, non solo all'avvio.
     /// </summary>
     private readonly System.Windows.Forms.Timer _updatePeriodic = new() { Interval = 60 * 60 * 1000 };
+    /// <summary>
+    /// Dopo un controllo fallito per la rete si riprova dopo pochi minuti invece
+    /// di aspettare l'ora piena del controllo periodico.
+    /// </summary>
+    private readonly System.Windows.Forms.Timer _updateRetry = new() { Interval = 5 * 60 * 1000 };
     private readonly Label _updateStatusLabel = new();
     private bool _updateBusy;
     private bool _isFirstRun;
@@ -55,14 +60,17 @@ internal sealed partial class MainForm
         _updateCheckDelay.Tick += async (_, _) =>
         {
             _updateCheckDelay.Stop();
-            if (IsDisposed || !Visible)
+            if (IsDisposed)
             {
                 return;
             }
-            // Prima le novità dell'eventuale aggiornamento appena installato,
-            // poi la ricerca di una versione più recente.
-            await ShowWhatsNewIfNeededAsync();
-            if (!IsDisposed && Visible)
+            // Prima le novità dell'eventuale aggiornamento appena installato (solo
+            // a finestra visibile), poi la ricerca di una versione più recente.
+            if (Visible)
+            {
+                await ShowWhatsNewIfNeededAsync();
+            }
+            if (!IsDisposed)
             {
                 await CheckForUpdatesAsync(userInitiated: false);
             }
@@ -71,13 +79,27 @@ internal sealed partial class MainForm
 
         _updatePeriodic.Tick += async (_, _) =>
         {
-            if (IsDisposed || !Visible || _updateBusy || !AutoUpdateEnabled())
+            // Anche con la finestra nascosta in tray: il programma può restare aperto
+            // per giorni e gli aggiornamenti devono continuare ad arrivare.
+            if (IsDisposed || _updateBusy || !AutoUpdateEnabled())
             {
                 return;
             }
             await CheckForUpdatesAsync(userInitiated: false);
         };
         _updatePeriodic.Start();
+
+        _updateRetry.Tick += async (_, _) =>
+        {
+            _updateRetry.Stop();
+            // Anche con la finestra nascosta in tray: il programma può restare aperto
+            // per giorni e gli aggiornamenti devono continuare ad arrivare.
+            if (IsDisposed || _updateBusy || !AutoUpdateEnabled())
+            {
+                return;
+            }
+            await CheckForUpdatesAsync(userInitiated: false);
+        };
     }
 
     private void AddUpdateCommands(ContextMenuStrip menu)
@@ -133,8 +155,13 @@ internal sealed partial class MainForm
             var result = await UpdateService.CheckAsync(
                 RunningVersion,
                 _database.GetSetting(UpdateEndpointSetting));
+            _updateRetry.Stop();
             if (!result.Succeeded)
             {
+                if (result.IsTransient && !userInitiated)
+                {
+                    _updateRetry.Start();
+                }
                 var error = result.Error ?? "Controllo non riuscito.";
                 RefreshUpdateStatus($"Aggiornamenti · {SummarizeError(error)}", true);
                 if (userInitiated)
@@ -176,6 +203,15 @@ internal sealed partial class MainForm
                 return;
             }
 
+            if (!userInitiated && !Visible)
+            {
+                // Finestra nascosta in tray: niente dialoghi a sorpresa, solo una
+                // notifica. La proposta con le novità comparirà al controllo
+                // successivo, a finestra visibile.
+                NotifyUpdateAvailable(update);
+                return;
+            }
+
             using var dialog = new ReleaseNotesDialog(
                 $"Nuova versione {update.Version.ToString(3)} disponibile",
                 $"La versione installata è la {RunningVersion.ToString(3)}. " +
@@ -209,6 +245,16 @@ internal sealed partial class MainForm
         }
     }
 
+    private void NotifyUpdateAvailable(UpdateInfo update)
+    {
+        _trayIcon.Visible = true;
+        _trayIcon.ShowBalloonTip(
+            6000,
+            "Aggiornamento disponibile",
+            $"È pronta la versione {update.Version.ToString(3)} di PresenzeFlow: apri il programma per installarla.",
+            ToolTipIcon.Info);
+    }
+
     private async Task DownloadAndInstallAsync(UpdateInfo update)
     {
         var destination = Path.Combine(
@@ -227,6 +273,14 @@ internal sealed partial class MainForm
 
             progress.SetStatus("Verifica del file scaricato…");
             var expectedChecksum = await UpdateService.TryGetChecksumAsync(update);
+            if (expectedChecksum is null && update.ChecksumApiUrl is not null)
+            {
+                // La Release dichiara un checksum: non poterlo leggere non è un
+                // motivo per installare un file non verificato.
+                TryDelete(destination);
+                throw new InvalidDataException(
+                    "Impossibile leggere il checksum della Release: aggiornamento annullato per sicurezza. Riprova fra poco.");
+            }
             if (expectedChecksum is not null && !UpdateService.VerifySha256(destination, expectedChecksum))
             {
                 TryDelete(destination);
