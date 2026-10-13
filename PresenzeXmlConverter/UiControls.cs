@@ -731,9 +731,9 @@ internal sealed class NoteTextView : Control
         Invalidate();
     }
 
-    private float Scale => DeviceDpi / 96f;
+    private float DpiScale => DeviceDpi / 96f;
 
-    private int Px(int logical) => (int)Math.Round(logical * Scale);
+    private int Px(int logical) => (int)Math.Round(logical * DpiScale);
 
     private const TextFormatFlags BodyFlags =
         TextFormatFlags.WordBreak | TextFormatFlags.NoPadding | TextFormatFlags.Left | TextFormatFlags.Top;

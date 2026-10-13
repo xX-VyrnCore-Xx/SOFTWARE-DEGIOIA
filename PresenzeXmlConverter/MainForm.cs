@@ -237,9 +237,9 @@ internal sealed partial class MainForm : Form
         // Chiusura vera. Sono tutte operazioni "di cortesia" (posizione della finestra,
         // copia di sicurezza, icona del tray): se una fallisce, l'uscita non deve
         // fermarsi, altrimenti il programma sembra non rispondere al comando Esci.
+        _boundsSaveTimer.Stop();
         try
         {
-            _boundsSaveTimer.Stop();
             SaveWindowBounds();
             _database.MaintainOnExit();
         }
