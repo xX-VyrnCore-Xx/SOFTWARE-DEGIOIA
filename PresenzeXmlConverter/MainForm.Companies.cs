@@ -194,11 +194,13 @@ internal sealed partial class MainForm
             "Regole di conversione dell'azienda",
             "Giornata standard, sabato e chiusure proprie di questa azienda: si applicano da sole quando la scegli in conversione.");
 
-        actions.Controls.Add(_companyDeleteButton);
-        actions.Controls.Add(_companyRulesButton);
-        actions.Controls.Add(_companyNewButton);
-        actions.Controls.Add(_companyUseButton);
+        // Il flusso va da destra a sinistra: il primo aggiunto è il più a destra, e
+        // lì sta «Salva azienda», l'azione principale, che non deve mai finire fuori.
         actions.Controls.Add(_companySaveButton);
+        actions.Controls.Add(_companyUseButton);
+        actions.Controls.Add(_companyNewButton);
+        actions.Controls.Add(_companyRulesButton);
+        actions.Controls.Add(_companyDeleteButton);
         bar.Controls.Add(actions, 1, 0);
         return bar;
     }

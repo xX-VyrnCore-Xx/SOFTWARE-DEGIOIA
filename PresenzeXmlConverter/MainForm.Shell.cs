@@ -597,10 +597,10 @@ internal sealed partial class MainForm
             "Salva copia",
             "Risalva il file XML consegnato, conservato nel database: funziona anche se l'originale è stato spostato o cancellato.");
 
-        actions.Controls.Add(_historyClearButton);
-        actions.Controls.Add(_historyCopyButton);
         actions.Controls.Add(_historyOpenButton);
         actions.Controls.Add(_historySaveCopyButton);
+        actions.Controls.Add(_historyCopyButton);
+        actions.Controls.Add(_historyClearButton);
         bar.Controls.Add(actions, 1, 0);
         page.Controls.Add(bar, 0, 2);
         UpdateHistoryButtons();

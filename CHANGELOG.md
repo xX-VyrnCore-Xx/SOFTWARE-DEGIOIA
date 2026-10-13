@@ -4,7 +4,12 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.1] - Corrente
+## [1.22.2] - Corrente
+
+### 🐞 Correzioni
+- Aziende: **Salva azienda** è il pulsante più a destra della barra, sempre visibile; stessa cosa per **Apri cartella** nello Storico
+
+## [1.22.1]
 
 ### 🐞 Correzioni
 - Finestra delle novità: il pulsante **Più tardi** accanto ad **Aggiorna ora** non viene più tagliato fuori dal bordo
