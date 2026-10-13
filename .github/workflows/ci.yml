@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 # Un nuovo push sullo stesso ramo annulla il controllo precedente, ormai superato.
 concurrency:
@@ -65,6 +65,27 @@ jobs:
           path: screenshots
           if-no-files-found: ignore
           retention-days: 7
+
+      # Solo a richiesta (Run workflow): le stesse schermate vengono pubblicate sul
+      # ramo "schermate", cosi' si possono aprire direttamente da git senza
+      # scaricare lo zip degli artifact.
+      - name: Pubblica le schermate sul ramo "schermate"
+        if: always() && github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d screenshots ] || [ -z "$(ls -A screenshots)" ]; then
+            echo "Nessuna schermata da pubblicare."
+            exit 0
+          fi
+          rm -rf /tmp/shots && mkdir /tmp/shots && cp screenshots/*.png /tmp/shots/
+          cd /tmp/shots
+          git init -q -b schermate
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Schermate dei test grafici (${GITHUB_SHA})"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" schermate
 
       # Prova di punta a punta dell'iniezione del token: lo script riscrive il
       # sorgente con un token finto e un test controlla che l'app lo ritrovi.
