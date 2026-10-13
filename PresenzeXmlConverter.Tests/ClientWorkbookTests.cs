@@ -115,7 +115,7 @@ public class ClientWorkbookTests
 
 /// <summary>
 /// I giorni lavorativi senza assenza vanno comunque contati come presenza con il
-/// giustificativo universale 334 (codice ufficiale 999, come nel file accettato da Zucchetti).
+/// giustificativo universale 334 (codice ufficiale 01: ore ordinarie).
 /// </summary>
 public class PresenceFillTests
 {
@@ -143,7 +143,7 @@ public class PresenceFillTests
         Assert.Equal(19, presences.Length);
         Assert.All(presences, movement =>
         {
-            Assert.Equal("999", movement.OfficialCode);
+            Assert.Equal("01", movement.OfficialCode);
             Assert.Equal(8, movement.Hours);
             Assert.NotEqual(DayOfWeek.Saturday, movement.Date.DayOfWeek);
             Assert.NotEqual(DayOfWeek.Sunday, movement.Date.DayOfWeek);
@@ -188,7 +188,7 @@ public class PresenceFillTests
         var presence = document.Descendants("Movimento")
             .First(item => (string?)item.Element("CodGiustificativoRilPres") == "334");
 
-        Assert.Equal("999", (string?)presence.Element("CodGiustificativoUfficiale"));
+        Assert.Equal("01", (string?)presence.Element("CodGiustificativoUfficiale"));
         Assert.Empty(TrriPwXmlValidator.Validate(System.Text.Encoding.UTF8.GetBytes(xml)));
     }
 
