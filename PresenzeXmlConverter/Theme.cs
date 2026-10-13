@@ -190,7 +190,46 @@ internal static class Theme
         button.Tag = palette;   // palette di riferimento per ripristinare gli stati
         button.EnabledChanged -= OnButtonEnabledChanged;
         button.EnabledChanged += OnButtonEnabledChanged;
+        button.TextChanged -= OnButtonTextChanged;
+        button.TextChanged += OnButtonTextChanged;
         ApplyButtonColors(button, button.Enabled);
+        FitButtonToText(button);
+    }
+
+    private static void OnButtonTextChanged(object? sender, EventArgs e)
+    {
+        if (sender is Button button)
+        {
+            FitButtonToText(button);
+        }
+    }
+
+    /// <summary>
+    /// Allarga il pulsante quanto serve al suo testo (con il riempimento interno e il
+    /// bordo): una larghezza fissa di 110 px tagliava «Salva abbinamenti», «Copia
+    /// percorso» e ogni etichetta più lunga. Il minimo di larghezza resta quello del
+    /// ruolo, quindi i pulsanti corti non cambiano.
+    /// </summary>
+    public static void FitButtonToText(Button button)
+    {
+        if (string.IsNullOrEmpty(button.Text))
+        {
+            return;
+        }
+        var textWidth = TextRenderer.MeasureText(
+            button.Text,
+            button.Font,
+            new Size(int.MaxValue, int.MaxValue),
+            TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
+        var needed = textWidth + button.Padding.Horizontal + (button.FlatAppearance.BorderSize * 2) + 6;
+        if (needed > button.MinimumSize.Width)
+        {
+            button.MinimumSize = new Size(needed, button.MinimumSize.Height);
+        }
+        if (button.Width < needed)
+        {
+            button.Width = needed;
+        }
     }
 
     /// <summary>Crea un pulsante già temizzato (nessuna Personalizzazione rimessa a mano).</summary>
