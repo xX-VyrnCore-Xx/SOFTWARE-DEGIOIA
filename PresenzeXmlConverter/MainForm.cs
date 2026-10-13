@@ -118,6 +118,7 @@ internal sealed partial class MainForm : Form
     {
         base.OnSizeChanged(e);
         ApplyNavWidth();
+        ScheduleBoundsSave();
     }
 
     protected override void OnShown(EventArgs e)
@@ -128,6 +129,7 @@ internal sealed partial class MainForm : Form
         // laterale può seguire la dimensione della finestra.
         _navWidthReady = true;
         ApplyNavWidth();
+        StartTrackingWindowBounds();
         // Dopo che la finestra è disegnata si riempiono i dati che non servono a
         // vederla: lo storico delle esportazioni e la manutenzione del database.
         // Così l'apertura non aspetta il database.
@@ -237,6 +239,7 @@ internal sealed partial class MainForm : Form
         // fermarsi, altrimenti il programma sembra non rispondere al comando Esci.
         try
         {
+            _boundsSaveTimer.Stop();
             SaveWindowBounds();
             _database.MaintainOnExit();
         }
@@ -398,6 +401,7 @@ internal sealed partial class MainForm : Form
 
     private void MinimizeToTray()
     {
+        SaveWindowBounds();
         Hide();
         ShowTrayNotification(
             "Vyrn Presence in background",
@@ -409,7 +413,10 @@ internal sealed partial class MainForm : Form
     {
         _trayIcon.Visible = false;
         Show();
-        WindowState = FormWindowState.Normal;
+        if (WindowState == FormWindowState.Minimized)
+        {
+            WindowState = FormWindowState.Normal;
+        }
         Activate();
     }
 
@@ -1095,6 +1102,47 @@ internal sealed partial class MainForm : Form
             ArgumentException;
     }
 
+    private readonly System.Windows.Forms.Timer _boundsSaveTimer = new() { Interval = 800 };
+    private bool _boundsTrackingReady;
+
+    /// <summary>
+    /// Posizione e dimensione si salvano mentre si usa la finestra (poco dopo ogni
+    /// spostamento o ridimensionamento), non solo alla chiusura: un aggiornamento
+    /// che chiude il programma dall'esterno, un arresto forzato o un blocco non
+    /// devono far dimenticare dove stava la finestra.
+    /// </summary>
+    private void StartTrackingWindowBounds()
+    {
+        _boundsSaveTimer.Tick += (_, _) =>
+        {
+            _boundsSaveTimer.Stop();
+            SaveWindowBounds();
+        };
+        _boundsTrackingReady = true;
+    }
+
+    private void ScheduleBoundsSave()
+    {
+        if (!_boundsTrackingReady || IsDisposed || !Visible)
+        {
+            return;
+        }
+        _boundsSaveTimer.Stop();
+        _boundsSaveTimer.Start();
+    }
+
+    protected override void OnMove(EventArgs e)
+    {
+        base.OnMove(e);
+        ScheduleBoundsSave();
+    }
+
+    protected override void OnResizeEnd(EventArgs e)
+    {
+        base.OnResizeEnd(e);
+        ScheduleBoundsSave();
+    }
+
     /// <summary>
     /// Ripristina posizione e dimensione dell'ultima sessione, ma solo se la
     /// finestra cade ancora dentro un monitor collegato (es. dopo aver
@@ -1125,6 +1173,10 @@ internal sealed partial class MainForm : Form
         }
         StartPosition = FormStartPosition.Manual;
         Bounds = bounds;
+        if (_database.GetSetting("window-maximized") == "1")
+        {
+            WindowState = FormWindowState.Maximized;
+        }
     }
 
     private void SaveWindowBounds()
@@ -1137,6 +1189,12 @@ internal sealed partial class MainForm : Form
                 return;
             }
             _database.SaveSetting("window-bounds", $"{bounds.X};{bounds.Y};{bounds.Width};{bounds.Height}");
+            // Lo stato «ingrandita» cambia solo con la finestra aperta in modo normale o
+            // ingrandita: ridotta a icona resta quello di prima.
+            if (WindowState != FormWindowState.Minimized)
+            {
+                _database.SaveSetting("window-maximized", WindowState == FormWindowState.Maximized ? "1" : "0");
+            }
         }
         catch (SqliteException)
         {
