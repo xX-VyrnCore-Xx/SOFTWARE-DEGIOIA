@@ -51,7 +51,20 @@ jobs:
           fi
 
       - name: Test
+        env:
+          PRESENZEFLOW_SCREENSHOT_DIR: ${{ github.workspace }}\screenshots
         run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release
+
+      # Le schermate rese dai test grafici (ogni sezione e ogni dialogo) restano
+      # scaricabili: si vede l'app com'e' davvero senza aprirla su Windows.
+      - name: Schermate dei test grafici
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schermate
+          path: screenshots
+          if-no-files-found: ignore
+          retention-days: 7
 
       # Prova di punta a punta dell'iniezione del token: lo script riscrive il
       # sorgente con un token finto e un test controlla che l'app lo ritrovi.

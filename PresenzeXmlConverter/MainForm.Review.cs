@@ -71,7 +71,11 @@ internal sealed partial class MainForm
 
         var actions = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            // Colonna AutoSize: il pannello dichiara la propria larghezza, altrimenti
+            // la colonna lo stringe e i pulsanti più a sinistra vengono tagliati.
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Anchor = AnchorStyles.Right,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
             BackColor = Color.Transparent,

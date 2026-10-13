@@ -121,7 +121,12 @@ internal sealed class ReleaseNotesDialog : Form
 
         var actions = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            // La colonna è AutoSize: il pannello deve dichiarare la propria
+            // larghezza (AutoSize), altrimenti la colonna lo stringe e il pulsante
+            // più a sinistra ("Più tardi") finisce tagliato fuori dal bordo.
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Anchor = AnchorStyles.Right,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
             BackColor = Color.Transparent,
