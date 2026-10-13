@@ -52,19 +52,9 @@ jobs:
 
       - name: Test
         env:
-          PRESENZEFLOW_SCREENSHOT_DIR: ${{ github.workspace }}\screenshots
+          # Le schermate si salvano solo nelle esecuzioni manuali (vedi sotto).
+          PRESENZEFLOW_SCREENSHOT_DIR: ${{ github.event_name == 'workflow_dispatch' && format('{0}\screenshots', github.workspace) || '' }}
         run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release
-
-      # Le schermate rese dai test grafici (ogni sezione e ogni dialogo) restano
-      # scaricabili: si vede l'app com'e' davvero senza aprirla su Windows.
-      - name: Schermate dei test grafici
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: schermate
-          path: screenshots
-          if-no-files-found: ignore
-          retention-days: 7
 
       # Solo a richiesta (Run workflow): le stesse schermate vengono pubblicate sul
       # ramo "schermate", cosi' si possono aprire direttamente da git senza
