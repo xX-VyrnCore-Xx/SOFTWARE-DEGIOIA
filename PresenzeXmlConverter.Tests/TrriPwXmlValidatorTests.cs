@@ -54,10 +54,10 @@ public class TrriPwXmlValidatorTests
     public void TheAutomaticTheoreticalGenerationAttributeBelongsToTheMovementsNode()
     {
         const string wrongPlace = """
-            <TRRIPW><Dipendente GenerazioneAutomaticaDaTeorico="N">
+            <Dipendenti><Dipendente GenerazioneAutomaticaDaTeorico="N">
             <CodAziendaUfficiale>AZ001</CodAziendaUfficiale><CodDipendenteUfficiale>1234567</CodDipendenteUfficiale>
             <Movimenti><Movimento><CodGiustificativoUfficiale>01</CodGiustificativoUfficiale><Data>2026-08-17</Data><NumOre>8</NumOre><NumMinuti>0</NumMinuti></Movimento></Movimenti>
-            </Dipendente></TRRIPW>
+            </Dipendente></Dipendenti>
             """;
         const string teoretical = wrongPlace;
 

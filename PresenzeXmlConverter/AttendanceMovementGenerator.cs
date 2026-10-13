@@ -1,7 +1,13 @@
+using System.Globalization;
+
 namespace PresenzeXmlConverter;
 
 internal static class AttendanceMovementGenerator
 {
+    private static bool OverlapsPeriod(AttendanceRequest request, DateTime? periodStart, DateTime? periodEnd) =>
+        (!periodEnd.HasValue || request.StartDate.Date <= periodEnd.Value.Date) &&
+        (!periodStart.HasValue || request.EndDate.Date >= periodStart.Value.Date);
+
     public static GenerationResult Generate(
         IReadOnlyList<AttendanceRequest> requests,
         IReadOnlyDictionary<string, string> employeeCodes,
@@ -14,6 +20,22 @@ internal static class AttendanceMovementGenerator
         var extraHolidays = options.ExtraHolidays ?? [];
         var movements = new List<DailyMovement>();
         var warnings = new List<string>();
+        // Il periodo scritto in testa al foglio («From Date / To Date») serve a tagliare le
+        // richieste che lo sforano. Ma se NESSUNA richiesta cade nel periodo, il periodo è
+        // evidentemente sbagliato o vecchio (un export di agosto con richieste di settembre):
+        // applicarlo scarterebbe tutto e l'utente vedrebbe «nessun movimento». In quel caso
+        // il periodo si ignora, e lo si dice.
+        if ((periodStart.HasValue || periodEnd.HasValue) && requests.Count > 0 &&
+            !requests.Any(request => OverlapsPeriod(request, periodStart, periodEnd)))
+        {
+            var from = periodStart.HasValue ? periodStart.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) : "…";
+            var to = periodEnd.HasValue ? periodEnd.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) : "…";
+            warnings.Add(
+                $"Il periodo indicato nel foglio ({from} – {to}) non contiene nessuna richiesta: " +
+                "viene ignorato e si usano le date delle richieste. Controlla le date «From Date / To Date» in cima al file.");
+            periodStart = null;
+            periodEnd = null;
+        }
         // Capienza di una giornata: serve solo per avvisare, mai per scartare ore.
         var capacityMinutes = options.HoursPerDay is > 0m and <= 24m
             ? decimal.ToInt32(decimal.Round(options.HoursPerDay * 60m, 0, MidpointRounding.AwayFromZero))
