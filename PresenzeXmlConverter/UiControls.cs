@@ -1,4 +1,5 @@
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 
 namespace PresenzeXmlConverter;
 
@@ -28,13 +29,17 @@ internal sealed class ThemedGrid : DataGridView
         EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
         EnableHeadersVisualStyles = false;
         ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableAlwaysIncludeHeaderText;
+        // Intestazione senza le linee scure di sistema che incorniciavano ogni cella:
+        // una fascia chiara con il testo di supporto, come nelle app curate.
+        ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+        ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         ColumnHeadersDefaultCellStyle.BackColor = Theme.Sunken;
-        ColumnHeadersDefaultCellStyle.ForeColor = Theme.InkSecondary;
+        ColumnHeadersDefaultCellStyle.ForeColor = Theme.MutedInk;
         ColumnHeadersDefaultCellStyle.Font = Theme.Fonts.GridHeader;
         ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 4, 0);
         ColumnHeadersDefaultCellStyle.SelectionBackColor = Theme.Sunken;
         ColumnHeadersDefaultCellStyle.SelectionForeColor = Theme.InkSecondary;
-        ColumnHeadersHeight = 42;
+        ColumnHeadersHeight = 38;
         RowTemplate.Height = 38;
         DefaultCellStyle.Font = Theme.Fonts.Grid;
         DefaultCellStyle.ForeColor = Theme.Ink;
@@ -127,8 +132,12 @@ internal sealed class ThemedGrid : DataGridView
 internal sealed class RoundedField : Panel
 {
     private const int Radius = 8;
+    private const int EmSetCueBanner = 0x1501;
     private readonly TextBox _input = new();
-    private readonly Label _placeholder = new();
+    private string _placeholder = string.Empty;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, string lParam);
 
     public RoundedField()
     {
@@ -148,36 +157,14 @@ internal sealed class RoundedField : Panel
         _input.BackColor = Theme.FieldFill;
         _input.ForeColor = Theme.Ink;
         _input.Margin = Padding.Empty;
-        _input.TextChanged += (_, _) => UpdatePlaceholder();
-        // Con il campo vuoto il testo guida stava SOPRA il TextBox anche a campo
-        // attivo: copriva il cursore lampeggiante e non si vedeva dove si scriveva.
-        // Appena il campo prende il focus il testo guida sparisce, e torna quando
-        // si esce lasciandolo vuoto.
-        _input.GotFocus += (_, _) =>
-        {
-            UpdatePlaceholder();
-            Invalidate();
-        };
-        _input.LostFocus += (_, _) =>
-        {
-            UpdatePlaceholder();
-            Invalidate();
-        };
+        _input.GotFocus += (_, _) => Invalidate();
+        _input.LostFocus += (_, _) => Invalidate();
+        // Il testo guida è quello nativo di Windows (cue banner) e non più un'etichetta
+        // sovrapposta: l'etichetta stava sopra il campo anche quando era attivo e
+        // copriva il cursore lampeggiante. Il cue banner sparisce appena il campo
+        // prende il focus e il cursore si vede sempre.
+        _input.HandleCreated += (_, _) => ApplyPlaceholder();
         Controls.Add(_input);
-
-        _placeholder.TextAlign = ContentAlignment.MiddleLeft;
-        _placeholder.ForeColor = Theme.FaintInk;
-        _placeholder.Font = _input.Font;
-        _placeholder.BackColor = Theme.FieldFill;
-        _placeholder.AutoEllipsis = true;
-        // Un clic sul testo guida deve mettere il cursore nel campo.
-        _placeholder.MouseDown += (_, _) => _input.Focus();
-        Controls.Add(_placeholder);
-        // Il testo guida va SOPRA il TextBox: aggiunto dopo, finiva dietro e il campo
-        // restava vuoto (il TextBox ha lo stesso fondo e lo copriva).
-        _placeholder.BringToFront();
-
-        UpdatePlaceholder();
     }
 
     /// <summary>Il TextBox sottostante, per gli attributi non replicati qui.</summary>
@@ -191,8 +178,20 @@ internal sealed class RoundedField : Panel
 
     public string Placeholder
     {
-        get => _placeholder.Text;
-        set => _placeholder.Text = value;
+        get => _placeholder;
+        set
+        {
+            _placeholder = value ?? string.Empty;
+            ApplyPlaceholder();
+        }
+    }
+
+    private void ApplyPlaceholder()
+    {
+        if (_input.IsHandleCreated)
+        {
+            SendMessage(_input.Handle, EmSetCueBanner, IntPtr.Zero, _placeholder);
+        }
     }
 
     public int MaxLength
@@ -210,11 +209,7 @@ internal sealed class RoundedField : Panel
     public Font InputFont
     {
         get => _input.Font;
-        set
-        {
-            _input.Font = value;
-            _placeholder.Font = value;
-        }
+        set => _input.Font = value;
     }
 
     /// <summary>Riassegna il focus al campo di testo interno.</summary>
@@ -232,25 +227,18 @@ internal sealed class RoundedField : Panel
     {
         base.OnLayout(levent);
         // Un TextBox monoriga ha un'altezza naturale minore della scatola:
-        // allineando a mano testo e placeholder sulla stessa riga non c'è lo
-        // scarto di qualche pixel quando il campo passa da vuoto a compilato.
+        // lo si centra a mano nel campo.
         var innerHeight = _input.PreferredHeight;
         var top = Math.Max(0, (ClientSize.Height - innerHeight) / 2);
         var width = Math.Max(0, ClientSize.Width - Padding.Horizontal);
         _input.SetBounds(Padding.Left, top, width, innerHeight);
-        // Il testo guida occupa l'altezza intera del campo (un pixel di margine
-        // per non coprire il bordo disegnato a mano): così non viene tagliato
-        // quando la riga di testo è più alta del TextBox monoriga.
-        _placeholder.SetBounds(
-            Padding.Left,
-            1,
-            width,
-            Math.Max(innerHeight, ClientSize.Height - 2));
     }
 
-    private void UpdatePlaceholder()
+    protected override void OnMouseDown(MouseEventArgs e)
     {
-        _placeholder.Visible = _input.Text.Length == 0 && !_input.Focused;
+        base.OnMouseDown(e);
+        // Un clic sul bordo del campo (fuori dal TextBox) mette comunque il cursore dentro.
+        _input.Focus();
     }
 
     protected override void OnPaint(PaintEventArgs e)

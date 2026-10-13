@@ -6,6 +6,11 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 ## [1.22.4] - Corrente
 
+### 🎨 Aspetto più curato
+- Pulsanti dipinti dall'app: angoli arrotondati con bordo morbido come card e campi, stato al passaggio e alla pressione, anello di focus da tastiera, testo sempre su una riga (mai più etichette spezzate su due righe)
+- Griglie con intestazione chiara e senza le linee scure di sistema attorno a ogni cella
+- Testo guida dei campi nativo di Windows: non si sovrappone più al campo
+
 ### 🐞 Campi di testo
 - Il cursore lampeggiante ora si vede: il testo guida («ABC123», «Cerca nei movimenti») copriva il campo anche quando era attivo e nascondeva il cursore. Ora sparisce appena clicchi nel campo
 - Campo attivo con alone morbido attorno al bordo, così si capisce subito dove si sta scrivendo

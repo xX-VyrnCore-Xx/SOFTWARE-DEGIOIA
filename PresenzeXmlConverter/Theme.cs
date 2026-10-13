@@ -235,7 +235,7 @@ internal static class Theme
     /// <summary>Crea un pulsante già temizzato (nessuna Personalizzazione rimessa a mano).</summary>
     public static Button CreateButton(string text, ButtonTone tone, bool compact = false)
     {
-        var button = new Button { Text = text };
+        var button = new ThemedButton { Text = text };
         StyleButton(button, tone, compact);
         return button;
     }
