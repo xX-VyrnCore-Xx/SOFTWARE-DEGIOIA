@@ -40,12 +40,6 @@ internal sealed partial class MainForm
 
     /* ----------------------------- Dashboard ----------------------------- */
 
-    private readonly Label _dashRequestsValue = new();
-    private readonly Label _dashEmployeesValue = new();
-    private readonly Label _dashMovementsValue = new();
-    private readonly Label _dashHoursValue = new();
-    private readonly Label _dashSourceLabel = new();
-    private readonly Label _dashSheetLabel = new();
     private readonly Label _dashExportsSummaryLabel = new();
     private readonly ThemedGrid _dashExportsGrid = new();
 
@@ -260,215 +254,12 @@ internal sealed partial class MainForm
     /// </summary>
     private void RefreshDashboard()
     {
-        var summary = DashboardSummary.From(_requests, _movements, _exports.Count);
-        _dashRequestsValue.Text = summary.RequestsText;
-        _dashEmployeesValue.Text = summary.EmployeesText;
-        _dashMovementsValue.Text = summary.MovementsText;
-        _dashHoursValue.Text = summary.CompactTotalText;
-        _dashSourceLabel.Text = DashboardSummary.DescribeSource(
-            _sourcePath is null ? null : Path.GetFileName(_sourcePath),
-            !string.IsNullOrWhiteSpace(_xml));
-        _dashSheetLabel.Text = _inspection is null
-            ? "Nessun foglio letto"
-            : $"Foglio: {_inspection.SheetName}";
+        RefreshDashboardCards();
         _dashExportsSummaryLabel.Text = ExportHistory.DescribeSummary(_exports, DateTime.Now);
         PopulateDashboardExports();
     }
 
     /* ----------------------- Costruzione della dashboard ------------------ */
-
-    private Control BuildDashboardSection()
-    {
-        var page = _dashboardSection;
-        page.RowCount = 4;
-        page.ColumnCount = 1;
-        page.Padding = new Padding(0, 0, 4, 0);
-        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
-        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-
-        page.Controls.Add(BuildSectionHeading(
-            "Dashboard",
-            "Riepilogo della conversione in corso e delle ultime esportazioni."), 0, 0);
-
-        var metrics = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 4,
-            RowCount = 1,
-            BackColor = Theme.Canvas,
-            Margin = Padding.Empty
-        };
-        for (var column = 0; column < 4; column++)
-        {
-            metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
-        }
-        metrics.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        metrics.Controls.Add(CreateMetricTile("RICHIESTE", _dashRequestsValue, Theme.BrandInk, Theme.BrandSoft), 0, 0);
-        metrics.Controls.Add(CreateMetricTile("DIPENDENTI", _dashEmployeesValue, Theme.SuccessInk, Theme.SuccessSoft), 1, 0);
-        metrics.Controls.Add(CreateMetricTile("MOVIMENTI", _dashMovementsValue, Theme.BrandInk, Theme.BrandSoft), 2, 0);
-        metrics.Controls.Add(CreateMetricTile("ORE ASSEGNATE", _dashHoursValue, Theme.SuccessInk, Theme.SuccessSoft), 3, 0);
-        // "42h 30m" usa il font grande dei valori: la forma estesa non entrerebbe
-        // in una card larga un quarto dell'area.
-        _dashHoursValue.Font = Theme.Fonts.CardTitle;
-        page.Controls.Add(metrics, 0, 1);
-
-        var columns = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            BackColor = Theme.Canvas,
-            Margin = Padding.Empty
-        };
-        columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 56));
-        columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 44));
-        columns.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        columns.Controls.Add(BuildDashboardLeft(), 0, 0);
-        columns.Controls.Add(BuildDashboardExports(), 1, 0);
-        page.Controls.Add(columns, 0, 2);
-
-        page.Controls.Add(BuildSectionHint(
-            "Suggerimento: trascina un file .xlsx sulla finestra per importarlo senza aprire il dialogo."), 0, 3);
-        return page;
-    }
-
-    private Control BuildDashboardLeft()
-    {
-        var left = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            BackColor = Theme.Canvas,
-            Margin = new Padding(0, 0, 8, 0)
-        };
-        left.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        left.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        // Le azioni rapide vanno su due righe di pulsanti (32 + 6 px l'una):
-        // la riga è alta quanto il contenuto più la spaziatura della card.
-        left.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
-        left.Controls.Add(BuildSourceCard(), 0, 0);
-        left.Controls.Add(BuildQuickActionsCard(), 0, 1);
-        return left;
-    }
-
-    private Control BuildSourceCard()
-    {
-        var card = new SurfacePanel
-        {
-            Dock = DockStyle.Fill,
-            SurfaceFill = Theme.Surface,
-            SurfaceBorder = Theme.Divider,
-            Radius = 12,
-            Padding = new Padding(16, 12, 16, 12),
-            Margin = new Padding(0, 0, 0, 8)
-        };
-        var layout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 3,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-
-        layout.Controls.Add(CreateCardTitle("FILE SORGENTE"), 0, 0);
-
-        _dashSourceLabel.Dock = DockStyle.Fill;
-        _dashSourceLabel.TextAlign = ContentAlignment.TopLeft;
-        _dashSourceLabel.ForeColor = Theme.InkSecondary;
-        _dashSourceLabel.Font = Theme.Fonts.Small;
-        _dashSourceLabel.AutoEllipsis = true;
-        _dashSourceLabel.Margin = Padding.Empty;
-        _dashSourceLabel.Text = DashboardSummary.DescribeSource(null, false);
-        layout.Controls.Add(_dashSourceLabel, 0, 1);
-
-        _dashSheetLabel.Dock = DockStyle.Fill;
-        _dashSheetLabel.TextAlign = ContentAlignment.BottomLeft;
-        _dashSheetLabel.ForeColor = Theme.MutedInk;
-        _dashSheetLabel.Font = Theme.Fonts.Tiny;
-        _dashSheetLabel.AutoEllipsis = true;
-        _dashSheetLabel.Margin = Padding.Empty;
-        _dashSheetLabel.Text = "Nessun foglio letto";
-        layout.Controls.Add(_dashSheetLabel, 0, 2);
-
-        card.Controls.Add(layout);
-        return card;
-    }
-
-    private Control BuildQuickActionsCard()
-    {
-        var card = new SurfacePanel
-        {
-            Dock = DockStyle.Fill,
-            SurfaceFill = Theme.Surface,
-            SurfaceBorder = Theme.Divider,
-            Radius = 12,
-            Padding = new Padding(16, 12, 16, 12),
-            Margin = Padding.Empty
-        };
-        var layout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.Controls.Add(CreateCardTitle("AZIONI RAPIDE"), 0, 0);
-
-        var actions = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
-            BackColor = Color.Transparent,
-            Margin = Padding.Empty,
-            Padding = Padding.Empty
-        };
-
-        var open = Theme.CreateButton("Apri file Excel", Theme.ButtonTone.Primary, compact: true);
-        open.Size = new Size(148, 32);
-        open.Margin = new Padding(0, 0, 8, 6);
-        open.Click += async (_, _) => await ImportWorkbookAsync();
-        Describe(open, "Apri file Excel", "Scegli un foglio .xlsx da convertire in XML TRRIPW.");
-        actions.Controls.Add(open);
-
-        var generate = Theme.CreateButton("Genera anteprima", Theme.ButtonTone.Positive, compact: true);
-        generate.Size = new Size(148, 32);
-        generate.Margin = new Padding(0, 0, 8, 6);
-        generate.Click += (_, _) => GeneratePreview();
-        Describe(generate, "Genera anteprima", "Converte le richieste in movimenti giornalieri e XML.");
-        actions.Controls.Add(generate);
-
-        var codes = Theme.CreateButton("Gestione codici", Theme.ButtonTone.Neutral, compact: true);
-        codes.Size = new Size(148, 32);
-        codes.Margin = new Padding(0, 0, 8, 6);
-        codes.Click += (_, _) => ShowSection(SectionCodes);
-        Describe(codes, "Gestione codici", "Modifica codici PAGHE e giustificativi delle assenze.");
-        actions.Controls.Add(codes);
-
-        var history = Theme.CreateButton("Storico esportazioni", Theme.ButtonTone.Neutral, compact: true);
-        history.Size = new Size(148, 32);
-        history.Margin = new Padding(0, 0, 8, 6);
-        history.Click += (_, _) => ShowSection(SectionHistory);
-        Describe(history, "Storico esportazioni", "Le ultime consegne: file, data e totale ore.");
-        actions.Controls.Add(history);
-
-        layout.Controls.Add(actions, 0, 1);
-        card.Controls.Add(layout);
-        return card;
-    }
 
     private Control BuildDashboardExports()
     {
@@ -1006,6 +797,7 @@ internal sealed partial class MainForm
                     Path.GetFileName(_sourcePath ?? string.Empty)),
                 delivered);
             _exports = _database.GetExports();
+            _currentPreviewExported = true;
             RefreshDashboard();
             if (_navRail.SelectedIndex == SectionHistory)
             {
@@ -1118,7 +910,7 @@ internal sealed partial class MainForm
         // su uno schermo largo non diventa una barra lunghissima, su uno stretto cede
         // spazio ma resta usabile.
         _headerSearch.Dock = DockStyle.None;
-        _headerSearch.Placeholder = "Cerca nei movimenti…";
+        _headerSearch.Placeholder = "Cerca nei movimenti…  (Ctrl+F)";
         _headerSearch.Input.AccessibleName = "Cerca nei movimenti";
         _headerSearch.TextChanged += (_, _) => SearchFromHeader();
         host.Controls.Add(_headerSearch);

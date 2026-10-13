@@ -54,6 +54,9 @@ internal sealed class ThemedGrid : DataGridView
     /// </summary>
     public string EmptyStateText { get; set; } = string.Empty;
 
+    /// <summary>Icona sopra il testo dello stato vuoto: la pagina vuota ha un volto, non solo una riga grigia.</summary>
+    public Glyph EmptyGlyph { get; set; } = Glyph.File;
+
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
@@ -63,6 +66,32 @@ internal sealed class ThemedGrid : DataGridView
         }
         var top = ColumnHeadersVisible ? ColumnHeadersHeight : 0;
         var bounds = new Rectangle(0, top, ClientSize.Width, Math.Max(1, ClientSize.Height - top));
+        var chip = 48;
+        var showIcon = bounds.Height >= chip + 70;
+        if (showIcon)
+        {
+            var chipBox = new Rectangle(
+                bounds.Left + ((bounds.Width - chip) / 2),
+                bounds.Top + ((bounds.Height - (chip + 14 + (Theme.Fonts.Small.Height * 2))) / 2),
+                chip,
+                chip);
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (var chipPath = Theme.RoundedRectangle(chipBox, 14))
+            using (var chipBrush = new SolidBrush(Theme.BrandSoft))
+            {
+                e.Graphics.FillPath(chipBrush, chipPath);
+            }
+            Glyphs.Draw(e.Graphics, Rectangle.Inflate(chipBox, -13, -13), EmptyGlyph, Theme.BrandInk, 1.7f);
+            bounds = new Rectangle(bounds.Left + 20, chipBox.Bottom + 8, bounds.Width - 40, Theme.Fonts.Small.Height * 2 + 6);
+            TextRenderer.DrawText(
+                e.Graphics,
+                EmptyStateText,
+                Theme.Fonts.Small,
+                bounds,
+                Theme.MutedInk,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.WordBreak);
+            return;
+        }
         TextRenderer.DrawText(
             e.Graphics,
             EmptyStateText,
@@ -132,6 +161,9 @@ internal sealed class RoundedField : Panel
         // Un clic sul testo guida deve mettere il cursore nel campo.
         _placeholder.MouseDown += (_, _) => _input.Focus();
         Controls.Add(_placeholder);
+        // Il testo guida va SOPRA il TextBox: aggiunto dopo, finiva dietro e il campo
+        // restava vuoto (il TextBox ha lo stesso fondo e lo copriva).
+        _placeholder.BringToFront();
 
         UpdatePlaceholder();
     }
@@ -524,7 +556,18 @@ internal sealed class StatusPill : Control
         _caption = caption;
         _fill = fill;
         _ink = ink;
+        // La larghezza segue il testo (anche con un DPI alto): la pillola non lo taglia.
+        if (AutoSize)
+        {
+            PerformLayout();
+        }
         Invalidate();
+    }
+
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        var text = ModernPalette.Measure(_caption, Theme.Fonts.Pill).Width;
+        return new Size(text + 30, Math.Max(26, Height));
     }
 
     protected override void OnPaint(PaintEventArgs e)

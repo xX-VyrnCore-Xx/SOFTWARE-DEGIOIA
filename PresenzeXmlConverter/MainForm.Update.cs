@@ -400,6 +400,12 @@ internal sealed partial class MainForm
     {
         _updateStatusLabel.Text = text;
         _updateStatusLabel.ForeColor = isWarning ? Theme.WarningInk : Theme.MutedInk;
+        RefreshUpdatesStatusRow();
+        // Il pallino sull'icona dell'intestazione compare solo quando c'è una versione nuova.
+        if (_headerUpdatesButton is not null)
+        {
+            _headerUpdatesButton.Badge = text.Contains("nuova versione", StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     /// <summary>Errore in una riga sola, adatto alla barra di stato.</summary>

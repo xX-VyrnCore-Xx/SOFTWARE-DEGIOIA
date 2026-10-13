@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.18.0] - Corrente
+## [1.19.0] - Corrente
+
+### 🎨 Interfaccia rifatta
+- **Intestazione**: marchio e titolo, ricerca centrale con icona e testo guida visibile (il segnaposto restava nascosto dietro il campo), stato dell'anteprima e due pulsanti a icona (aggiornamenti con pallino quando c'è una versione nuova, impostazioni)
+- **Dashboard**: quattro schede con icona, area di rilascio del foglio Excel (clic o trascinamento), avanzamento Importa → Verifica → Esporta, stato del sistema (file, database, aggiornamenti, AI) e ultime consegne con stato vuoto illustrato
+- **Conversione**: fascia di comandi in alto (azienda, file, riepilogo, azioni) e area di revisione **a tutta larghezza** al posto della colonna di 300 px che tagliava i testi
+- Nuovi controlli disegnati a mano (`IconButton`, `DropZone`, `MetricCard`, `StatusRow`, `StepperBar`, icone vettoriali) che misurano il testo: le etichette non vengono più tagliate
+
+---
+
+## [1.18.0] - Precedente
 
 ### 🚪 «Esci definitivamente» funziona
 - Nel dialogo di chiusura il pulsante **Esci definitivamente** restituisce l'esito *Abort*, ma la finestra principale considerava valida solo la risposta *OK*: l'*Abort* veniva letto come «annulla» e il programma **non si chiudeva mai**. Ora solo la X e Esc annullano la chiusura

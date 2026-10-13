@@ -23,129 +23,10 @@ internal sealed partial class MainForm
     /// <summary>Stato vuoto quando è la ricerca a non trovare nulla.</summary>
     private const string NoMovementsFoundText = "Nessun movimento corrisponde alla ricerca.";
 
-    // Le tre misure sono tarate sulla finestra più piccola consentita: con la
-    // barra di navigazione laterale l'area di revisione ha ~400 px per i comandi,
-    // e con i valori precedenti (220+108+114) i pulsanti uscivano dal bordo
-    // destro. Restano comodi: il campo di ricerca regge l'intero testo guida.
-    private const int SearchFieldWidth = 170;
-    private const int CopyXmlButtonWidth = 92;
-    private const int ExportXmlButtonWidth = 100;
+    private const int SearchFieldWidth = 220;
 
-    /// <summary>
-    /// Altezza della fascia sopra l'anteprima: due righe (conteggio e comandi) più
-    /// i margini della barra. Con una riga sola il conteggio ("In attesa di un
-    /// file") restava con ~40 px di larghezza e il testo andava a capo, tagliato.
-    /// </summary>
-    private const int PreviewToolbarRow = 76;
-
-    /// <summary>
-    /// Larghezza del contenuto della card di sinistra: la colonna è fissa (300 px)
-    /// meno margine e spaziatura interna della card.
-    /// </summary>
-    private const int SetupContentWidth = 244;
-
-    /// <summary>
-    /// Aggiunge una riga all'impilamento verticale della card con l'altezza
-    /// dichiarata. Il margine è quello della riga: l'altezza utile è la parte
-    /// che resta.
-    /// </summary>
-    private static void AddSetupRow(Control stack, Control control, int height, Padding margin = default)
-    {
-        control.Dock = DockStyle.None;
-        control.Margin = margin;
-        control.Size = new Size(
-            Math.Max(0, SetupContentWidth - margin.Horizontal),
-            Math.Max(0, height - margin.Vertical));
-        stack.Controls.Add(control);
-    }
-
-    /// <summary>
-    /// Adatta l'impilamento alla card: le larghezze seguono lo spazio visibile e
-    /// le altezze restano quelle dichiarate riga per riga (un FlowLayoutPanel
-    /// TopDown non ridimensiona mai i figli, quindi nessun testo viene tagliato
-    /// quando la finestra è bassa). La guida ai passi è l'unica riga elastica:
-    /// prende lo spazio che avanza e, se non ne resta abbastanza per il suo testo,
-    /// viene nascosta. Così la card entra sempre nello spazio disponibile e non
-    /// mostra mai la barra di scorrimento di sistema, che Windows disegna in
-    /// grigio e fuori tema.
-    /// </summary>
-    private void SyncSetupStack(Control container, FlowLayoutPanel stack)
-    {
-        var width = container.ClientSize.Width;
-        if (width <= 0)
-        {
-            return;
-        }
-
-        // Spazio richiesto dalle righe ad altezza fissa, misurato sulle altezze
-        // reali dei controlli: se un pulsante ha un'altezza minima più alta di
-        // quella dichiarata, qui viene contata quella vera e la guida si adegua.
-        var required = 0;
-        foreach (Control child in stack.Controls)
-        {
-            if (ReferenceEquals(child, _workflowSteps))
-            {
-                continue;
-            }
-            required += child.Height + child.Margin.Vertical;
-        }
-        FitWorkflowSteps(stack, container.ClientSize.Height - required);
-
-        foreach (Control child in stack.Controls)
-        {
-            var childWidth = Math.Max(0, width - child.Margin.Horizontal);
-            if (child.Width != childWidth)
-            {
-                child.Width = childWidth;
-            }
-        }
-        var height = stack.PreferredSize.Height;
-        if (stack.Width != width || stack.Height != height)
-        {
-            stack.Size = new Size(width, height);
-        }
-    }
-
-    /// <summary>
-    /// Mostra la guida ai passi solo se lo spazio che avanza basta al suo testo:
-    /// la riga si allunga fino a <see cref="SetupCardLayout.StepsMaximumHeight"/> e, quando lo
-    /// spazio è poco, sparisce invece di costringere la card a scorrere.
-    /// </summary>
-    private void FitWorkflowSteps(Control stack, int remaining)
-    {
-        if (_workflowSteps is not TableLayoutPanel steps || steps.Parent != stack)
-        {
-            return;
-        }
-
-        var show = remaining >= SetupCardLayout.StepsMinimumHeight;
-        if (steps.Visible != show)
-        {
-            steps.Visible = show;
-        }
-        if (!show)
-        {
-            return;
-        }
-
-        var target = Math.Min(SetupCardLayout.StepsMaximumHeight, remaining);
-        var controlHeight = Math.Max(0, target - steps.Margin.Vertical);
-        var row = Math.Max(SetupCardLayout.StepsRowMinimumHeight, controlHeight / 2);
-        for (var index = 0; index < 2 && index < steps.RowStyles.Count; index++)
-        {
-            if ((int)steps.RowStyles[index].Height != row)
-            {
-                steps.RowStyles[index] = new RowStyle(SizeType.Absolute, row);
-            }
-        }
-        if (steps.Height != controlHeight)
-        {
-            steps.Height = controlHeight;
-        }
-    }
-
-    /// <summary>Guida ai passi del flusso: riga elastica della card di sinistra.</summary>
-    private Control? _workflowSteps;
+    /// <summary>Altezza della fascia di comandi in cima alla pagina di conversione.</summary>
+    private const int ConversionBandHeight = 150;
 
     private readonly Label _requestMetricLabel = new();
     private readonly Label _employeeMetricLabel = new();
@@ -153,8 +34,9 @@ internal sealed partial class MainForm
     private readonly Label _previewSubtitleLabel = new();
     private readonly Label _previewCountLabel = new();
     private readonly RoundedField _previewSearch = new();
-    private readonly Button _copyXmlButton = new();
+    private readonly IconButton _copyXmlButton = new("Copia XML", Glyph.Code);
     private readonly StatusPill _reviewStatusBadge = new();
+    private IconButton? _conversionGenerateButton;
     private bool _isApplyingFilter;
     private bool _hasWarnings;
 
@@ -183,190 +65,32 @@ internal sealed partial class MainForm
 
         root.Controls.Add(BuildBrandHeader(), 0, 0);
 
+        // Pagina di conversione: in alto una fascia con i quattro comandi del lavoro
+        // (azienda, file, riepilogo, azioni), sotto l'area di revisione a tutta larghezza.
+        // Prima i comandi stavano in una colonna di 300 px che toglieva spazio alla
+        // tabella e tagliava i testi; ora la tabella usa tutta la larghezza.
         var workspace = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
+            ColumnCount = 1,
+            RowCount = 2,
             BackColor = Theme.Canvas,
             Margin = Padding.Empty
         };
-        // Colonna un po' più larga: nella card ci stanno due pulsanti affiancati
-        // senza che le loro scritte vengano tagliate.
-        workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300));
         workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        // Riga dichiarata esplicitamente: senza RowStyles la tabella ricade su una
-        // riga autosize che non combacia con l'altezza reale della cella, così la
-        // colonna di sinistra può ricevere meno spazio di quanto ne ha a
-        // disposizione e i testi dei passi finiscono tagliati.
+        workspace.RowStyles.Add(new RowStyle(SizeType.Absolute, ConversionBandHeight));
         workspace.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.Controls.Add(workspace, 0, 1);
-
-        var setupCard = new SurfacePanel
-        {
-            Dock = DockStyle.Fill,
-            Padding = new Padding(20, 18, 20, 18),
-            Margin = new Padding(0, 0, 16, 0)
-        };
-        // L'impilamento verticale è un FlowLayoutPanel TopDown con altezze esplicite
-        // per ogni riga: il flusso non ridimensiona MAI i figli, quindi le righe non
-        // possono essere compresse e i testi non finiscono tagliati (sui runner CI e
-        // sui portatili con lo schermo basso una tabella a righe fisse si schiacciava).
-        // Lo scorrimento resta solo come rete di sicurezza per casi estremi: le
-        // altezze delle righe (SetupCardLayout) tengono il contenuto dentro la card
-        // alle dimensioni di finestra consentite, perché la barra di scorrimento
-        // che disegna Windows è grigia di sistema e fuori tema.
-        var setupScroll = new Panel
-        {
-            Dock = DockStyle.Fill,
-            AutoScroll = true,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        var setup = new FlowLayoutPanel
-        {
-            Location = new Point(0, 0),
-            Size = new Size(SetupContentWidth, 1),
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            AutoScroll = false,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        setupScroll.Controls.Add(setup);
-        // La larghezza segue la card, le altezze restano quelle dichiarate qui sotto.
-        setupScroll.Layout += (_, _) => SyncSetupStack(setupScroll, setup);
-        setupCard.Controls.Add(setupScroll);
-        workspace.Controls.Add(setupCard, 0, 0);
-
-        var title = new Label
-        {
-            Text = "Nuova conversione",
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.Ink,
-            Font = Theme.Fonts.CardTitle
-        };
-        AddSetupRow(setup, title, SetupCardLayout.TitleRow);
-
-        AddSetupRow(setup, CreateSectionRow("01   AZIENDA ZUCCHETTI", "fino a 6 caratteri"), SetupCardLayout.SectionRow);
-        _companyCode.MaxLength = 6;
-        _companyCode.InputFont = Theme.Fonts.Field;
-        _companyCode.CharacterCasing = CharacterCasing.Upper;
-        _companyCode.Placeholder = "es. ABC123";
-        _companyCode.Input.AccessibleName = "Codice azienda ufficiale PAGHE";
-        Describe(_companyCode, "Codice azienda Zucchetti", "Codice azienda/ente PAGHE Infinity, fino a 6 caratteri.");
-        _companyCode.TextChanged += (_, _) =>
-        {
-            InvalidatePreview();
-            UpdateWorkflowSummary();
-            // Salvataggio automatico: le preferenze non si perdono se l'app si chiude
-            // senza che il campo perda il focus.
-            _companyCodeSaveDebounce.Stop();
-            _companyCodeSaveDebounce.Start();
-        };
-        _companyCode.Leave += (_, _) => SaveCompanyCode();
-        AddSetupRow(setup, _companyCode, SetupCardLayout.CompanyRow, new Padding(0, 2, 0, 8));
-
-        AddSetupRow(setup, CreateSectionRow("02   FILE SORGENTE", "formato .xlsx"), SetupCardLayout.SectionRow);
-        var importButton = Theme.CreateButton("SELEZIONA FILE EXCEL", Theme.ButtonTone.Primary);
-        importButton.Click += async (_, _) => await ImportWorkbookAsync();
-        Describe(
-            importButton,
-            "Seleziona file Excel",
-            "Apre un foglio .xlsx da convertire in XML TRRIPW. Puoi anche trascinare il file sulla finestra.");
-        AddSetupRow(setup, importButton, SetupCardLayout.ImportRow, new Padding(0, 2, 0, 8));
-
-        _fileLabel.AutoSize = false;
-        _fileLabel.AutoEllipsis = true;
-        _fileLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _fileLabel.Text = "Nessun file selezionato";
-        _fileLabel.Font = Theme.Fonts.SmallBold;
-        _fileLabel.ForeColor = Theme.InkSecondary;
-        AddSetupRow(setup, _fileLabel, SetupCardLayout.SourceFileRow);
-
-        // Foglio in uso: mostra il nome e, quando il file ne ha più di uno,
-        // permette di passare a un altro senza reimportare il file.
-        _sheetButton.Text = "Foglio: nessun file importato";
-        Theme.StyleButton(_sheetButton, Theme.ButtonTone.Neutral, compact: true);
-        _sheetButton.TextAlign = ContentAlignment.MiddleLeft;
-        _sheetButton.Enabled = false;
-        _sheetButton.Click += (_, _) => ShowSheetMenu();
-        _sheetButton.AccessibleName = "Foglio di lavoro letto";
-        AddSetupRow(setup, _sheetButton, SetupCardLayout.SheetRow);
-
-        var metrics = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        metrics.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        metrics.Controls.Add(CreateMetricTile("RICHIESTE", _requestMetricLabel, Theme.BrandInk, Theme.BrandSoft), 0, 0);
-        metrics.Controls.Add(CreateMetricTile("DIPENDENTI", _employeeMetricLabel, Theme.SuccessInk, Theme.SuccessSoft), 1, 0);
-        AddSetupRow(setup, metrics, SetupCardLayout.MetricsRow, new Padding(0, 2, 0, 2));
-
-        // Due azioni sulla stessa riga: i codici PAGHE (con i giustificativi delle
-        // assenze) e la configurazione dell'AI locale. Una riga in meno, quindi la
-        // card resta dentro lo spazio disponibile anche su schermi bassi; le
-        // impostazioni restano nell'intestazione, sempre a portata di mano.
-        var actions = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        actions.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var mappingButton = Theme.CreateButton("Codici PAGHE", Theme.ButtonTone.Neutral, compact: true);
-        mappingButton.Dock = DockStyle.Fill;
-        mappingButton.Margin = new Padding(0, 3, 4, 3);
-        mappingButton.Click += (_, _) => EditMappings();
-        _tooltips.SetToolTip(mappingButton, "Codici PAGHE e giustificativi delle assenze (es. Ferie → F01)");
-        mappingButton.AccessibleName = "Codici PAGHE e giustificativi";
-        actions.Controls.Add(mappingButton, 0, 0);
-
-        var aiButton = Theme.CreateButton("AI locale", Theme.ButtonTone.Neutral, compact: true);
-        aiButton.Dock = DockStyle.Fill;
-        aiButton.Margin = new Padding(4, 3, 0, 3);
-        aiButton.Click += async (_, _) => await ConfigureAiAsync();
-        _tooltips.SetToolTip(aiButton, "Installa o aggiorna il motore AI locale (facoltativo)");
-        aiButton.AccessibleName = "AI locale";
-        actions.Controls.Add(aiButton, 1, 0);
-        AddSetupRow(setup, actions, SetupCardLayout.ActionsRow);
-
-        // Guida ai passi: è la riga elastica della card di sinistra, dimensionata
-        // in SyncSetupStack in base allo spazio che avanza.
-        _workflowSteps = BuildWorkflowSteps();
-        _workflowSteps.Margin = new Padding(0, 8, 0, 4);
-        _workflowSteps.Size = new Size(
-            SetupContentWidth,
-            SetupCardLayout.StepsMaximumHeight - _workflowSteps.Margin.Vertical);
-        setup.Controls.Add(_workflowSteps);
-
-        _generateButton.Text = "Genera anteprima   →";
-        Theme.StyleButton(_generateButton, Theme.ButtonTone.Positive);
-        _generateButton.Click += (_, _) => GeneratePreview();
-        Describe(_generateButton, "Genera anteprima XML", "Genera i movimenti giornalieri e l'anteprima XML (Ctrl+G).");
-        AddSetupRow(setup, _generateButton, SetupCardLayout.GenerateRow, new Padding(0, 4, 0, 0));
-        // Prima misura esplicita: l'aggiunta dei figli non fa scattare il Layout
-        // del pannello scrollabile, quindi la dimensione va calcolata qui.
-        SyncSetupStack(setupScroll, setup);
+        workspace.Controls.Add(BuildConversionBand(), 0, 0);
 
         var reviewCard = new SurfacePanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(16, 14, 16, 14),
+            Radius = 14,
+            Padding = new Padding(18, 14, 18, 14),
             Margin = Padding.Empty
         };
-        workspace.Controls.Add(reviewCard, 1, 0);
+        workspace.Controls.Add(reviewCard, 0, 1);
         var reviewLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -375,8 +99,8 @@ internal sealed partial class MainForm
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
-        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
-        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, PreviewToolbarRow));
+        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
         reviewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         reviewCard.Controls.Add(reviewLayout);
 
@@ -391,6 +115,217 @@ internal sealed partial class MainForm
         UpdateButtons();
     }
 
+    /// <summary>
+    /// Fascia dei comandi: quattro schede affiancate. L'ordine è quello del lavoro:
+    /// azienda, file sorgente, riepilogo di ciò che è stato letto, azioni.
+    /// </summary>
+    private Control BuildConversionBand()
+    {
+        var band = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 4,
+            RowCount = 1,
+            BackColor = Theme.Canvas,
+            Margin = Padding.Empty
+        };
+        band.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 19));
+        band.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 37));
+        band.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18));
+        band.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 26));
+        band.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        // 01 Azienda.
+        var company = NewBandCard(new Padding(0, 0, 10, 12));
+        var companyLayout = NewBandLayout(company, [20, 44, 20]);
+        companyLayout.Controls.Add(CreateSectionRow("01   AZIENDA", string.Empty), 0, 0);
+        _companyCode.MaxLength = 6;
+        _companyCode.InputFont = Theme.Fonts.Field;
+        _companyCode.CharacterCasing = CharacterCasing.Upper;
+        _companyCode.Placeholder = "es. ABC123";
+        _companyCode.Input.AccessibleName = "Codice azienda ufficiale PAGHE";
+        _companyCode.Dock = DockStyle.Fill;
+        _companyCode.Margin = new Padding(0, 4, 0, 4);
+        Describe(_companyCode, "Codice azienda Zucchetti", "Codice azienda/ente PAGHE Infinity, fino a 6 caratteri.");
+        _companyCode.TextChanged += (_, _) =>
+        {
+            InvalidatePreview();
+            // Salvataggio automatico: le preferenze non si perdono se l'app si chiude
+            // senza che il campo perda il focus.
+            _companyCodeSaveDebounce.Stop();
+            _companyCodeSaveDebounce.Start();
+        };
+        _companyCode.Leave += (_, _) => SaveCompanyCode();
+        companyLayout.Controls.Add(_companyCode, 0, 1);
+        companyLayout.Controls.Add(new Label
+        {
+            Text = "Codice Zucchetti · max 6 caratteri",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.MutedInk,
+            Font = Theme.Fonts.Tiny,
+            AutoEllipsis = true,
+            Margin = Padding.Empty
+        }, 0, 2);
+        band.Controls.Add(company, 0, 0);
+
+        // 02 File sorgente.
+        var file = NewBandCard(new Padding(0, 0, 10, 12));
+        var fileLayout = NewBandLayout(file, [20, -1, 30]);
+        fileLayout.Controls.Add(CreateSectionRow("02   FILE SORGENTE", "formato .xlsx"), 0, 0);
+        _conversionDropZone = new DropZone { Dock = DockStyle.Fill, Margin = new Padding(0, 4, 0, 4) };
+        _conversionDropZone.Click += async (_, _) => await ImportWorkbookAsync();
+        _conversionDropZone.FileDropped += async path => await LoadWorkbookAsync(path);
+        Describe(
+            _conversionDropZone,
+            "Seleziona file Excel",
+            "Apre un foglio .xlsx da convertire in XML TRRIPW. Puoi anche trascinare il file qui o sulla finestra.");
+        fileLayout.Controls.Add(_conversionDropZone, 0, 1);
+
+        // Foglio in uso: mostra il nome e, quando il file ne ha più di uno,
+        // permette di passare a un altro senza reimportare il file.
+        _sheetButton.Text = "Foglio: nessun file importato";
+        Theme.StyleButton(_sheetButton, Theme.ButtonTone.Neutral, compact: true);
+        _sheetButton.TextAlign = ContentAlignment.MiddleLeft;
+        _sheetButton.AutoEllipsis = true;
+        _sheetButton.Dock = DockStyle.Fill;
+        _sheetButton.Margin = new Padding(0);
+        _sheetButton.Enabled = false;
+        _sheetButton.Click += (_, _) => ShowSheetMenu();
+        _sheetButton.AccessibleName = "Foglio di lavoro letto";
+        fileLayout.Controls.Add(_sheetButton, 0, 2);
+        band.Controls.Add(file, 1, 0);
+
+        // Riepilogo di ciò che è stato letto.
+        var summary = NewBandCard(new Padding(0, 0, 10, 12));
+        var summaryLayout = NewBandLayout(summary, [20, -1, -1]);
+        summaryLayout.Controls.Add(CreateSectionRow("RIEPILOGO", string.Empty), 0, 0);
+        summaryLayout.Controls.Add(CreateSummaryLine(_requestMetricLabel, "richieste", Theme.BrandInk), 0, 1);
+        summaryLayout.Controls.Add(CreateSummaryLine(_employeeMetricLabel, "dipendenti", Theme.SuccessInk), 0, 2);
+        band.Controls.Add(summary, 2, 0);
+
+        // Azioni.
+        var actions = NewBandCard(new Padding(0, 0, 0, 12));
+        var actionsLayout = NewBandLayout(actions, [-1, 32]);
+        _conversionGenerateButton = new IconButton("Genera anteprima", Glyph.Arrow, Theme.ButtonTone.Positive)
+        {
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 0, 0, 8)
+        };
+        _conversionGenerateButton.Click += (_, _) => GeneratePreview();
+        Describe(_conversionGenerateButton, "Genera anteprima XML", "Genera i movimenti giornalieri e l'anteprima XML (Ctrl+G).");
+        actionsLayout.Controls.Add(_conversionGenerateButton, 0, 0);
+
+        var secondary = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        secondary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        secondary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        secondary.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var mappingButton = new IconButton("Codici", Glyph.Code)
+        {
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 0, 4, 0)
+        };
+        mappingButton.Click += (_, _) => EditMappings();
+        Describe(mappingButton, "Codici PAGHE e giustificativi", "Codici PAGHE e giustificativi delle assenze (es. Ferie → F01)");
+        secondary.Controls.Add(mappingButton, 0, 0);
+        var aiButton = new IconButton("AI locale", Glyph.Chip)
+        {
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(4, 0, 0, 0)
+        };
+        aiButton.Click += async (_, _) => await ConfigureAiAsync();
+        Describe(aiButton, "AI locale", "Installa o aggiorna il motore AI locale (facoltativo)");
+        secondary.Controls.Add(aiButton, 1, 0);
+        actionsLayout.Controls.Add(secondary, 0, 1);
+        band.Controls.Add(actions, 3, 0);
+
+        return band;
+    }
+
+    private static SurfacePanel NewBandCard(Padding margin) => new()
+    {
+        Dock = DockStyle.Fill,
+        SurfaceFill = Theme.Surface,
+        SurfaceBorder = Theme.Divider,
+        Radius = 14,
+        Padding = new Padding(16, 12, 16, 12),
+        Margin = margin
+    };
+
+    /// <summary>Una colonna di righe nella scheda: altezza fissa in pixel, -1 per la riga elastica.</summary>
+    private static TableLayoutPanel NewBandLayout(SurfacePanel card, int[] rows)
+    {
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = rows.Length,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        foreach (var height in rows)
+        {
+            layout.RowStyles.Add(height < 0
+                ? new RowStyle(SizeType.Percent, 100)
+                : new RowStyle(SizeType.Absolute, height));
+        }
+        card.Controls.Add(layout);
+        return layout;
+    }
+
+    /// <summary>Numero grande e didascalia sulla stessa riga ("8  richieste").</summary>
+    private static Control CreateSummaryLine(Label number, string caption, Color accent)
+    {
+        var line = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        line.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        line.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        line.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        number.Text = "0";
+        number.AutoSize = true;
+        number.Anchor = AnchorStyles.Left;
+        number.ForeColor = accent;
+        number.Font = Theme.Fonts.Stat;
+        number.Margin = new Padding(0, 0, 8, 0);
+        line.Controls.Add(number, 0, 0);
+        line.Controls.Add(new Label
+        {
+            Text = caption,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.MutedInk,
+            Font = Theme.Fonts.Small,
+            AutoEllipsis = true,
+            Margin = Padding.Empty
+        }, 1, 0);
+        return line;
+    }
+
+    private IconButton? _headerUpdatesButton;
+
+    /// <summary>
+    /// Intestazione scura. Tre zone, ciascuna dimensionata dal proprio contenuto (nessuna
+    /// larghezza fissa che a DPI alti taglia il testo): marchio e titolo a sinistra, la
+    /// ricerca al centro (elastica, al più 460 px), a destra lo stato dell'anteprima e due
+    /// pulsanti a icona con descrizione al passaggio del mouse.
+    /// </summary>
     private Control BuildBrandHeader()
     {
         var header = new SurfacePanel
@@ -404,116 +339,120 @@ internal sealed partial class MainForm
         var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 4,
+            ColumnCount = 3,
             RowCount = 1,
             BackColor = Theme.HeaderFill,
-            Margin = Padding.Empty
+            Margin = Padding.Empty,
+            Padding = new Padding(16, 0, 14, 0)
         };
-        // Quattro colonne dichiarate, e ColumnCount lo dice: con ColumnCount = 3 la
-        // quarta colonna (pulsanti e stato) non esisteva e spariva dall'intestazione.
-        // Marchio | titolo | ricerca (elastica) | azioni.
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 292));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 270));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var mark = new PictureBox
+        // Marchio + titolo.
+        var brand = new TableLayoutPanel
+        {
+            ColumnCount = 2,
+            RowCount = 1,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            BackColor = Theme.HeaderFill,
+            Anchor = AnchorStyles.Left,
+            Margin = Padding.Empty
+        };
+        brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        brand.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        brand.Controls.Add(new PictureBox
         {
             Image = _applicationIcon.ToBitmap(),
-            Size = new Size(44, 44),
+            Size = new Size(40, 40),
             SizeMode = PictureBoxSizeMode.Zoom,
-            // Senza ancoraggio la cella lo centra, in orizzontale e in verticale.
-            Anchor = AnchorStyles.None,
-            Margin = new Padding(14, 0, 0, 0)
-        };
-        body.Controls.Add(mark, 0, 0);
-
-        // Titolo e sottotitolo su righe distinte: non possono mai finire sopra
-        // l'uno all'altra, qualunque sia il DPI o la larghezza della finestra.
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 12, 0)
+        }, 0, 0);
         var titles = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 4,
-            BackColor = Theme.HeaderFill,
-            Margin = Padding.Empty
-        };
-        titles.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        titles.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        titles.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-        titles.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var title = new Label
-        {
-            Text = "PresenzeFlow",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.HeaderInk,
-            Font = Theme.Fonts.HeaderTitle,
-            Margin = Padding.Empty
-        };
-        titles.Controls.Add(title, 0, 1);
-
-        var subtitle = new Label
-        {
-            Text = "Importa · Verifica · Esporta in XML TRRIPW",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.TopLeft,
-            ForeColor = Theme.HeaderMuted,
-            Font = Theme.Fonts.Small,
-            Margin = new Padding(1, 0, 0, 4)
-        };
-        titles.Controls.Add(subtitle, 0, 2);
-        body.Controls.Add(titles, 1, 0);
-        body.Controls.Add(BuildHeaderSearch(), 2, 0);
-
-        // Azioni sempre a portata di mano nell'intestazione: aggiornamenti e
-        // impostazioni non devono costringere a cercare fra le schede.
-        var headerSide = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             BackColor = Theme.HeaderFill,
-            Margin = new Padding(0, 6, 4, 0)
+            Anchor = AnchorStyles.Left,
+            Margin = Padding.Empty
         };
-        headerSide.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        headerSide.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-        headerSide.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var headerActions = new FlowLayoutPanel
+        titles.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titles.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        titles.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        titles.Controls.Add(new Label
         {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false,
-            BackColor = Color.Transparent,
-            Margin = Padding.Empty,
-            Padding = Padding.Empty
-        };
-        var headerSettings = Theme.CreateButton("Impostazioni", Theme.ButtonTone.OnDark, compact: true);
-        headerSettings.Size = new Size(122, 28);
-        headerSettings.Margin = new Padding(6, 0, 0, 0);
-        headerSettings.Click += (_, _) => OpenSettings();
-        Describe(headerSettings, "Impostazioni", "Regole di conversione, modello AI locale e aggiornamenti (Ctrl+,).");
-        var headerUpdates = Theme.CreateButton("Aggiornamenti", Theme.ButtonTone.OnDark, compact: true);
-        headerUpdates.Size = new Size(122, 28);
-        headerUpdates.Margin = Padding.Empty;
-        headerUpdates.Click += async (_, _) => await CheckForUpdatesAsync(userInitiated: true);
-        Describe(headerUpdates, "Controlla aggiornamenti", "Verifica subito se è disponibile una nuova versione.");
-        headerActions.Controls.Add(headerSettings);
-        headerActions.Controls.Add(headerUpdates);
-        headerSide.Controls.Add(headerActions, 0, 0);
+            Text = "PresenzeFlow",
+            AutoSize = true,
+            ForeColor = Theme.HeaderInk,
+            Font = Theme.Fonts.HeaderTitle,
+            Margin = new Padding(0, 0, 0, -4)
+        }, 0, 0);
+        titles.Controls.Add(new Label
+        {
+            Text = "Importa · Verifica · Esporta in XML TRRIPW",
+            AutoSize = true,
+            ForeColor = Theme.HeaderMuted,
+            Font = Theme.Fonts.Small,
+            Margin = new Padding(2, 0, 0, 0)
+        }, 0, 1);
+        brand.Controls.Add(titles, 1, 0);
+        body.Controls.Add(brand, 0, 0);
 
-        _reviewStatusBadge.Dock = DockStyle.Fill;
-        _reviewStatusBadge.Margin = Padding.Empty;
+        body.Controls.Add(BuildHeaderSearch(), 1, 0);
+
+        // Stato dell'anteprima e azioni sempre a portata di mano.
+        var side = new TableLayoutPanel
+        {
+            ColumnCount = 3,
+            RowCount = 1,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            BackColor = Theme.HeaderFill,
+            Anchor = AnchorStyles.Right,
+            Margin = Padding.Empty
+        };
+        for (var column = 0; column < 3; column++)
+        {
+            side.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        }
+        side.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        _reviewStatusBadge.AutoSize = true;
+        _reviewStatusBadge.Height = 30;
+        _reviewStatusBadge.Anchor = AnchorStyles.None;
+        _reviewStatusBadge.Margin = new Padding(0, 0, 14, 0);
         _reviewStatusBadge.AccessibleName = "Stato dell'anteprima";
         _reviewStatusBadge.AccessibleRole = AccessibleRole.StaticText;
-        headerSide.Controls.Add(_reviewStatusBadge, 0, 1);
-        body.Controls.Add(headerSide, 3, 0);
+        side.Controls.Add(_reviewStatusBadge, 0, 0);
 
-        // Accento sfumato in cima all'header: la card resta la stessa, ma con un
-        // tocco di profondità in più. La riga è fissa (4 px) e il corpo riempie il resto.
+        _headerUpdatesButton = new IconButton(string.Empty, Glyph.Refresh, Theme.ButtonTone.OnDark)
+        {
+            Height = 36,
+            Anchor = AnchorStyles.None,
+            Margin = new Padding(0, 0, 8, 0)
+        };
+        _headerUpdatesButton.Click += async (_, _) => await CheckForUpdatesAsync(userInitiated: true);
+        Describe(_headerUpdatesButton, "Aggiornamenti", "Verifica subito se è disponibile una nuova versione.");
+        side.Controls.Add(_headerUpdatesButton, 1, 0);
+
+        var headerSettings = new IconButton(string.Empty, Glyph.Gear, Theme.ButtonTone.OnDark)
+        {
+            Height = 36,
+            Anchor = AnchorStyles.None,
+            Margin = Padding.Empty
+        };
+        headerSettings.Click += (_, _) => OpenSettings();
+        Describe(headerSettings, "Impostazioni", "Regole di conversione, modello AI locale e aggiornamenti (Ctrl+,).");
+        side.Controls.Add(headerSettings, 2, 0);
+        body.Controls.Add(side, 2, 0);
+
+        // Accento sfumato in cima all'header: la riga è fissa (4 px) e il corpo riempie il resto.
         var shell = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -575,100 +514,6 @@ internal sealed partial class MainForm
         return row;
     }
 
-    /// <summary>
-    /// Le due caselle delle metriche: impilate su righe fisse, così il
-    /// numero grande non può mai sforare la tile ad altezza ridotta.
-    /// </summary>
-    private static Panel CreateMetricTile(string caption, Label metric, Color accent, Color background)
-    {
-        var tile = new SurfacePanel
-        {
-            Dock = DockStyle.Fill,
-            SurfaceFill = background,
-            SurfaceBorder = background,
-            Radius = 10,
-            Padding = new Padding(14, 8, 12, 8),
-            Margin = new Padding(0, 0, 8, 0)
-        };
-        var layout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            BackColor = background,
-            Margin = Padding.Empty
-        };
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
-        // Riga fissa e non percentuale: con una riga percentuale il numero grande
-        // veniva compresso a pochi pixel quando la card aveva meno spazio.
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
-
-        layout.Controls.Add(new Label
-        {
-            Text = caption,
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.MutedInk,
-            Font = Theme.Fonts.Section,
-            Margin = Padding.Empty
-        }, 0, 0);
-
-        metric.Text = "0";
-        metric.Dock = DockStyle.Fill;
-        metric.TextAlign = ContentAlignment.MiddleLeft;
-        metric.ForeColor = accent;
-        metric.Font = Theme.Fonts.Metric;
-        metric.Margin = Padding.Empty;
-        layout.Controls.Add(metric, 0, 1);
-        tile.Controls.Add(layout);
-        return tile;
-    }
-
-    /// <summary>Mini-guida al flusso di lavoro, con cerchini numerati.</summary>
-    private static Control BuildWorkflowSteps()
-    {
-        var steps = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 3,
-            RowCount = 2,
-            BackColor = Theme.Surface,
-            Margin = new Padding(0, 8, 0, 4)
-        };
-        steps.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30));
-        steps.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        steps.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 10));
-        // Altezze ricalcolate a runtime da FitWorkflowSteps (riga elastica).
-        steps.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
-        steps.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
-
-        var importStep = new StepBadge("1", true) { Dock = DockStyle.Top, Margin = new Padding(0, 2, 0, 0) };
-        steps.Controls.Add(importStep, 0, 0);
-        steps.Controls.Add(new Label
-        {
-            Text = "Importa il file Excel",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.BrandInk,
-            Font = Theme.Fonts.Step,
-            Margin = Padding.Empty
-        }, 1, 0);
-
-        var reviewStep = new StepBadge("2", false) { Dock = DockStyle.Top, Margin = new Padding(0, 2, 0, 0) };
-        steps.Controls.Add(reviewStep, 0, 1);
-        steps.Controls.Add(new Label
-        {
-            Text = "Rivedi ed esporta l'XML",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.MutedInk,
-            Font = Theme.Fonts.Small,
-            Margin = Padding.Empty
-        }, 1, 1);
-        return steps;
-    }
-
     private Control BuildPreviewHeading()
     {
         var heading = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = Padding.Empty };
@@ -698,24 +543,22 @@ internal sealed partial class MainForm
             Dock = DockStyle.Fill,
             SurfaceFill = Theme.Sunken,
             SurfaceBorder = Theme.Divider,
-            Radius = 10,
-            Padding = new Padding(12, 5, 12, 5),
+            Radius = 12,
+            Padding = new Padding(14, 6, 10, 6),
             Margin = new Padding(0, 2, 0, 8)
         };
         var toolbar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
+            ColumnCount = 2,
+            RowCount = 1,
             BackColor = Theme.Sunken,
             Margin = Padding.Empty
         };
+        // Il conteggio prende lo spazio che resta; i comandi si dimensionano sul testo.
         toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        // Righe dichiarate esplicitamente: senza, la tabella usa un default che non
-        // combacia con l'altezza reale e i figli escono fuori. Il conteggio sta
-        // sopra, a tutta larghezza; i comandi sotto, ciascuno con la sua misura.
-        toolbar.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-        toolbar.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        toolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         _previewCountLabel.Text = "In attesa di un file";
         _previewCountLabel.Dock = DockStyle.Fill;
@@ -725,9 +568,10 @@ internal sealed partial class MainForm
         _previewCountLabel.ForeColor = Theme.InkSecondary;
         toolbar.Controls.Add(_previewCountLabel, 0, 0);
 
-        _previewSearch.Size = new Size(SearchFieldWidth, 32);
+        _previewSearch.Size = new Size(SearchFieldWidth, 34);
         _previewSearch.Placeholder = "Cerca nei movimenti";
         _previewSearch.Margin = new Padding(0, 0, 10, 0);
+        _previewSearch.Anchor = AnchorStyles.Right;
         _previewSearch.Input.AccessibleName = "Cerca nei movimenti";
         Describe(
             _previewSearch,
@@ -735,41 +579,39 @@ internal sealed partial class MainForm
             "Filtra i movimenti: più parole in qualsiasi ordine, senza accenti né maiuscole (Ctrl+F).");
         _previewSearch.TextChanged += (_, _) => FilterMovements();
 
-        // Nessuna spaziatura interna: campo e pulsanti sono alti quanto la fascia,
-        // e un pixel di margine in più tagliava il bordo inferiore dei pulsanti.
-        var toolbarActions = new FlowLayoutPanel
+        var toolbarActions = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false,
-            BackColor = Color.Transparent,
-            Padding = Padding.Empty,
+            ColumnCount = 3,
+            RowCount = 1,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            BackColor = Theme.Sunken,
             Margin = Padding.Empty
         };
+        for (var column = 0; column < 3; column++)
+        {
+            toolbarActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        }
+        toolbarActions.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        // Il campo di ricerca ha una larghezza fissa: con l'AutoSize di default
-        // il TextBox veniva largo 100 px e il testo non si leggeva.
-        _copyXmlButton.Text = "Copia XML";
-        Theme.StyleButton(_copyXmlButton, Theme.ButtonTone.Neutral, compact: true);
-        _copyXmlButton.Size = new Size(CopyXmlButtonWidth, 32);
-        _copyXmlButton.Margin = new Padding(6, 0, 0, 0);
+        _copyXmlButton.Anchor = AnchorStyles.Right;
+        _copyXmlButton.Margin = new Padding(0, 0, 8, 0);
         _copyXmlButton.Click += (_, _) => CopyXmlToClipboard();
         Describe(_copyXmlButton, "Copia XML", "Copia l'anteprima XML negli appunti.");
 
-        _exportButton.Text = "Scarica XML";
-        Theme.StyleButton(_exportButton, Theme.ButtonTone.Primary, compact: true);
-        _exportButton.Size = new Size(ExportXmlButtonWidth, 32);
-        _exportButton.Margin = new Padding(6, 0, 0, 0);
+        _exportButton.Anchor = AnchorStyles.Right;
+        _exportButton.Margin = Padding.Empty;
         _exportButton.Click += (_, _) => ExportXml();
         Describe(
             _exportButton,
             "Scarica XML",
             "Salva il file XML TRRIPW nella cartella che scegli (Ctrl+S).");
 
-        toolbarActions.Controls.Add(_exportButton);
-        toolbarActions.Controls.Add(_copyXmlButton);
-        toolbarActions.Controls.Add(_previewSearch);
-        toolbar.Controls.Add(toolbarActions, 0, 1);
+        toolbarActions.Controls.Add(_previewSearch, 0, 0);
+        toolbarActions.Controls.Add(_copyXmlButton, 1, 0);
+        toolbarActions.Controls.Add(_exportButton, 2, 0);
+        toolbar.Controls.Add(toolbarActions, 1, 0);
         bar.Controls.Add(toolbar);
         return bar;
     }
