@@ -4,7 +4,19 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.2] - Corrente
+## [1.22.3] - Corrente
+
+### 🐞 Correzioni grafiche (verificate sulle schermate rese in CI)
+- Novità di una versione: la barra di scorrimento stava sopra il testo, a sinistra; ora è a destra. I segni Markdown (`##`, `**`) non compaiono più
+- Dashboard: l'intestazione dell'elenco «Ultime esportazioni» non viene più tagliata a metà con la finestra bassa
+- Aziende: le etichette dei pulsanti («Salva azienda», «Usa in conversione») stanno su una riga; tolto il testo guida che rubava spazio alla barra
+- Tutti i pulsanti hanno un margine in più attorno al testo, così nessuna etichetta va a capo
+- Casella del file: «oppure fai clic per scegliere un file» non è più troncata
+
+### 🧹 Release
+- Il workflow di Release elimina le Release vecchie (con il loro tag) e tiene solo la nuova e una precedente, per non esaurire lo spazio del repository
+
+## [1.22.2]
 
 ### 🐞 Correzioni
 - Aziende: **Salva azienda** è il pulsante più a destra della barra, sempre visibile; stessa cosa per **Apri cartella** nello Storico

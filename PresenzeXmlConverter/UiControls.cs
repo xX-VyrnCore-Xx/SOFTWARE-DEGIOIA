@@ -723,8 +723,9 @@ internal sealed class NoteTextView : Control
         {
             return;
         }
+        // ThumbLeft è relativo alla pista: la pista sta a destra, dopo il testo.
         var bounds = new Rectangle(
-            _layout.ThumbLeft,
+            _layout.ContentWidth + _layout.ThumbLeft,
             _layout.ThumbTop + 1,
             ScrollBarLayout.ThumbWidth,
             Math.Max(4, _layout.ThumbHeight - 2));

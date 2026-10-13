@@ -221,7 +221,7 @@ internal static class Theme
             button.Font,
             new Size(int.MaxValue, int.MaxValue),
             TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
-        var needed = textWidth + button.Padding.Horizontal + (button.FlatAppearance.BorderSize * 2) + 6;
+        var needed = textWidth + button.Padding.Horizontal + (button.FlatAppearance.BorderSize * 2) + 16;
         if (needed > button.MinimumSize.Width)
         {
             button.MinimumSize = new Size(needed, button.MinimumSize.Height);

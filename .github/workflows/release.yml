@@ -450,3 +450,33 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: ${{ steps.artifacts.outputs.files }}
+
+      # Dopo la pubblicazione restano solo la Release appena creata e quella
+      # immediatamente precedente: le altre (installer da ~55 MB ciascuna) vengono
+      # eliminate insieme al loro tag, cosi' lo spazio del repository non si esaurisce.
+      # Un errore qui non deve annullare una Release gia' pubblicata.
+      - name: Elimina le Release vecchie (restano la nuova e una precedente)
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $keep = 2
+          $json = gh api "repos/$env:GITHUB_REPOSITORY/releases" --paginate --jq '.[] | select(.draft == false) | {tag: .tag_name, created: .created_at}'
+          $releases = @($json | ForEach-Object { $_ | ConvertFrom-Json }) | Sort-Object { [datetime]$_.created } -Descending
+          if (-not ($releases | Where-Object { $_.tag -eq $env:CURRENT_TAG })) {
+            Write-Host "La Release $env:CURRENT_TAG non risulta nell'elenco: non elimino nulla."
+            exit 0
+          }
+          # La nuova Release e' sempre fra quelle conservate, anche se le date coincidessero.
+          $others = @($releases | Where-Object { $_.tag -ne $env:CURRENT_TAG })
+          $retained = @($env:CURRENT_TAG) + @($others | Select-Object -First ($keep - 1) | ForEach-Object { $_.tag })
+          $obsolete = @($others | Where-Object { $retained -notcontains $_.tag })
+          Write-Host "Conservate: $($retained -join ', ')"
+          foreach ($release in $obsolete) {
+            Write-Host "Elimino $($release.tag)"
+            gh release delete $release.tag --repo $env:GITHUB_REPOSITORY --yes --cleanup-tag
+            if ($LASTEXITCODE -ne 0) { Write-Host "::warning::Eliminazione di $($release.tag) non riuscita." }
+          }

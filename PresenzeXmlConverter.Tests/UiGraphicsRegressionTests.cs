@@ -153,7 +153,7 @@ public class UiGraphicsRegressionTests
                     {
                         problems.Add($"sezione {section}, {what}:{Environment.NewLine}{clippedHere}");
                     }
-                    var snapshot = GrayReport(Render(form, $"{form.GetType().Name}-{what}"));
+                    var snapshot = GrayReport(Render(form, $"Sezione{section}-{what}"));
                     if (snapshot.Ratio > gray)
                     {
                         gray = snapshot.Ratio;

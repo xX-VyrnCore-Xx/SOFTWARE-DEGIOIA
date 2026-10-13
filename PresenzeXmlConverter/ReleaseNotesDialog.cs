@@ -91,7 +91,7 @@ internal sealed class ReleaseNotesDialog : Form
             Margin = Padding.Empty,
             AccessibleName = showUpdateButton ? "Novità dell'aggiornamento" : "Novità di questa versione"
         };
-        notesView.Value = notesText;
+        notesView.Value = ReadableNotes(notesText);
         notesPanel.Controls.Add(notesView);
         root.Controls.Add(notesPanel, 0, 1);
 
@@ -162,6 +162,32 @@ internal sealed class ReleaseNotesDialog : Form
 
         footer.Controls.Add(actions, 1, 0);
         root.Controls.Add(footer, 0, 2);
+    }
+
+    /// <summary>
+    /// Le note di una Release arrivano in Markdown: nella vista a testo semplice i
+    /// segni dei titoli («## ») e il grassetto («**») sarebbero rumore. Si tolgono
+    /// i segni e resta il testo; la copia negli appunti conserva l'originale.
+    /// </summary>
+    internal static string ReadableNotes(string notes)
+    {
+        var lines = notes.Replace("\r\n", "\n").Split('\n');
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var line = lines[index];
+            var trimmed = line.TrimStart();
+            var hashes = 0;
+            while (hashes < trimmed.Length && trimmed[hashes] == '#')
+            {
+                hashes++;
+            }
+            if (hashes is > 0 and <= 6 && (hashes == trimmed.Length || trimmed[hashes] == ' '))
+            {
+                line = trimmed[hashes..].TrimStart();
+            }
+            lines[index] = line.Replace("**", string.Empty);
+        }
+        return string.Join(Environment.NewLine, lines);
     }
 
     /// <summary>
