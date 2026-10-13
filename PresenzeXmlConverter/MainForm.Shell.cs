@@ -309,6 +309,14 @@ internal sealed partial class MainForm
         _dashExportsGrid.Columns.Add(CreateGridColumn("file", "File XML", 42, true));
         _dashExportsGrid.Columns.Add(CreateGridColumn("totals", "Contenuto", 28, true));
         _dashExportsGrid.CellDoubleClick += (_, args) => OpenExportFolder(RowExport(args.RowIndex, _dashExportsGrid));
+        // Nella dashboard questa card prende lo spazio che resta: con la finestra
+        // bassa l'intestazione da 42 px veniva tagliata a metà. Intestazione e righe
+        // più basse e, se nemmeno così entrano, l'intestazione sparisce del tutto.
+        _dashExportsGrid.ColumnHeadersHeight = 30;
+        _dashExportsGrid.RowTemplate.Height = 32;
+        _dashExportsGrid.SizeChanged += (_, _) =>
+            _dashExportsGrid.ColumnHeadersVisible =
+                _dashExportsGrid.ClientSize.Height >= _dashExportsGrid.ColumnHeadersHeight + _dashExportsGrid.RowTemplate.Height;
         layout.Controls.Add(_dashExportsGrid, 0, 1);
 
         _dashExportsSummaryLabel.Dock = DockStyle.Fill;
