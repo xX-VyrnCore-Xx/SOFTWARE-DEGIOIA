@@ -14,9 +14,19 @@ internal static class TrripaWriter
 {
     public const int RecordLength = 100;
 
+    /// <summary>CodGiusvPA: il codice giustificativo Paghe è di 2 caratteri.</summary>
+    public const int MaxReasonCodeLength = 2;
+
     public static string Create(string companyCode, IReadOnlyList<DailyMovement> movements)
     {
         var (_, normalized) = TrriPwXmlWriter.Validate(companyCode, movements);
+        var tooLong = normalized.FirstOrDefault(movement => movement.ReasonCode.Length > MaxReasonCodeLength);
+        if (tooLong is not null)
+        {
+            throw new InvalidDataException(
+                $"Il giustificativo “{tooLong.ReasonCode}” ha più di {MaxReasonCodeLength} caratteri: " +
+                "il tracciato TRRIPA ammette solo il codice Paghe a 2 caratteri (es. 01). Correggilo nella Gestione codici.");
+        }
         var builder = new StringBuilder();
         foreach (var employee in normalized
                      .GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase)
@@ -63,9 +73,13 @@ internal static class TrripaWriter
             if (line.StartsWith("00", StringComparison.Ordinal))
             {
                 headerSeen = true;
-                if (line.Substring(2, 21).Trim().Length == 0 && line.Substring(23, 8).Trim().Length == 0)
+                if (line.Substring(2, 21).Trim().Length == 0)
                 {
                     problems.Add($"Riga {number}: testata senza codice dipendente.");
+                }
+                if (line[34] != 'N' && line[34] != 'S')
+                {
+                    problems.Add($"Riga {number}: «generazione automatica del teorico» deve essere N o S.");
                 }
             }
             else if (line.StartsWith("01", StringComparison.Ordinal))
@@ -78,6 +92,10 @@ internal static class TrripaWriter
                         DateTimeStyles.None, out _))
                 {
                     problems.Add($"Riga {number}: data non valida «{line.Substring(9, 8)}».");
+                }
+                if (line.Substring(7, 2).Trim().Length == 0)
+                {
+                    problems.Add($"Riga {number}: codice giustificativo Paghe mancante.");
                 }
                 if (!int.TryParse(line.AsSpan(17, 4), NumberStyles.None, CultureInfo.InvariantCulture, out _))
                 {
@@ -92,15 +110,18 @@ internal static class TrripaWriter
         return problems;
     }
 
-    /// <summary>RIPA00: codice dipendente (rilevazione e Paghe), rapporto 001, teorico «N».</summary>
+    /// <summary>
+    /// RIPA00: il codice dipendente va nel campo «rilevazione presenze» (21 caratteri, a sinistra);
+    /// codice soggetto e numero rapporto restano vuoti/zero e Paghe collega il dipendente con la
+    /// «Tabella di abbinamento dipendenti». Teorico automatico «N»: si leggono i movimenti.
+    /// </summary>
     private static string Header(string employeeCode)
     {
         var record = new char[RecordLength];
         Array.Fill(record, ' ');
         Put(record, 1, "00");
         Put(record, 3, employeeCode.PadRight(21)[..21]);
-        Put(record, 24, employeeCode.PadLeft(8, employeeCode.All(char.IsDigit) ? '0' : ' '));
-        Put(record, 32, "001");
+        Put(record, 32, "000");
         Put(record, 35, "N");
         return new string(record);
     }
@@ -111,15 +132,10 @@ internal static class TrripaWriter
         var record = new char[RecordLength];
         Array.Fill(record, ' ');
         Put(record, 1, "01");
-        // Il giustificativo Paghe è di 2 caratteri; uno più lungo va nel campo della rilevazione.
-        if (movement.ReasonCode.Length <= 2)
-        {
-            Put(record, 8, movement.ReasonCode.PadLeft(2, '0'));
-        }
-        else
-        {
-            Put(record, 3, movement.ReasonCode.PadRight(5)[..5]);
-        }
+        // Codice giustificativo Paghe (2 caratteri): "1" diventa "01", le ore ordinarie sono "01".
+        Put(record, 8, movement.ReasonCode.All(char.IsDigit)
+            ? movement.ReasonCode.PadLeft(2, '0')
+            : movement.ReasonCode.PadRight(2));
         Put(record, 10, movement.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture));
         Put(record, 18, movement.Hours.ToString("00", CultureInfo.InvariantCulture));
         Put(record, 20, movement.Minutes.ToString("00", CultureInfo.InvariantCulture));
