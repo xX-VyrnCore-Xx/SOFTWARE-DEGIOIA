@@ -177,7 +177,7 @@ internal static class AttendanceMovementGenerator
 
     /// <summary>
     /// Ogni giorno lavorativo (lun-ven, senza festivi) in cui il dipendente non ha una giornata
-    /// già coperta da assenze riceve una presenza con il giustificativo universale «334»:
+    /// già coperta da assenze riceve una presenza con il giustificativo «01» (ore ordinarie):
     /// le ore sono quelle standard meno le ore di assenza dello stesso giorno. Il periodo è
     /// quello del foglio oppure i mesi interi toccati dai movimenti.
     /// </summary>

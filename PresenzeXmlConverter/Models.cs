@@ -102,7 +102,7 @@ internal sealed record GenerationOptions(
     IReadOnlyList<DateTime>? ExtraHolidays = null,
     bool AutoDetect = true,
     bool FillPresence = false,
-    string PresenceCode = "334",
+    string PresenceCode = "01",
     string PresenceOfficialCode = "01")
 {
     public static GenerationOptions Default { get; } = new();
