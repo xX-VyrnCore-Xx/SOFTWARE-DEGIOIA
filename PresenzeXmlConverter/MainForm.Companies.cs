@@ -305,7 +305,7 @@ internal sealed partial class MainForm
         var company = _companies.FirstOrDefault(item =>
             string.Equals(item.Code, code, StringComparison.OrdinalIgnoreCase));
         var referenceYear = _inspection?.PeriodStart?.Year ?? DateTime.Today.Year;
-        // Le regole proprie dell'azienda cambiano ore, sabati e chiusure; la presenza 334 resta quella generale.
+        // Le regole proprie dell'azienda cambiano ore, sabati e chiusure; la presenza (01) resta quella generale.
         var effective = company?.Rules is { } rules
             ? rules.ToOptions(referenceYear) with
             {

@@ -188,7 +188,7 @@ internal static class GenerationSettings
             ParseHolidays(settings[ExtraHolidaysSetting], referenceYear),
             // Il rilevamento è attivo salvo scelta contraria.
             !string.Equals(settings[AutoDetectSetting], "false", StringComparison.OrdinalIgnoreCase),
-            // I giorni lavorativi senza movimenti diventano presenze (334), salvo scelta contraria.
+            // I giorni lavorativi senza movimenti diventano presenze (01), salvo scelta contraria.
             !string.Equals(settings[FillPresenceSetting], "false", StringComparison.OrdinalIgnoreCase));
     }
 

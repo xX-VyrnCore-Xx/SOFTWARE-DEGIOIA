@@ -115,7 +115,7 @@ public class ClientWorkbookTests
 
 /// <summary>
 /// I giorni lavorativi senza assenza vanno comunque contati come presenza con il
-/// giustificativo universale 334 (codice ufficiale 01: ore ordinarie).
+/// giustificativo universale 01 (codice ufficiale 01: ore ordinarie).
 /// </summary>
 public class PresenceFillTests
 {
@@ -138,7 +138,7 @@ public class PresenceFillTests
         var result = Run(Request("Ferie", new DateTime(2026, 9, 15), new DateTime(2026, 9, 17), 24m));
 
         var absences = result.Movements.Where(movement => movement.ReasonCode == "FE").ToArray();
-        var presences = result.Movements.Where(movement => movement.ReasonCode == "334").ToArray();
+        var presences = result.Movements.Where(movement => movement.ReasonCode == "01").ToArray();
         Assert.Equal(3, absences.Length);
         Assert.Equal(19, presences.Length);
         Assert.All(presences, movement =>
@@ -157,7 +157,7 @@ public class PresenceFillTests
         var result = Run(Request("Ferie", new DateTime(2026, 9, 16), new DateTime(2026, 9, 16), 4m));
 
         var presence = Assert.Single(result.Movements, movement =>
-            movement.ReasonCode == "334" && movement.Date == new DateTime(2026, 9, 16));
+            movement.ReasonCode == "01" && movement.Date == new DateTime(2026, 9, 16));
         Assert.Equal(4, presence.Hours);
         Assert.Equal(0, presence.Minutes);
     }
@@ -186,7 +186,7 @@ public class PresenceFillTests
         var xml = TrriPwXmlWriter.Create("000198", result.Movements);
         var document = System.Xml.Linq.XDocument.Parse(xml);
         var presence = document.Descendants("Movimento")
-            .First(item => (string?)item.Element("CodGiustificativoRilPres") == "334");
+            .First(item => (string?)item.Element("CodGiustificativoRilPres") == "01");
 
         Assert.Equal("01", (string?)presence.Element("CodGiustificativoUfficiale"));
         Assert.Empty(TrriPwXmlValidator.Validate(System.Text.Encoding.UTF8.GetBytes(xml)));
