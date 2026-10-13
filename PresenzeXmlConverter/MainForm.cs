@@ -268,6 +268,26 @@ internal sealed partial class MainForm : Form
         }
     }
 
+    /// <summary>
+    /// Un altro avvio dell'app ha chiesto di mostrarsi: la finestra torna in primo piano
+    /// (dal tray o da ridotta a icona). Arriva da un thread del pool.
+    /// </summary>
+    internal void ActivateFromAnotherInstance()
+    {
+        if (IsDisposed || !IsHandleCreated)
+        {
+            return;
+        }
+        try
+        {
+            BeginInvoke(RestoreFromTray);
+        }
+        catch (InvalidOperationException)
+        {
+            // La finestra si sta chiudendo.
+        }
+    }
+
     private void SetupTrayIcon()
     {
         _trayIcon.Icon = _applicationIcon;
@@ -401,7 +421,7 @@ internal sealed partial class MainForm : Form
         using var picker = new OpenFileDialog
         {
             Title = "Seleziona il file presenze da convertire",
-            Filter = "Fogli Excel (*.xlsx)|*.xlsx",
+            Filter = WorkbookDrop.OpenFileFilter,
             CheckFileExists = true,
             Multiselect = false
         };
@@ -771,6 +791,14 @@ internal sealed partial class MainForm : Form
             else
             {
                 TrriPwXmlWriter.SaveFile(picker.FileName, _xml!);
+            }
+            // Il file si rilegge e si controlla contro il tracciato prima di darlo per consegnato.
+            var problems = TrriPwXmlValidator.ValidateFile(picker.FileName);
+            if (problems.Count > 0)
+            {
+                throw new InvalidDataException(
+                    "Il file salvato non rispetta il tracciato TRRIPW e non va consegnato:" + Environment.NewLine +
+                    string.Join(Environment.NewLine, problems.Take(6).Select(problem => "• " + problem)));
             }
             var directory = Path.GetDirectoryName(picker.FileName);
             if (!string.IsNullOrEmpty(directory))

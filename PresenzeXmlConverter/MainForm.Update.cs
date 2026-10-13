@@ -294,6 +294,15 @@ internal sealed partial class MainForm
                     "Il file scaricato non corrisponde al checksum della Release: aggiornamento annullato.");
             }
 
+            if (ExecutableSignature.IsSignatureDowngrade(
+                    ExecutableSignature.SignerThumbprint(Environment.ProcessPath),
+                    ExecutableSignature.SignerThumbprint(destination)))
+            {
+                TryDelete(destination);
+                throw new InvalidDataException(
+                    "L'installer scaricato non è firmato, mentre questa applicazione lo è: aggiornamento annullato per sicurezza.");
+            }
+
             // Le note vengono salvate prima del riavvio: dopo l'aggiornamento la
             // finestra "Novità" le mostra senza dover usare la rete.
             _database.SaveSetting(PendingUpdateVersionSetting, update.Version.ToString());

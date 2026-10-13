@@ -69,6 +69,34 @@ internal sealed class NavRail : Control
 
     public event EventHandler? SelectionChanged;
 
+    private readonly Dictionary<int, string> _badges = new();
+
+    /// <summary>
+    /// Contatore a destra di una voce (per esempio il numero di aziende salvate): si
+    /// vede a colpo d'occhio che cosa c'è in ogni sezione. Testo vuoto = nessun contatore.
+    /// </summary>
+    public void SetBadge(int index, string? text)
+    {
+        if (index < 0 || index >= _items.Count)
+        {
+            return;
+        }
+        var changed = string.IsNullOrEmpty(text)
+            ? _badges.Remove(index)
+            : !_badges.TryGetValue(index, out var current) || current != text;
+        if (!string.IsNullOrEmpty(text))
+        {
+            _badges[index] = text;
+        }
+        if (changed)
+        {
+            Invalidate();
+        }
+    }
+
+    /// <summary>Testo del contatore di una voce (per i test).</summary>
+    public string BadgeText(int index) => _badges.TryGetValue(index, out var text) ? text : string.Empty;
+
     public void AddItem(string title, NavIcon icon, string? shortTitle = null)
     {
         _items.Add(new Item(title, icon, string.IsNullOrWhiteSpace(shortTitle) ? title : shortTitle));
@@ -185,10 +213,37 @@ internal sealed class NavRail : Control
                 DrawIcon(e.Graphics, iconBox, item.Icon, ink, iconPen);
             }
 
+            var badgeWidth = 0;
+            if (_badges.TryGetValue(index, out var badge) && badge.Length > 0)
+            {
+                var badgeSize = TextRenderer.MeasureText(
+                    badge,
+                    Theme.Fonts.Tiny,
+                    new Size(int.MaxValue, int.MaxValue),
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                badgeWidth = Math.Max(22, badgeSize.Width + 12);
+                var pill = new Rectangle(
+                    (int)box.Right - badgeWidth - 10,
+                    (int)(box.Top + (box.Height - 20) / 2),
+                    badgeWidth,
+                    20);
+                using var pillPath = Theme.RoundedRectangle(pill, 10);
+                using var pillFill = new SolidBrush(active ? Theme.Surface : Theme.Sunken);
+                e.Graphics.FillPath(pillFill, pillPath);
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    badge,
+                    Theme.Fonts.Tiny,
+                    pill,
+                    ink,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                badgeWidth += 8;
+            }
+
             var textBounds = new Rectangle(
                 iconBox.Right + 10,
                 (int)box.Top,
-                Math.Max(1, (int)box.Right - iconBox.Right - 14),
+                Math.Max(1, (int)box.Right - iconBox.Right - 14 - badgeWidth),
                 (int)box.Height);
             TextRenderer.DrawText(
                 e.Graphics,

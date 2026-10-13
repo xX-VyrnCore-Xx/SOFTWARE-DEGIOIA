@@ -81,7 +81,7 @@ internal sealed partial class MainForm
 
         page.Controls.Add(BuildDashboardExports(), 0, 3);
         page.Controls.Add(BuildSectionHint(
-            "Suggerimento: puoi trascinare un file .xlsx in qualunque punto della finestra."), 0, 4);
+            "Suggerimento: puoi trascinare un file Excel (.xlsx, .xlsm) in qualunque punto della finestra."), 0, 4);
 
         _dashDropZone.Click += async (_, _) => await ImportWorkbookAsync();
         _dashDropZone.FileDropped += async path => await LoadWorkbookAsync(path);

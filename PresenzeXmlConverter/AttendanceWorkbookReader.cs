@@ -712,9 +712,9 @@ internal static class AttendanceWorkbookReader
 
     private static void ValidateWorkbookArchive(string path)
     {
-        if (!string.Equals(Path.GetExtension(path), ".xlsx", StringComparison.OrdinalIgnoreCase))
+        if (!WorkbookDrop.HasSupportedExtension(path))
         {
-            throw new InvalidDataException("Seleziona un file Excel in formato .xlsx.");
+            throw new InvalidDataException("Seleziona un file Excel in formato .xlsx o .xlsm.");
         }
 
         var file = new FileInfo(path);

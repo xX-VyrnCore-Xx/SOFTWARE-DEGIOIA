@@ -1,5 +1,5 @@
 #define AppName "PresenzeFlow"
-#define AppVersion "1.20.1"
+#define AppVersion "1.21.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 
@@ -98,6 +98,8 @@ Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 
 [Tasks]
 #ifdef TrustCertificate
+; Impronta del certificato pubblico incluso nell'installer: la verifica avviene durante l'installazione.
+#define CertFileSha1 GetSHA1OfFile("dist\PresenzeFlow-codesign.cer")
 ; Certificato di firma dell'editore: con la firma autofirmata Windows mostra
 ; "editore sconosciuto" e SmartScreen/Defender sono diffidenti finche' il PC non lo
 ; riconosce. La voce lo aggiunge agli archivi dell'UTENTE CORRENTE (non del PC e
@@ -126,6 +128,10 @@ Type: files; Name: "{localappdata}\DeGioia\PresenzeXmlConverter\ai-model.txt"
 ; attribuite al programma e Windows puo' sopprimerle.
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; AppUserModelID: "{#AppUserModelId}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon; AppUserModelID: "{#AppUserModelId}"
+
+[UninstallDelete]
+; Cartella del programma: se resta vuota dopo la rimozione dei file, sparisce anch'essa.
+Type: dirifempty; Name: "{app}"
 
 [Run]
 ; skipifsilent volutamente assente: dopo un aggiornamento silenzioso (avviato
@@ -195,6 +201,16 @@ begin
 end;
 
 #ifdef TrustCertificate
+{ Il certificato e' attendibile in questo archivio? Nessun avviso di Windows: il comando
+  si limita a cercare l'impronta nell'archivio dell'utente. }
+function CertificateInStore(const StoreName: String): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\certutil.exe'), '-user -store ' + StoreName + ' {#CertThumbprint}',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
 { Aggiunge il certificato di firma agli archivi dell'utente corrente: "TrustedPublisher"
   (nessuna conferma) e "Root" (Windows mostra un avviso di sicurezza da confermare: e'
   quello che fa riconoscere la firma autofirmata). Mai in installazione silenziosa, cioe'
@@ -213,12 +229,25 @@ begin
     Log('Certificato di firma non trovato: ' + CertificatePath);
     Exit;
   end;
-  if Exec(ExpandConstant('{sys}\certutil.exe'), '-user -addstore -f TrustedPublisher "' + CertificatePath + '"',
+  { Si rende attendibile solo il certificato con cui e' stato firmato questo installer: l'impronta
+    del file e' calcolata alla compilazione. Un file diverso (sostituito o danneggiato) non entra
+    mai fra le autorita' attendibili del PC. }
+  if CompareText(GetSHA1OfFile(CertificatePath), '{#CertFileSha1}') <> 0 then
+  begin
+    Log('Il certificato incluso non corrisponde a quello di firma: non viene reso attendibile.');
+    Exit;
+  end;
+  { Gia' attendibile (reinstallazione, aggiornamento guidato): nessun nuovo avviso di Windows. }
+  if CertificateInStore('TrustedPublisher') then
+    Log('Il certificato e'' gia'' fra gli editori attendibili dell''utente.')
+  else if Exec(ExpandConstant('{sys}\certutil.exe'), '-user -addstore -f TrustedPublisher "' + CertificatePath + '"',
     '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
     Log('Certificato aggiunto agli editori attendibili dell''utente.')
   else
     Log(Format('Certificato non aggiunto agli editori attendibili (codice %d).', [ResultCode]));
-  if Exec(ExpandConstant('{sys}\certutil.exe'), '-user -addstore -f Root "' + CertificatePath + '"',
+  if CertificateInStore('Root') then
+    Log('Il certificato e'' gia'' fra le autorita'' attendibili dell''utente.')
+  else if Exec(ExpandConstant('{sys}\certutil.exe'), '-user -addstore -f Root "' + CertificatePath + '"',
     '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
     Log('Certificato aggiunto alle autorita'' attendibili dell''utente.')
   else

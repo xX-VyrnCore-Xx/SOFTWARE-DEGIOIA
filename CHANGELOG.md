@@ -4,7 +4,28 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.20.1] - Corrente
+## [1.21.0] - Corrente
+
+### 🏢 Aziende
+- Nuova voce **Aziende** nella barra laterale: anagrafica con codice PAGHE, ragione sociale e note, salvata nel database (schema 4, inclusa nei backup). Ogni codice usato in conversione entra da solo nell'elenco; suggerimenti nel campo Azienda e ragione sociale sotto al campo e nel piede della barra
+- La barra laterale mostra i contatori di Aziende e Storico e l'azienda in uso; scorciatoie `Ctrl+4/5/6`
+
+### 🪟 Applicazione e icona
+- **Un solo PresenzeFlow per utente**: un secondo avvio riporta in primo piano la finestra già aperta (anche dal tray) invece di aprirne una seconda sullo stesso database
+- **Nuova icona** con disegni dedicati per ogni dimensione (16–256 px): resta leggibile anche nella barra delle applicazioni; generata da `assets/Create-BrandIcon.py`
+
+### 🔐 Certificato, aggiornamento e disinstallazione
+- L'installer rende attendibile solo il certificato con l'impronta calcolata alla compilazione e non ripropone l'avviso di Windows se è già attendibile
+- L'aggiornamento rifiuta un installer **non firmato** quando l'app installata è firmata (un certificato rinnovato resta ammesso)
+- La disinstallazione toglie anche la cartella del programma se resta vuota
+
+### 📄 Lettura e XML
+- Accettati anche i fogli **.xlsm** (le macro non vengono eseguite)
+- **Controllo del file salvato**: l'XML si rilegge e si verifica contro il tracciato TRRIPW (BOM, radice, codici, date, ore/minuti, duplicati) prima di darlo per consegnato
+
+---
+
+## [1.20.1] - Precedente
 
 ### 📄 XML riconosciuto da Zucchetti
 - **Attributo al posto giusto**: `GenerazioneAutomaticaDaTeorico="N"` stava sul nodo `Dipendente`; il tracciato TRRIPW (Paghe Infinity) lo prevede sul nodo `Movimenti`. Messo sul nodo sbagliato PAGHE può ignorarlo e applicare l'orario teorico al posto dei movimenti comunicati

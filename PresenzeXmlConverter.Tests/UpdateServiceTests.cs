@@ -61,4 +61,23 @@ public class UpdateServiceTests
             }
         }
     }
+
+    [Theory]
+    [InlineData("AAAA", null, true)]
+    [InlineData("AAAA", "", true)]
+    [InlineData("AAAA", "AAAA", false)]
+    [InlineData("AAAA", "BBBB", false)]
+    [InlineData(null, null, false)]
+    [InlineData("", null, false)]
+    public void OnlyAnUnsignedInstallerOverASignedApplicationIsRefused(string? running, string? installer, bool refused)
+    {
+        Assert.Equal(refused, ExecutableSignature.IsSignatureDowngrade(running, installer));
+    }
+
+    [Fact]
+    public void AMissingFileHasNoSigner()
+    {
+        Assert.Null(ExecutableSignature.SignerThumbprint(Path.Combine(Path.GetTempPath(), "non-esiste-" + Guid.NewGuid().ToString("N") + ".exe")));
+        Assert.Null(ExecutableSignature.SignerThumbprint(null));
+    }
 }

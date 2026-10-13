@@ -259,8 +259,22 @@ internal sealed partial class MainForm
         UpdateCompanyHintLabel();
     }
 
+    /// <summary>Contatori della barra laterale e azienda in uso nel piede della barra.</summary>
+    private void UpdateNavSummaries()
+    {
+        _navRail.SetBadge(SectionCompanies, _companies.Count == 0 ? null : _companies.Count.ToString("N0"));
+        _navRail.SetBadge(SectionHistory, _exports.Count == 0 ? null : _exports.Count.ToString("N0"));
+        var code = _companyCode.Value.Trim();
+        var known = _companies.FirstOrDefault(company =>
+            string.Equals(company.Code, code, StringComparison.OrdinalIgnoreCase));
+        _railCompanyLabel.Text = code.Length == 0
+            ? "nessuna azienda"
+            : known is { Name.Length: > 0 } ? $"Azienda {known.Label}" : $"Azienda {code}";
+    }
+
     private void UpdateCompanyHintLabel()
     {
+        UpdateNavSummaries();
         if (_companyHintLabel is null)
         {
             return;
