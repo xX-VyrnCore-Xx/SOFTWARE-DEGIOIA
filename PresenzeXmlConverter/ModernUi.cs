@@ -269,15 +269,18 @@ internal sealed class IconButton : Control
         }
     }
 
+    // Control.Text accetta null in scrittura ([AllowNull]): l'override deve dichiararlo uguale,
+    // altrimenti il compilatore avvisa (CS8765) a ogni build.
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public override string Text
     {
         get => base.Text;
         set
         {
-            base.Text = value;
+            base.Text = value ?? string.Empty;
             if (string.IsNullOrEmpty(AccessibleName))
             {
-                AccessibleName = value;
+                AccessibleName = base.Text;
             }
             Invalidate();
         }
