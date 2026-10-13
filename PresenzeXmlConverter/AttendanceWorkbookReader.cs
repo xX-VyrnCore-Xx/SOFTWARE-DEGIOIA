@@ -274,10 +274,15 @@ internal static class AttendanceWorkbookReader
             "employee", "worker", "person", "persona"
         ],
         [
-            "policy name", "leave policy", "absence policy", "leave type", "absence type", "policy type",
+            "policy name", "leave policy", "absence policy", "policy",
+            "leave type", "absence type",
             "tipo assenza", "tipo di assenza", "tipo richiesta", "tipo di richiesta", "motivo assenza",
             "causale assenza", "descrizione assenza", "giustificativo", "causale", "tipologia", "voce",
-            "assenza", "policy", "reason"
+            "assenza", "reason",
+            // «Policy type» è la categoria generica («Vacation (hours)»), mentre «Policy» è la
+            // policy vera («IT vacation (hours)»), quella a cui si abbina il giustificativo:
+            // quando il foglio ha entrambe vince «Policy», quindi «policy type» sta in fondo.
+            "policy type"
         ],
         [
             "data di inizio", "data iniziale", "data inizio", "inizio assenza", "data dalla", "data da",
