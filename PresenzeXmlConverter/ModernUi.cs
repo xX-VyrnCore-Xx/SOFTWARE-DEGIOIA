@@ -709,12 +709,11 @@ internal sealed class MetricCard : Control
             graphics.FillPath(fill, path);
             using var pen = new Pen(Theme.Divider);
             graphics.DrawPath(pen, path);
-            // Barra d'accento in cima, tagliata sul bordo arrotondato: ogni metrica ha il suo colore.
-            var state = graphics.Save();
-            graphics.SetClip(path, CombineMode.Replace);
-            using var bar = new SolidBrush(Color.FromArgb(200, _accent));
-            graphics.FillRectangle(bar, bounds.Left, bounds.Top, bounds.Width + 1, 3);
-            graphics.Restore(state);
+            // Barra d'accento in cima, rientrata dagli angoli: ogni metrica ha il suo colore.
+            var barBounds = new Rectangle(bounds.Left + 18, bounds.Top, Math.Max(8, bounds.Width - 36), 3);
+            using var barPath = Theme.RoundedRectangle(barBounds, 1);
+            using var bar = new SolidBrush(Color.FromArgb(210, _accent));
+            graphics.FillPath(bar, barPath);
         }
 
         var chip = new Rectangle(bounds.Left + 14, bounds.Top + 14, 38, 38);
