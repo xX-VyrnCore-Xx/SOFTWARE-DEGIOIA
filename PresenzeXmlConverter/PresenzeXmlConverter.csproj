@@ -18,8 +18,8 @@
     <Company>DeGioia</Company>
     <Authors>DeGioia</Authors>
     <Copyright>© DeGioia</Copyright>
-    <Product>PresenzeFlow</Product>
-    <AssemblyTitle>PresenzeFlow</AssemblyTitle>
+    <Product>Vyrn Presence</Product>
+    <AssemblyTitle>Vyrn Presence</AssemblyTitle>
     <Description>Conversione locale di presenze Excel in XML TRRIPW per Zucchetti.</Description>
   </PropertyGroup>
 

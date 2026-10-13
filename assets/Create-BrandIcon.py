@@ -1,6 +1,8 @@
-"""Genera assets/PresenzeXmlConverter.ico (icona dell'app, dell'installer e dei collegamenti).
+"""Genera le immagini del marchio: assets/PresenzeXmlConverter.ico (icona dell'app, dell'installer e
+dei collegamenti) e le immagini della procedura guidata (WizardImage*.bmp, WizardSmallImage*.bmp, a
+100%, 150% e 200% di scala: crisp anche sugli schermi ad alta risoluzione).
 
-Uso: python3 assets/Create-BrandIcon.py   (richiede Pillow)
+Uso: python3 assets/Create-BrandIcon.py   (richiede Pillow; per il testo usa il font Inter se presente)
 
 Ogni dimensione ha un disegno suo: a 16-32 px il foglio con le righe di testo diventa
 una macchia, quindi le icone piccole usano solo foglio e spunta, grandi e ben leggibili;
@@ -117,8 +119,63 @@ def write_ico(path, images):
     Path(path).write_bytes(struct.pack("<HHH", 0, 1, len(images)) + b"".join(entries) + b"".join(blobs))
 
 
+APP_NAME = "Vyrn Presence"
+TAGLINE = "Da Excel a PAGHE"
+FONT_DIRS = ["/usr/share/fonts/opentype/inter", "/usr/share/fonts/truetype/dejavu", "C:/Windows/Fonts"]
+
+
+def font(size, bold=False):
+    from PIL import ImageFont
+    names = ["Inter-Bold.otf", "DejaVuSans-Bold.ttf", "segoeuib.ttf"] if bold else ["Inter-Regular.otf", "DejaVuSans.ttf", "segoeui.ttf"]
+    for directory in FONT_DIRS:
+        for name in names:
+            candidate = Path(directory) / name
+            if candidate.exists():
+                return ImageFont.truetype(str(candidate), size)
+    return ImageFont.load_default()
+
+
+def wizard_image(scale):
+    """Pannello laterale della procedura guidata (164x314 a 100%)."""
+    w, h = 164 * scale, 314 * scale
+    img = Image.new("RGB", (w, h))
+    px = img.load()
+    top, bottom = (27, 88, 160), (8, 27, 52)
+    for y in range(h):
+        t = y / (h - 1)
+        row = lerp(top, bottom, t)
+        for x in range(w):
+            px[x, y] = row
+    d = ImageDraw.Draw(img)
+    icon = render(256).resize((96 * scale, 96 * scale), Image.LANCZOS)
+    img.paste(icon, ((w - icon.width) // 2, 52 * scale), icon)
+    name_font, tag_font, foot_font = font(19 * scale, True), font(11 * scale), font(8 * scale)
+    d.text((w / 2, 168 * scale), "Vyrn", font=name_font, fill=(255, 255, 255), anchor="mm")
+    d.text((w / 2, 190 * scale), "Presence", font=name_font, fill=(255, 255, 255), anchor="mm")
+    d.line((w * 0.3, 208 * scale, w * 0.7, 208 * scale), fill=(92, 224, 184), width=max(1, scale * 2))
+    d.text((w / 2, 224 * scale), TAGLINE, font=tag_font, fill=(190, 218, 245), anchor="mm")
+    d.text((w / 2, h - 20 * scale), "Conversione presenze", font=foot_font, fill=(120, 160, 205), anchor="mm")
+    d.text((w / 2, h - 10 * scale), "XML TRRIPW", font=foot_font, fill=(120, 160, 205), anchor="mm")
+    return img
+
+
+def wizard_small_image(scale):
+    """Icona nell'angolo delle pagine interne (55x55 a 100%), su fondo bianco."""
+    size = 55 * scale
+    img = Image.new("RGB", (size, size), (255, 255, 255))
+    icon = render(256).resize((size - 6 * scale, size - 6 * scale), Image.LANCZOS)
+    img.paste(icon, (3 * scale, 3 * scale), icon)
+    return img
+
+
 if __name__ == "__main__":
     root = Path(__file__).resolve().parent
     images = [render(size) for size in SIZES]
     write_ico(root / "PresenzeXmlConverter.ico", images)
+    for scale, suffix in ((1, ""), (1.5, "-150"), (2, "-200")):
+        # La scala frazionaria si ottiene rendendo a 3x e riducendo.
+        big = wizard_image(3)
+        small = wizard_small_image(3)
+        big.resize((int(164 * scale), int(314 * scale)), Image.LANCZOS).save(root / f"WizardImage{suffix}.bmp")
+        small.resize((int(55 * scale), int(55 * scale)), Image.LANCZOS).save(root / f"WizardSmallImage{suffix}.bmp")
     print("Icona scritta:", ", ".join(str(i.width) for i in images))

@@ -42,7 +42,7 @@ internal sealed partial class MainForm
     /// in un solo posto (il costruttore), perché una seconda assegnazione
     /// sovrascriverebbe la versione: è esattamente il difetto trovato dai test.
     /// </summary>
-    private static string WindowCaption => $"PresenzeFlow {RunningVersion.ToString(3)}";
+    private static string WindowCaption => $"Vyrn Presence {RunningVersion.ToString(3)}";
 
     private void InitializeUpdates()
     {
@@ -131,7 +131,7 @@ internal sealed partial class MainForm
               "Le novità complete sono descritte nella Release su GitHub."
             : stored!;
         using var dialog = new ReleaseNotesDialog(
-            $"Novità di PresenzeFlow {RunningVersion.ToString(3)}",
+            $"Novità di Vyrn Presence {RunningVersion.ToString(3)}",
             "Riepilogo delle modifiche introdotte in questa versione.",
             notes,
             showUpdateButton: false);
@@ -185,7 +185,7 @@ internal sealed partial class MainForm
                 {
                     ShowInformation(
                         "Aggiornamenti",
-                        $"PresenzeFlow è aggiornato (versione {RunningVersion.ToString(3)}).");
+                        $"Vyrn Presence è aggiornato (versione {RunningVersion.ToString(3)}).");
                 }
                 return;
             }
@@ -258,7 +258,7 @@ internal sealed partial class MainForm
         _notifiedUpdateVersion = update.Version;
         ShowTrayNotification(
             "Aggiornamento disponibile",
-            $"È pronta la versione {update.Version.ToString(3)} di PresenzeFlow: apri il programma per installarla.");
+            $"È pronta la versione {update.Version.ToString(3)} di Vyrn Presence: apri il programma per installarla.");
     }
 
     private async Task DownloadAndInstallAsync(UpdateInfo update)
@@ -311,7 +311,7 @@ internal sealed partial class MainForm
             progress.SetStatus("Avvio dell'installer…");
             StartInstaller(destination);
             progress.Close();
-            SetStatus("●   Aggiornamento avviato: PresenzeFlow si chiude per completarlo.", false);
+            SetStatus("●   Aggiornamento avviato: Vyrn Presence si chiude per completarlo.", false);
             _forceClose = true;
             Close();
         }
@@ -383,7 +383,7 @@ internal sealed partial class MainForm
         var fetched = await TryFetchNotesForCurrentVersionAsync(current);
         ShowNotes(
             current,
-            fetched ?? $"PresenzeFlow è stato aggiornato alla versione {current.ToString(3)}. " +
+            fetched ?? $"Vyrn Presence è stato aggiornato alla versione {current.ToString(3)}. " +
                        "Le novità complete sono descritte nella Release su GitHub.");
     }
 
@@ -393,7 +393,7 @@ internal sealed partial class MainForm
     private void ShowNotes(Version version, string notes)
     {
         using var dialog = new ReleaseNotesDialog(
-            $"PresenzeFlow aggiornato alla {version.ToString(3)}",
+            $"Vyrn Presence aggiornato alla {version.ToString(3)}",
             "Ecco che cosa è cambiato in questa versione.",
             notes,
             showUpdateButton: false);

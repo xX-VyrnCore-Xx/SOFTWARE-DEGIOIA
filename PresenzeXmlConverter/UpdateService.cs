@@ -435,7 +435,7 @@ internal static class UpdateService
             var summary = string.IsNullOrWhiteSpace(releaseName) ? tag : $"{releaseName} ({tag})";
             var fullNotes = notes.Trim().Length == 0
                 ? summary
-                : $"PresenzeFlow {version.ToString(3)} — {summary}{Environment.NewLine}{Environment.NewLine}{notes.Trim()}";
+                : $"Vyrn Presence {version.ToString(3)} — {summary}{Environment.NewLine}{Environment.NewLine}{notes.Trim()}";
             return new UpdateCheckResult(
                 true,
                 new UpdateInfo(version, tag, fullNotes, installerName, installerUrl, installerSize, checksumUrl),

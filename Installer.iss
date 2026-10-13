@@ -1,4 +1,4 @@
-#define AppName "PresenzeFlow"
+#define AppName "Vyrn Presence"
 #define AppVersion "1.21.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
@@ -52,20 +52,22 @@ AppVersion={#AppVersion}
 AppMutex={#AppMutex}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
-AppComments=PresenzeFlow: conversione locale di fogli presenze Excel in XML TRRIPW per Zucchetti.
+AppComments=Vyrn Presence: conversione locale di fogli presenze Excel in XML TRRIPW per Zucchetti.
 VersionInfoVersion={#AppVersion}
 VersionInfoProductVersion={#AppVersion}
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription=Installazione di {#AppName} {#AppVersion}
 VersionInfoProductName={#AppName}
 MinVersion={#WinMinVersion}
-DefaultDirName={localappdata}\Programs\PresenzeFlow
+DefaultDirName={localappdata}\Programs\Vyrn Presence
 DefaultGroupName={#AppName}
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#AppExeName}
 SetupIconFile=assets\PresenzeXmlConverter.ico
-WizardImageFile=assets\WizardImage.bmp
-WizardSmallImageFile=assets\WizardSmallImage.bmp
+; Tre scale per ciascuna immagine (100%, 150%, 200%): Inno Setup sceglie quella giusta
+; per il DPI dello schermo, quindi il pannello resta nitido anche sugli schermi ad alta risoluzione.
+WizardImageFile=assets\WizardImage.bmp,assets\WizardImage-150.bmp,assets\WizardImage-200.bmp
+WizardSmallImageFile=assets\WizardSmallImage.bmp,assets\WizardSmallImage-150.bmp,assets\WizardSmallImage-200.bmp
 AllowNoIcons=yes
 OutputDir=dist
 OutputBaseFilename=PresenzeFlow-Setup-{#AppVersion}
@@ -104,9 +106,14 @@ Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 ; "editore sconosciuto" e SmartScreen/Defender sono diffidenti finche' il PC non lo
 ; riconosce. La voce lo aggiunge agli archivi dell'UTENTE CORRENTE (non del PC e
 ; senza privilegi di amministratore); Windows chiede conferma una volta.
-Name: "trustcert"; Description: "Considera attendibile il certificato di firma di PresenzeFlow (solo per il tuo utente, evita gli avvisi di Windows)"; GroupDescription: "Sicurezza:"
+Name: "trustcert"; Description: "Considera attendibile il certificato di firma di Vyrn Presence (solo per il tuo utente, evita gli avvisi di Windows)"; GroupDescription: "Sicurezza:"
 #endif
 Name: "desktopicon"; Description: "Crea un collegamento sul desktop"; GroupDescription: "Collegamenti aggiuntivi:"; Flags: unchecked
+
+[Messages]
+WelcomeLabel2=Questa procedura installa [name/ver] sul tuo computer.%n%nIl programma converte i fogli presenze Excel in file XML TRRIPW per Zucchetti, con controlli prima dell'esportazione. Tutto avviene sul tuo PC: nessun dato lascia il computer.%n%nNon servono privilegi di amministratore. Prima di proseguire chiudi gli altri programmi aperti.
+FinishedLabel=[name] è installato. Lo trovi nel menu Start e, se scelto, sul desktop.%n%nPrima volta? Importa un foglio Excel, abbina i codici PAGHE e prova l'importazione in Zucchetti con un file di prova.
+ClickFinish=Fai clic su Fine per chiudere l'installazione.
 
 [Files]
 Source: "dist\app\PresenzeFlow.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -119,6 +126,10 @@ Source: "dist\PresenzeFlow-codesign.cer"; DestDir: "{app}"; Flags: ignoreversion
 
 [InstallDelete]
 Type: files; Name: "{app}\PresenzeXmlConverter.exe"
+; Collegamenti con il vecchio nome (PresenzeFlow): rimossi, restano solo quelli di Vyrn Presence.
+Type: files; Name: "{userprograms}\PresenzeFlow\PresenzeFlow.lnk"
+Type: dirifempty; Name: "{userprograms}\PresenzeFlow"
+Type: files; Name: "{autodesktop}\PresenzeFlow.lnk"
 ; Marcatore del vecchio modello AI locale (funzione rimossa).
 Type: files; Name: "{localappdata}\DeGioia\PresenzeXmlConverter\ai-model.txt"
 
@@ -135,7 +146,7 @@ Type: dirifempty; Name: "{app}"
 
 [Run]
 ; skipifsilent volutamente assente: dopo un aggiornamento silenzioso (avviato
-; dall'app) PresenzeFlow si riapre da solo e mostra la finestra "Novità".
+; dall'app) Vyrn Presence si riapre da solo e mostra la finestra "Novità".
 Filename: "{app}\{#AppExeName}"; Description: "Avvia {#AppName}"; WorkingDir: "{app}"; Flags: postinstall nowait
 
 [Code]
@@ -284,7 +295,7 @@ begin
   ReviewPage := CreateCustomPage(
     wpSelectDir,
     'Configurazione e dati',
-    'Prima di installare PresenzeFlow'
+    'Prima di installare Vyrn Presence'
   );
 
   IntroText := TNewStaticText.Create(ReviewPage);
@@ -296,7 +307,7 @@ begin
   IntroText.WordWrap := True;
   IntroText.Font.Style := [fsBold];
   IntroText.Caption :=
-    'PresenzeFlow importa fogli Excel, revisiona i movimenti giornalieri e genera XML TRRIPW per Zucchetti.' +
+    'Vyrn Presence importa fogli Excel, revisiona i movimenti giornalieri e genera XML TRRIPW per Zucchetti.' +
     Chr(13) + Chr(10) + Chr(13) + Chr(10) +
     'Il rilevamento di sabati e ore effettive dalle date è automatico e si può regolare dalle impostazioni; i codici PAGHE restano sempre sotto il tuo controllo.';
 
@@ -324,8 +335,6 @@ begin
   ReviewCheckBox.Checked := WizardSilent;
 
 end;
-
-// Nota: nei commentiend;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
@@ -394,10 +403,10 @@ begin
 
   NewLine := Chr(13) + Chr(10);
   Answer := MsgBox(
-    'Vuoi CONSERVARE i dati di PresenzeFlow?' + NewLine + NewLine +
+    'Vuoi CONSERVARE i dati di Vyrn Presence?' + NewLine + NewLine +
     'Sono il database locale con gli abbinamenti dei dipendenti e dei giustificativi, il codice azienda, ' +
     'lo storico delle esportazioni e i backup automatici.' + NewLine + NewLine +
-    'Sì: conserva i dati. Se reinstalli PresenzeFlow li ritrovi com''erano.' + NewLine +
+    'Sì: conserva i dati. Se reinstalli Vyrn Presence li ritrovi com''erano.' + NewLine +
     'No: elimina i dati.' + NewLine +
     'Annulla: interrompi la disinstallazione.' + NewLine + NewLine +
     'Cartella dei dati: ' + DataDirectory(),
@@ -457,7 +466,7 @@ begin
     Exit;
   end;
 
-  { Database (con file WAL/SHM), backup, copie di file danneggiati, token e log: tutto cio' che PresenzeFlow
+  { Database (con file WAL/SHM), backup, copie di file danneggiati, token e log: tutto cio' che Vyrn Presence
     ha creato nella propria cartella dei dati. }
   DataRemoved := (not DirExists(DataDirectoryPath)) or DelTree(DataDirectoryPath, True, True, True);
   RemoveDir(ExtractFileDir(DataDirectoryPath));

@@ -1,6 +1,8 @@
-# PresenzeFlow
+# Vyrn Presence
 
-PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di richieste di assenza nel tracciato XML TRRIPW per Paghe Infinity. Con interfaccia moderna, analisi dati avanzata e validazione completa.
+> Vyrn Presence (già «PresenzeFlow») — i nomi dei file e dei dati sul PC restano quelli di prima, così gli aggiornamenti continuano a funzionare.
+
+Vyrn Presence è un'applicazione Windows 11 x64 per convertire un foglio Excel di richieste di assenza nel tracciato XML TRRIPW per Paghe Infinity. Con interfaccia moderna, analisi dati avanzata e validazione completa.
 
 ## Installazione
 
@@ -138,7 +140,7 @@ La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`
 
 ⚠️ **Nota per chi cura la build**: il `PublishSingleFile` non include le librerie native, quindi `dist/app/e_sqlite3.dll` **deve** essere copiato dall'installer accanto a `PresenzeFlow.exe`. Senza quel file l'app non può aprire il database locale e termina all'avvio (ora con un messaggio d'errore esplicito invece di un silenzioso crash).
 
-Per rigenerare l'icona e le immagini della procedura guidata, esegui `.\assets\Create-BrandAssets.ps1`.
+Per rigenerare l'icona e le immagini della procedura guidata (tre scale per lo schermo ad alta risoluzione), esegui `python3 assets/Create-BrandIcon.py` (richiede Pillow).
 
 ## Rilasci automatici (GitHub Actions)
 

@@ -8,8 +8,8 @@ internal sealed class UpdateProgressDialog : ProgressDialog
 {
     public UpdateProgressDialog(string version)
         : base(
-            "Aggiornamento di PresenzeFlow",
-            $"Scaricamento di PresenzeFlow {version}",
+            "Aggiornamento di Vyrn Presence",
+            $"Scaricamento di Vyrn Presence {version}",
             "Preparazione del download…")
     {
     }

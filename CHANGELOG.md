@@ -1,10 +1,25 @@
-# Changelog - PresenzeFlow
+# Changelog - Vyrn Presence (già PresenzeFlow)
 
-Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo file.
+Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo file.
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
 ## [1.21.0] - Corrente
+
+### ✨ Nuovo nome: Vyrn Presence
+- L'app si chiama **Vyrn Presence** (prima PresenzeFlow): finestra, tray, notifiche, impostazioni, aggiornamenti, installer, collegamenti e proprietà del file. Restano invariati i nomi interni (eseguibile, installer, cartella dei dati, identificatori), così gli aggiornamenti dalle versioni già installate continuano a funzionare e i dati si ritrovano
+- L'installer toglie i vecchi collegamenti «PresenzeFlow» e crea quelli nuovi
+
+### 📦 Installer e procedura guidata
+- Immagini della procedura guidata ridisegnate con il nuovo marchio, a **tre scale** (100%, 150%, 200%): nitide anche sugli schermi ad alta risoluzione (`assets/Create-BrandIcon.py`)
+- Testi di benvenuto e di fine installazione riscritti; cartella di installazione per le nuove installazioni «Vyrn Presence» (gli aggiornamenti usano quella già scelta)
+
+### ⚡ Velocità e fluidità
+- **Controlli dei movimenti ~25 volte più rapidi** (717 → 30 ms su 9.000 movimenti): il confronto dipendenti × movimenti era un ciclo dentro un ciclo
+- **Niente più blocco dopo l'importazione**: i nomi dei fogli arrivano dalla lettura già fatta, mentre prima il file veniva riaperto e riletto da capo sul thread dell'interfaccia (secondi di finestra ferma su fogli grandi)
+- **Anteprima XML senza attese**: i colori della sintassi si compongono in un solo documento RTF (`XmlRtf`) invece di una selezione per ogni tag; la colorazione ora regge fino a 2 MB
+- **Griglia dei movimenti**: le righe si aggiungono in blocco invece che una per volta
+- Guardie di velocità nei test (`PerformanceGuardTests`)
 
 ### 🏢 Aziende
 - Nuova voce **Aziende** nella barra laterale: anagrafica con codice PAGHE, ragione sociale e note, salvata nel database (schema 4, inclusa nei backup). Ogni codice usato in conversione entra da solo nell'elenco; suggerimenti nel campo Azienda e ragione sociale sotto al campo e nel piede della barra

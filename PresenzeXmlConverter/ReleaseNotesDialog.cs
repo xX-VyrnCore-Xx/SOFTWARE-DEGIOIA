@@ -13,7 +13,7 @@ internal sealed class ReleaseNotesDialog : Form
     {
         var notesText = notes ?? string.Empty;
 
-        Text = showUpdateButton ? "Aggiornamento disponibile" : "Novità di PresenzeFlow";
+        Text = showUpdateButton ? "Aggiornamento disponibile" : "Novità di Vyrn Presence";
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.Sizable;
         MinimizeBox = false;

@@ -3,7 +3,7 @@ namespace PresenzeXmlConverter;
 /// <summary>
 /// Regole del trascinamento di un file sulla finestra principale.
 ///
-/// Trascinare il foglio su PresenzeFlow evita di doverlo cercare nel dialogo di
+/// Trascinare il foglio su Vyrn Presence evita di doverlo cercare nel dialogo di
 /// apertura; le regole stanno qui, separate dall'interfaccia, perché su un
 /// trascinamento arrivano percorsi di ogni tipo (cartelle, file temporanei di
 /// Excel, più file insieme) e va scelto quello giusto senza sorprese.

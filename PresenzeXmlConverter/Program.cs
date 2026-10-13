@@ -17,7 +17,7 @@ static class Program
         AppIdentity.Apply();
         using var setupMutex = AppIdentity.HoldSetupMutex();
 
-        // Un solo PresenzeFlow per utente: un secondo avvio mostra la finestra già aperta.
+        // Un solo Vyrn Presence per utente: un secondo avvio mostra la finestra già aperta.
         using var instance = SingleInstance.TryAcquire();
         if (instance is null)
         {
@@ -53,7 +53,7 @@ static class Program
             details + Environment.NewLine + Environment.NewLine +
             "Il dettaglio è stato salvato in:" + Environment.NewLine +
             ErrorLogPath,
-            "PresenzeFlow non può partire",
+            "Vyrn Presence non può partire",
             MessageBoxButtons.OK,
             MessageBoxIcon.Error);
     }

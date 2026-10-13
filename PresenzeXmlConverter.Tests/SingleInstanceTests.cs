@@ -1,6 +1,6 @@
 namespace PresenzeXmlConverter.Tests;
 
-/// <summary>Un solo PresenzeFlow per utente: il secondo avvio avvisa il primo ed esce.</summary>
+/// <summary>Un solo Vyrn Presence per utente: il secondo avvio avvisa il primo ed esce.</summary>
 public class SingleInstanceTests
 {
     // Gli eventi con nome esistono solo su Windows (l'app gira solo lì): altrove il test non ha senso.

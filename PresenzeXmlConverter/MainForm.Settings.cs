@@ -166,11 +166,15 @@ internal sealed partial class MainForm
     }
 
     /// <summary>Legge i nomi dei fogli del file appena importato (senza mai bloccare l'importazione).</summary>
-    private void LoadSheetNames(string path)
+    private void LoadSheetNames(string path, IReadOnlyList<string>? knownNames = null)
     {
         try
         {
-            _sheetNames = AttendanceWorkbookReader.ListSheetNames(path);
+            // I nomi arrivano dalla lettura appena fatta: riaprire il file sul thread
+            // dell'interfaccia lo congelava per quanto dura la lettura (secondi su fogli grandi).
+            _sheetNames = knownNames is { Count: > 0 }
+                ? knownNames
+                : AttendanceWorkbookReader.ListSheetNames(path);
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or InvalidDataException or

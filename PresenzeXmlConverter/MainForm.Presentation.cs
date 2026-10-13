@@ -389,7 +389,7 @@ internal sealed partial class MainForm
         titles.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         titles.Controls.Add(new Label
         {
-            Text = "PresenzeFlow",
+            Text = "Vyrn Presence",
             AutoSize = true,
             ForeColor = Theme.HeaderInk,
             Font = Theme.Fonts.HeaderTitle,
@@ -938,47 +938,32 @@ internal sealed partial class MainForm
         UpdateWorkflowSummary();
     }
 
-    private void ApplyXmlSyntaxHighlighting()
+    /// <summary>
+    /// Mostra l'XML nell'anteprima con i colori della sintassi. Il testo colorato si compone
+    /// in un solo passaggio (<see cref="XmlRtf"/>) e il controllo lo carica una volta: prima
+    /// ogni tag era una selezione separata e un file medio bloccava la finestra per secondi.
+    /// Oltre il limite il testo resta di un colore solo.
+    /// </summary>
+    private void ShowXmlPreview(string xml)
     {
-        var text = _xmlPreview.Text;
-        if (text.Length == 0)
+        const int highlightingLimit = 2_000_000;
+        if (xml.Length == 0)
         {
+            _xmlPreview.Clear();
             return;
         }
-
-        // Su XML molto grandi l'evidenziazione costa più del suo valore:
-        // oltre il limite si mostra il testo in colore uniforme.
-        const int highlightingLimit = 400_000;
-        if (text.Length > highlightingLimit)
+        if (xml.Length > highlightingLimit)
         {
-            _xmlPreview.SelectAll();
-            _xmlPreview.SelectionColor = Theme.EditorInk;
-            _xmlPreview.Select(0, 0);
+            _xmlPreview.Text = xml;
             return;
         }
-
-        var selectionStart = _xmlPreview.SelectionStart;
-        _xmlPreview.SuspendLayout();
-        _xmlPreview.SelectAll();
-        _xmlPreview.SelectionColor = Theme.EditorInk;
-        foreach (Match match in Regex.Matches(text, @"</?[\w:.-]+|/?>"))
-        {
-            _xmlPreview.Select(match.Index, match.Length);
-            _xmlPreview.SelectionColor = Theme.EditorTag;
-        }
-        foreach (Match match in Regex.Matches(text, "\"[^\"]*\"|'[^']*'"))
-        {
-            _xmlPreview.Select(match.Index, match.Length);
-            _xmlPreview.SelectionColor = Theme.EditorString;
-        }
-        foreach (Match match in Regex.Matches(text, @"(?<=>)[^<\r\n]+(?=<)"))
-        {
-            _xmlPreview.Select(match.Index, match.Length);
-            _xmlPreview.SelectionColor = Theme.EditorValue;
-        }
-        _xmlPreview.Select(Math.Min(selectionStart, _xmlPreview.TextLength), 0);
-        _xmlPreview.SelectionColor = Theme.EditorInk;
-        _xmlPreview.ResumeLayout();
+        static (int, int, int) Rgb(Color color) => (color.R, color.G, color.B);
+        _xmlPreview.Rtf = XmlRtf.Build(
+            xml,
+            new XmlRtf.Palette(
+                Rgb(Theme.EditorInk), Rgb(Theme.EditorTag), Rgb(Theme.EditorString), Rgb(Theme.EditorValue)),
+            _xmlPreview.Font.Name,
+            _xmlPreview.Font.SizeInPoints);
     }
 
     private void CopyXmlToClipboard()

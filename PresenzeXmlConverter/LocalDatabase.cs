@@ -211,7 +211,7 @@ internal sealed class LocalDatabase
         if (schemaVersion > CurrentSchemaVersion)
         {
             throw new InvalidDataException(
-                $"Il database PresenzeFlow usa una versione non supportata ({schemaVersion}).");
+                $"Il database Vyrn Presence usa una versione non supportata ({schemaVersion}).");
         }
 
         if (schemaVersion > 0 && schemaVersion < CurrentSchemaVersion)
@@ -304,7 +304,7 @@ internal sealed class LocalDatabase
                 // Resta un InvalidDataException (come prima), ma marcata: il ripristino
                 // distingue un file danneggiato da uno scritto da una build più nuova.
                 var integrityFailure = new InvalidDataException(
-                    $"Il database PresenzeFlow non ha superato il controllo di integrità: {integrityResult}");
+                    $"Il database Vyrn Presence non ha superato il controllo di integrità: {integrityResult}");
                 integrityFailure.Data[IntegrityMarker] = true;
                 throw integrityFailure;
             }

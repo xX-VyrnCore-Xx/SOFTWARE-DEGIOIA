@@ -1,7 +1,7 @@
 namespace PresenzeXmlConverter;
 
 /// <summary>
-/// Un solo PresenzeFlow per utente. Un secondo avvio (doppio clic sul collegamento
+/// Un solo Vyrn Presence per utente. Un secondo avvio (doppio clic sul collegamento
 /// mentre l'app è nel tray, per esempio) non apre una seconda finestra sullo stesso
 /// database: avvisa la prima, che torna in primo piano, ed esce. Così non ci sono due
 /// icone nel tray né due processi che scrivono sugli stessi file.

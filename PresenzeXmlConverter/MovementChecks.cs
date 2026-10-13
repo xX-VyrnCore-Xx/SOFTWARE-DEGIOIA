@@ -153,9 +153,14 @@ internal static class MovementChecks
                 $"“{duplicate.Key}” compare con più codici PAGHE: {string.Join(", ", duplicate.Select(movement => movement.EmployeeCode).Distinct())}."));
         }
 
+        // Insieme dei nomi presenti nei movimenti, costruito una volta: confrontare ogni nome
+        // del foglio con ogni movimento era un ciclo dentro un ciclo (centinaia di
+        // dipendenti per migliaia di movimenti, con confronti sensibili alla cultura).
+        var namesWithMovements = new HashSet<string>(
+            movements.Select(movement => movement.EmployeeName),
+            StringComparer.CurrentCultureIgnoreCase);
         foreach (var missing in sourceEmployees
-                     .Where(name => movements.All(movement =>
-                         !string.Equals(movement.EmployeeName, name, StringComparison.CurrentCultureIgnoreCase)))
+                     .Where(name => !namesWithMovements.Contains(name))
                      .Take(20))
         {
             findings.Add(new MovementFinding(

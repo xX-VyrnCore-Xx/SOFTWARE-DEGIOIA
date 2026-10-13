@@ -106,7 +106,7 @@ public class UiGraphicsRegressionTests
         }
         var version = typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
         Assert.False(string.IsNullOrWhiteSpace(version), "la versione dell'assembly non e' leggibile");
-        Assert.Equal($"PresenzeFlow {version}", result.Value.title);
+        Assert.Equal($"Vyrn Presence {version}", result.Value.title);
     }
 
     /// <summary>
@@ -227,7 +227,7 @@ public class UiGraphicsRegressionTests
                          // Novità di una Release: note lunghe, con la barra di
                          // scorrimento disegnata con il tema dell'app.
                          new ReleaseNotesDialog(
-                             "Novità di PresenzeFlow",
+                             "Novità di Vyrn Presence",
                              "Riepilogo delle modifiche di questa versione.",
                              LongReleaseNotes,
                              true)
