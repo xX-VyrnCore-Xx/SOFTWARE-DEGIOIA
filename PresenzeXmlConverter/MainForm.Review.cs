@@ -1,10 +1,8 @@
 namespace PresenzeXmlConverter;
 
 /// <summary>
-/// Scheda "Controlli": sostituisce la vecchia chat con l'AI (che non serviva) e
-/// mostra in un unico elenco tutto ciò che va verificato prima di esportare.
-/// I controlli automatici girano sempre, senza AI e senza rete; la revisione AI
-/// è un'aggiunta facoltativa e non può modificare né i movimenti né l'XML.
+/// Scheda "Controlli": mostra in un unico elenco tutto ciò che va verificato prima
+/// di esportare. I controlli girano sempre, in locale e senza rete.
 /// </summary>
 internal sealed partial class MainForm
 {
@@ -12,13 +10,10 @@ internal sealed partial class MainForm
 
     private readonly ThemedGrid _findingsGrid = new();
     private readonly Label _findingsSummaryLabel = new();
-    private readonly Button _aiReviewButton = new();
     private readonly Button _copyFindingsButton = new();
     private IReadOnlyList<string> _sourceProblems = Array.Empty<string>();
     private IReadOnlyList<string> _generationWarnings = Array.Empty<string>();
     private IReadOnlyList<MovementFinding> _findings = Array.Empty<MovementFinding>();
-    private IReadOnlyList<string> _aiFindings = Array.Empty<string>();
-    private bool _isReviewingWithAi;
 
     private int ErrorCount => _findings.Count(finding => finding.Severity == MovementSeverity.Error);
 
@@ -84,12 +79,6 @@ internal sealed partial class MainForm
             Padding = new Padding(0, 1, 0, 0)
         };
 
-        _aiReviewButton.Text = "Revisione AI";
-        Theme.StyleButton(_aiReviewButton, Theme.ButtonTone.Neutral, compact: true);
-        _aiReviewButton.Size = new Size(120, 30);
-        _aiReviewButton.Margin = new Padding(6, 0, 0, 0);
-        _aiReviewButton.Click += async (_, _) => await RunAiReviewAsync();
-
         _copyFindingsButton.Text = "Copia elenco";
         Theme.StyleButton(_copyFindingsButton, Theme.ButtonTone.Neutral, compact: true);
         _copyFindingsButton.Size = new Size(120, 30);
@@ -97,7 +86,6 @@ internal sealed partial class MainForm
         _copyFindingsButton.Click += (_, _) => CopyFindingsToClipboard();
 
         actions.Controls.Add(_copyFindingsButton);
-        actions.Controls.Add(_aiReviewButton);
         toolbarLayout.Controls.Add(actions, 1, 0);
         toolbar.Controls.Add(toolbarLayout);
         page.Controls.Add(toolbar, 0, 0);
@@ -130,7 +118,7 @@ internal sealed partial class MainForm
     /// <summary>
     /// Controlli deterministici sui movimenti: righe non importate dal foglio,
     /// regole sui movimenti generati e confronto con le ore dichiarate. Vengono
-    /// sempre eseguiti, anche senza AI configurata.
+    /// sempre eseguiti.
     /// </summary>
     private void RunDeterministicChecks(IReadOnlyList<DailyMovement> movements)
     {
@@ -162,12 +150,12 @@ internal sealed partial class MainForm
                 _inspection?.PeriodStart,
                 _inspection?.PeriodEnd,
                 _generationOptions.HoursPerDay,
-                _generationOptions.IncludeSaturdays));
+                // Con il rilevamento automatico il sabato può comparire quando serve:
+                // non va segnalato come anomalia.
+                _generationOptions.IncludeSaturdays || _generationOptions.AutoDetect));
             findings.AddRange(MovementChecks.CompareWithSource(movements, _requests));
         }
 
-        findings.AddRange(_aiFindings.Select(message =>
-            new MovementFinding(MovementSeverity.Note, $"AI · {message}")));
         _findings = findings
             .OrderBy(finding => finding.Severity)
             .Take(MaximumFindingsShown)
@@ -182,18 +170,10 @@ internal sealed partial class MainForm
     {
         _sourceProblems = problems;
         _generationWarnings = Array.Empty<string>();
-        _aiFindings = Array.Empty<string>();
     }
 
     /// <summary>Avvisi prodotti dalla generazione: righe escluse, sovrapposizioni, giornate piene.</summary>
     private void SetGenerationWarnings(IReadOnlyList<string> warnings) => _generationWarnings = warnings;
-
-    /// <summary>Aggiunge le osservazioni dell'AI in coda ai controlli automatici.</summary>
-    private void AppendAiFindings(IReadOnlyList<string> messages)
-    {
-        _aiFindings = messages;
-        RunDeterministicChecks(_movements);
-    }
 
     private void RefreshFindings()
     {
@@ -223,7 +203,6 @@ internal sealed partial class MainForm
     private void SetReviewButtonsEnabled()
     {
         _copyFindingsButton.Enabled = !_isBusy && _findings.Count > 0;
-        _aiReviewButton.Enabled = !_isBusy && !_isReviewingWithAi && _movements.Count > 0;
     }
 
     private static void FormatFindingCell(object? sender, DataGridViewCellFormattingEventArgs args)
@@ -306,66 +285,6 @@ internal sealed partial class MainForm
         }
     }
 
-    /// <summary>
-    /// Revisione facoltativa con l'AI locale: le osservazioni si aggiungono come
-    /// note e non possono cambiare movimenti, codici o XML.
-    /// </summary>
-    private async Task RunAiReviewAsync()
-    {
-        if (_movements.Count == 0 || _isReviewingWithAi)
-        {
-            return;
-        }
-
-        _isReviewingWithAi = true;
-        SetReviewButtonsEnabled();
-        SetAiStatus("Revisione AI in corso…", false);
-        try
-        {
-            if (!await _ai.IsAvailableAsync())
-            {
-                SetStatus("AI locale non disponibile: i controlli automatici restano validi.", true);
-                SetAiStatus("AI locale non configurata (opzionale).", false);
-                return;
-            }
-            if (!await _ai.HasModelAsync())
-            {
-                SetStatus("Nessun modello locale installato: usa “Configura AI” per scaricarlo.", true);
-                SetAiStatus("Motore disponibile; modello locale da scaricare.", false);
-                return;
-            }
-
-            var policies = SafeMappings(() => _database.GetPolicyMappings());
-            var observations = await _ai.ReviewMovementsAsync(
-                LocalAiAssistant.BuildReviewSummary(_movements),
-                _findings
-                    .Where(finding => finding.Severity != MovementSeverity.Note)
-                    .Select(finding => finding.Message)
-                    .ToArray(),
-                policies.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
-            AppendAiFindings(observations);
-            SetStatus(
-                observations.Count == 0
-                    ? $"Revisione AI completata ({_ai.ActiveModel}): nessuna osservazione aggiuntiva."
-                    : $"Revisione AI completata ({_ai.ActiveModel}): {observations.Count} osservazioni in più fra i controlli.",
-                false);
-            SetAiStatus($"AI locale pronta ({_ai.ActiveModel}).", true);
-        }
-        catch (Exception exception) when (
-            exception is HttpRequestException or
-            TaskCanceledException or
-            System.Text.Json.JsonException or
-            InvalidOperationException)
-        {
-            SetStatus($"Revisione AI non riuscita: {exception.Message}", true);
-        }
-        finally
-        {
-            _isReviewingWithAi = false;
-            SetReviewButtonsEnabled();
-        }
-    }
-
     private void CopyFindingsToClipboard()
     {
         if (_findings.Count == 0)
@@ -390,7 +309,6 @@ internal sealed partial class MainForm
     private void ResetReview()
     {
         _findings = Array.Empty<MovementFinding>();
-        _aiFindings = Array.Empty<string>();
         _generationWarnings = Array.Empty<string>();
         _findingsGrid.Rows.Clear();
         _findingsSummaryLabel.Text = "Nessun movimento generato: importa un file e crea l’anteprima.";

@@ -16,8 +16,7 @@ internal sealed class MappingEditorPanel : Panel
     private readonly ThemedGrid _employeesGrid = CreateGrid("Dipendente / nome Excel", "Codice ufficiale PAGHE");
     private readonly ThemedGrid _policiesGrid = CreateGrid(
         "Valore della colonna Policy",
-        "Codice giustificativo PAGHE",
-        "Proposta AI locale");
+        "Codice giustificativo PAGHE");
     private readonly Label _note = new();
     private HashSet<string> _requiredEmployees = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> _requiredPolicies = new(StringComparer.OrdinalIgnoreCase);
@@ -40,7 +39,7 @@ internal sealed class MappingEditorPanel : Panel
         Controls.Add(_tabs);
 
         _note.Text =
-            "I campi * sono obbligatori. Le proposte AI sono solo suggerimenti: controlla i codici prima di salvare.";
+            "I campi * sono obbligatori. Controlla i codici prima di salvare.";
         _note.Dock = DockStyle.Bottom;
         _note.Height = 28;
         _note.Padding = new Padding(8, 4, 0, 0);

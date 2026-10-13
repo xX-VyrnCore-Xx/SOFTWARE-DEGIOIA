@@ -4,7 +4,21 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.19.0] - Corrente
+## [1.20.0] - Corrente
+
+### 🗓️ Motore di conversione
+- **Sabato lavorativo rilevato dalle date**: se le ore richieste non entrano nei giorni feriali ma entrano includendo i sabati (es. 48 h dal lunedì al sabato) il sabato riceve ore; se bastano i feriali resta libero; una richiesta del solo sabato non viene più scartata
+- **Ore effettive dalle date**: una durata pari al numero dei giorni del periodo (es. «5» dal lunedì al venerdì) è letta come giorni e convertita in ore; ogni correzione automatica è segnalata nei Controlli
+- Nuova opzione **Rileva in automatico sabati e ore dalle date** (attiva di default) e **Il sabato è sempre lavorativo** nelle impostazioni; i controlli non segnalano più i sabati rilevati come anomalia
+
+### 🧹 AI locale e Ollama rimossi
+- Eliminati dall'app e dall'installer: nessun download di Ollama o di modelli, nessuna pagina del wizard dedicata, nessuna domanda in disinstallazione, nessuna revisione AI. Mappatura delle colonne e dei codici restano manuali e sotto il tuo controllo
+- Un Ollama già installato sul PC **non viene toccato né disinstallato**: si rimuove da Windows (Impostazioni → App) se non serve più
+- La dashboard mostra le regole di conversione in uso al posto dello stato dell'AI; il pulsante **Regole** apre le impostazioni
+
+---
+
+## [1.19.0] - Precedente
 
 ### 🎨 Interfaccia rifatta
 - **Intestazione**: marchio e titolo, ricerca centrale con icona e testo guida visibile (il segnaposto restava nascosto dietro il campo), stato dell'anteprima e due pulsanti a icona (aggiornamenti con pallino quando c'è una versione nuova, impostazioni)

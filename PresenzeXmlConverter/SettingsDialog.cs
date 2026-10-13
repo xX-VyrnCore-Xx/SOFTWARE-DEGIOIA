@@ -4,7 +4,7 @@ namespace PresenzeXmlConverter;
 
 /// <summary>
 /// Impostazioni dell'applicazione in un unico posto, divise in tre schede:
-/// Conversione (regole di calcolo), AI locale e Aggiornamenti (collegamento alle
+/// Conversione (regole di calcolo) e Aggiornamenti (collegamento alle
 /// Release GitHub con il token di sola lettura). Il token viene verificato e
 /// attivato subito, senza riavviare il programma.
 ///
@@ -13,16 +13,15 @@ namespace PresenzeXmlConverter;
 /// Windows resta grigia anche in una finestra dipinta con il tema dell'app.
 /// Le altezze delle righe stanno in <see cref="SettingsPageLayout"/> perché una
 /// scheda più bassa delle righe che contiene schiaccia i campi e taglia l'ultima
-/// riga di testo (era il caso della scheda "AI locale").
+/// riga di testo (già successo con una scheda troppo bassa).
 /// </summary>
 internal sealed class SettingsDialog : Form
 {
     private readonly int _referenceYear;
-    private readonly string _installedModelText;
     private readonly RoundedField _hours = new();
     private readonly CheckBox _saturdays = new();
     private readonly TextBox _holidays = new();
-    private readonly RoundedField _model = new();
+    private readonly CheckBox _autoDetect = new();
     private readonly CheckBox _autoCheck = new();
     private readonly RoundedField _token = new();
     private readonly Label _tokenStatus = new();
@@ -33,15 +32,11 @@ internal sealed class SettingsDialog : Form
     public SettingsDialog(
         GenerationOptions options,
         int referenceYear,
-        bool autoUpdateCheck,
-        string? preferredModel,
-        string installedModelText)
+        bool autoUpdateCheck)
     {
         _referenceYear = referenceYear;
-        _installedModelText = installedModelText;
         Options = options;
         AutoUpdateCheck = autoUpdateCheck;
-        PreferredModel = preferredModel;
 
         // I due pulsanti del token servono già mentre si costruisce la scheda
         // degli aggiornamenti: vanno creati prima del layout.
@@ -102,7 +97,7 @@ internal sealed class SettingsDialog : Form
         }, 0, 0);
         heading.Controls.Add(new Label
         {
-            Text = $"PresenzeFlow {ExecutableSignature.DisplayVersion}  ·  regole di conversione, aggiornamenti e modello AI locale.",
+            Text = $"PresenzeFlow {ExecutableSignature.DisplayVersion}  ·  regole di conversione e aggiornamenti.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.TopLeft,
             ForeColor = Theme.MutedInk,
@@ -124,7 +119,6 @@ internal sealed class SettingsDialog : Form
         };
         var tabs = new ThemedTabControl { Dock = DockStyle.Fill, Margin = Padding.Empty };
         tabs.AddPage("Conversione", BuildConversionPage());
-        tabs.AddPage("AI locale", BuildAiPage());
         tabs.AddPage("Aggiornamenti", BuildUpdatePage());
         tabs.SelectedIndex = 0;
         shell.Controls.Add(tabs);
@@ -185,8 +179,6 @@ internal sealed class SettingsDialog : Form
 
     public bool AutoUpdateCheck { get; private set; }
 
-    public string? PreferredModel { get; private set; }
-
     /// <summary>True se in questa sessione è stato salvato un token valido.</summary>
     public bool TokenSaved { get; private set; }
 
@@ -240,7 +232,7 @@ internal sealed class SettingsDialog : Form
         _hours.Margin = new Padding(0, 2, 0, 8);
         body.Controls.Add(_hours, 0, 2);
 
-        _saturdays.Text = "Considera lavorativo anche il sabato (le ore vengono distribuite anche di sabato)";
+        _saturdays.Text = "Il sabato è sempre lavorativo (le ore vengono distribuite anche di sabato)";
         _saturdays.Dock = DockStyle.Fill;
         _saturdays.TextAlign = ContentAlignment.MiddleLeft;
         _saturdays.ForeColor = Theme.InkSecondary;
@@ -250,8 +242,18 @@ internal sealed class SettingsDialog : Form
         _saturdays.Margin = Padding.Empty;
         body.Controls.Add(_saturdays, 0, 3);
 
+        _autoDetect.Text = "Rileva in automatico sabati e ore dalle date (consigliato)";
+        _autoDetect.Dock = DockStyle.Fill;
+        _autoDetect.TextAlign = ContentAlignment.MiddleLeft;
+        _autoDetect.ForeColor = Theme.InkSecondary;
+        _autoDetect.Font = Theme.Fonts.Small;
+        _autoDetect.Checked = Options.AutoDetect;
+        _autoDetect.AccessibleName = "Rileva automaticamente sabati e ore";
+        _autoDetect.Margin = Padding.Empty;
+        body.Controls.Add(_autoDetect, 0, 4);
+
         body.Controls.Add(CreateFieldLabel(
-            "Chiusure aziendali aggiuntive (oltre alle festività nazionali): una data per riga o separate da virgola — es. 02/06, 24/12"), 0, 4);
+            "Chiusure aziendali aggiuntive (oltre alle festività nazionali): una data per riga o separate da virgola — es. 02/06, 24/12"), 0, 5);
         _holidays.Dock = DockStyle.Fill;
         _holidays.Multiline = true;
         _holidays.ScrollBars = ScrollBars.None;
@@ -276,33 +278,10 @@ internal sealed class SettingsDialog : Form
             Margin = new Padding(0, 2, 0, 6)
         };
         holidaysFrame.Controls.Add(_holidays);
-        body.Controls.Add(holidaysFrame, 0, 5);
+        body.Controls.Add(holidaysFrame, 0, 6);
 
         body.Controls.Add(CreateNote(
-            "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore."), 0, 6);
-        return page;
-    }
-
-    /// <summary>Scheda "AI locale": modello preferito e modello effettivamente installato.</summary>
-    private Control BuildAiPage()
-    {
-        var (page, body) = CreatePage(SettingsPageLayout.AiRows);
-
-        body.Controls.Add(CreateHint(
-            "L'AI gestisce solo suggerimenti: l'XML viene sempre validato e scritto dal programma."), 0, 0);
-
-        body.Controls.Add(CreateFieldLabel(
-            "Modello preferito (tag Ollama completo, es. qwen2.5:3b). Vuoto = scelta automatica."), 0, 1);
-        _model.MaxLength = 120;
-        _model.Dock = DockStyle.Fill;
-        _model.InputFont = Theme.Fonts.Field;
-        _model.Placeholder = LocalAiAssistant.DefaultModel;
-        _model.Value = PreferredModel ?? string.Empty;
-        _model.Input.AccessibleName = "Modello AI locale preferito";
-        _model.Margin = new Padding(0, 2, 0, 8);
-        body.Controls.Add(_model, 0, 2);
-
-        body.Controls.Add(CreateNote(_installedModelText), 0, 3);
+            "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore."), 0, 7);
         return page;
     }
 
@@ -497,10 +476,8 @@ internal sealed class SettingsDialog : Form
             return;
         }
 
-        var model = _model.Value.Trim();
-        Options = new GenerationOptions(hours, _saturdays.Checked, holidays);
+        Options = new GenerationOptions(hours, _saturdays.Checked, holidays, _autoDetect.Checked);
         AutoUpdateCheck = _autoCheck.Checked;
-        PreferredModel = model.Length == 0 ? null : model;
         DialogResult = DialogResult.OK;
         Close();
     }

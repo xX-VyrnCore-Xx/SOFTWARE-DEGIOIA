@@ -15,7 +15,7 @@ internal sealed partial class MainForm
     /// Dà un nome e una descrizione al controllo per le utilità di accessibilità
     /// dei lettori di schermo e usa la stessa frase come suggerimento al
     /// passaggio del mouse. Una scritta da sola non basta: i comandi icona
-    /// ("AI locale") non dicono cosa fanno a chi non vede il contesto.
+    /// ("Codici") non dicono cosa fanno a chi non vede il contesto.
     /// </summary>
     private void Describe(Control control, string name, string description)
     {
@@ -32,9 +32,7 @@ internal sealed partial class MainForm
             using var dialog = new SettingsDialog(
                 _generationOptions,
                 _inspection?.PeriodStart?.Year ?? DateTime.Today.Year,
-                AutoUpdateEnabled(),
-                _database.GetSetting(AiModelSetting),
-                $"Modello in uso: {_ai.ActiveModel}. {_aiStatusLabel.Text}");
+                AutoUpdateEnabled());
             var result = dialog.ShowDialog(this);
             if (result == DialogResult.OK)
             {
@@ -64,14 +62,6 @@ internal sealed partial class MainForm
             _generationOptions = dialog.Options with { ExtraHolidays = dialog.Options.ExtraHolidays ?? [] };
             GenerationSettings.Save(_database, _generationOptions, referenceYear);
             _database.SaveSetting(AutoUpdateSetting, dialog.AutoUpdateCheck ? "true" : "false");
-
-            var storedModel = _database.GetSetting(AiModelSetting);
-            if (!string.Equals(dialog.PreferredModel, storedModel, StringComparison.Ordinal))
-            {
-                _database.SaveSetting(AiModelSetting, dialog.PreferredModel ?? string.Empty);
-                _ai.PreferredModel = dialog.PreferredModel ?? LocalAiAssistant.DefaultModel;
-                UpdateAiStatusAsync();
-            }
 
             if (!GenerationSettings.AreEquivalent(previous, _generationOptions))
             {

@@ -3,8 +3,8 @@ namespace PresenzeXmlConverter.Tests;
 /// <summary>
 /// Le schede del dialogo Impostazioni non devono mai chiedere più spazio di
 /// quello che hanno: una scheda più bassa delle righe che contiene schiaccia i
-/// campi e taglia l'ultima riga di testo (era il caso della scheda "AI locale",
-/// alta 150 px per righe che ne chiedevano 142 solo per i campi usati). Tenendo
+/// campi e taglia l'ultima riga di testo (era già successo una volta,
+/// con una scheda alta 150 px per righe che ne chiedevano 142). Tenendo
 /// le altezze in <see cref="SettingsPageLayout"/> il conto si verifica qui,
 /// senza schermo, e il dialogo non ha bisogno di barre di scorrimento: quelle
 /// native di Windows restano grigie e fuori tema.
@@ -116,7 +116,7 @@ public class SettingsPageLayoutTests
         Assert.True(File.Exists(path), $"Sorgente del dialogo non trovato: {path}");
         var text = File.ReadAllText(path);
 
-        foreach (var page in new[] { "ConversionRows", "AiRows", "UpdateRows" })
+        foreach (var page in new[] { "ConversionRows", "UpdateRows" })
         {
             Assert.Contains($"CreatePage(SettingsPageLayout.{page})", text, StringComparison.Ordinal);
         }

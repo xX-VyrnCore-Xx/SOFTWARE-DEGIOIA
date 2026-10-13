@@ -7,11 +7,9 @@ namespace PresenzeXmlConverter;
 internal sealed partial class MainForm : Form
 {
     private readonly LocalDatabase _database = OpenDatabase();
-    private readonly LocalAiAssistant _ai = new();
     private readonly RoundedField _companyCode = new();
     private readonly Label _fileLabel = new();
     private readonly Label _statusLabel = new();
-    private readonly Label _aiStatusLabel = new();
     private readonly Button _generateButton = new();
     private readonly Button _sheetButton = new();
     private readonly IconButton _exportButton = new("Scarica XML", Glyph.Download, Theme.ButtonTone.Primary);
@@ -35,23 +33,6 @@ internal sealed partial class MainForm : Form
     private IReadOnlyList<string> _sheetNames = Array.Empty<string>();
     private ColumnSelection? _columns;
     private GenerationOptions _generationOptions = GenerationOptions.Default;
-
-    /// <summary>Impostazione che ricorda il modello AI scelto dall'utente.</summary>
-    private const string AiModelSetting = "ai-preferred-model";
-
-    /// <summary>
-    /// Client dedicato ai download dei componenti (motore AI e modelli): segue i
-    /// reindirizzamenti e ha un timeout molto più lungo di una normale richiesta.
-    /// </summary>
-    private static readonly HttpClient DownloadClient = new(new SocketsHttpHandler
-    {
-        AllowAutoRedirect = true,
-        UseCookies = false,
-        ConnectTimeout = TimeSpan.FromSeconds(20)
-    })
-    {
-        Timeout = TimeSpan.FromMinutes(60)
-    };
 
     public MainForm()
     {
@@ -91,12 +72,9 @@ internal sealed partial class MainForm : Form
         };
         _lastSourceDirectory = startup["last-source-dir"].Length == 0 ? null : startup["last-source-dir"];
         _generationOptions = GenerationSettings.Read(_database);
-        _ai.PreferredModel = ResolvePreferredModel(startup[AiModelSetting]);
         MeasureStartup("aggiornamenti", InitializeUpdates);
         SetupTrayIcon();
         UpdateButtons();
-        // Il controllo dell'AI locale (una richiesta a Ollama) non deve mai
-        // ritardare la comparsa della finestra: parte dopo che è già visibile.
     }
 
     /// <summary>
@@ -143,8 +121,8 @@ internal sealed partial class MainForm : Form
         _navWidthReady = true;
         ApplyNavWidth();
         // Dopo che la finestra è disegnata si riempiono i dati che non servono a
-        // vederla: lo storico delle esportazioni e lo stato del motore AI locale.
-        // Così l'apertura non aspetta né il database né la rete.
+        // vederla: lo storico delle esportazioni e la manutenzione del database.
+        // Così l'apertura non aspetta il database.
         BeginInvoke(() =>
         {
             if (IsDisposed)
@@ -152,7 +130,6 @@ internal sealed partial class MainForm : Form
                 return;
             }
             LoadExportsNow();
-            UpdateAiStatusAsync();
             StartDatabaseMaintenance();
             Trace?.WriteTo(StartupLogPath);
         });
@@ -450,23 +427,7 @@ internal sealed partial class MainForm : Form
             var columns = inspection.SuggestedColumns;
             if (columns is null)
             {
-                ColumnSelection? aiSuggestion = null;
-                if (await _ai.IsAvailableAsync())
-                {
-                    try
-                    {
-                        if (await _ai.HasModelAsync())
-                        {
-                            aiSuggestion = await _ai.SuggestColumnsAsync(inspection.Headers);
-                        }
-                    }
-                    catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-                    {
-                        SetStatus($"AI non disponibile per il riconoscimento delle colonne: {exception.Message}. Puoi associarle manualmente.", true);
-                    }
-                }
-
-                using var mappingDialog = new ColumnMappingDialog(inspection.Headers, aiSuggestion);
+                using var mappingDialog = new ColumnMappingDialog(inspection.Headers, null);
                 if (mappingDialog.ShowDialog(this) != DialogResult.OK || mappingDialog.Selection is null)
                 {
                     return;
@@ -541,28 +502,12 @@ internal sealed partial class MainForm : Form
 
             if (missingEmployees.Length > 0 || missingPolicies.Length > 0)
             {
-                IReadOnlyDictionary<string, string> policySuggestions = new Dictionary<string, string>();
-                if (missingPolicies.Length > 0 && await _ai.IsAvailableAsync())
-                {
-                    try
-                    {
-                        if (await _ai.HasModelAsync())
-                        {
-                            policySuggestions = await _ai.SuggestPolicyCodesAsync(missingPolicies, policies);
-                        }
-                    }
-                    catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-                    {
-                        SetStatus($"AI non disponibile per i suggerimenti: {exception.Message}. Completa i codici manualmente.", true);
-                    }
-                }
-
                 using var dialog = new MappingEditorDialog(
                     employees,
                     policies,
                     missingEmployees,
                     missingPolicies,
-                    policySuggestions);
+                    new Dictionary<string, string>());
                 if (dialog.ShowDialog(this) != DialogResult.OK)
                 {
                     SetStatus("Conversione annullata: gli abbinamenti richiesti non sono stati salvati.", true);
@@ -868,593 +813,6 @@ internal sealed partial class MainForm : Form
         return answer == DialogResult.Yes;
     }
 
-    private async Task ConfigureAiAsync()
-    {
-        try
-        {
-            if (await _ai.IsAvailableAsync())
-            {
-                await EnsureModelAsync();
-                return;
-            }
-
-            // Ollama non risponde. Se è GIÀ installato non lo reinstalliamo:
-            // proviamo ad avviarlo e, al massimo, scarichiamo solo il modello.
-            var executable = FindOllamaExecutable();
-            if (executable is not null)
-            {
-                SetAiStatus("Ollama è installato: avvio del servizio locale…", false);
-                await StartOllamaAsync(executable);
-                if (await _ai.IsAvailableAsync())
-                {
-                    await EnsureModelAsync();
-                    return;
-                }
-                MessageBox.Show(
-                    this,
-                    "Ollama risulta installato ma non risponde. Avvialo (menu Start → Ollama) e riprova: " +
-                    "il programma scaricherà solo il modello, senza reinstallare nulla.",
-                    "Configurazione AI locale",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                return;
-            }
-
-            var answer = MessageBox.Show(
-                this,
-                "Ollama non è installato. Vuoi scaricare e installare il motore AI ufficiale? " +
-                "Al termine il modello verrà scaricato automaticamente. Il servizio AI resta solo in locale.",
-                "Configurazione AI locale",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
-            if (answer != DialogResult.Yes)
-            {
-                return;
-            }
-
-            if (!await InstallOllamaAsync())
-            {
-                SetAiStatus("Installazione di Ollama non riuscita.", true);
-                return;
-            }
-
-            await StartOllamaAsync(FindOllamaExecutable());
-            if (await _ai.IsAvailableAsync())
-            {
-                await EnsureModelAsync();
-            }
-            else
-            {
-                SetAiStatus("Ollama installato; avvialo e riprova per scaricare il modello.", false);
-            }
-        }
-        catch (Exception exception) when (exception is IOException or HttpRequestException or TaskCanceledException or
-                                          System.Text.Json.JsonException or System.ComponentModel.Win32Exception or InvalidOperationException)
-        {
-            SetAiStatus("AI locale non disponibile.", false);
-            ShowError("Configurazione AI non riuscita", exception);
-        }
-        finally
-        {
-            UpdateAiStatusAsync();
-        }
-    }
-
-    /// <summary>
-    /// Verifica che il modello sia presente e, se manca, lo scarica con una
-    /// barra di avanzamento reale. Non tocca Ollama: quando è già installato si
-    /// scarica soltanto il modello.
-    /// </summary>
-    private async Task EnsureModelAsync()
-    {
-        if (await _ai.HasModelAsync())
-        {
-            SetAiStatus($"AI locale pronta ({_ai.ActiveModel}).", true);
-            MessageBox.Show(
-                this,
-                $"Il modello locale {_ai.ActiveModel} è pronto. L’AI può proporre colonne, abbinamenti e correzioni all’anteprima; i codici ufficiali restano sotto il tuo controllo.",
-                "AI locale configurata",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-            return;
-        }
-
-        var model = ResolvePreferredModel(null);
-        var download = MessageBox.Show(
-            this,
-            $"Scaricare il modello locale {model}? {DescribeModelSize(model)} " +
-            "L’avanzamento viene mostrato in una finestra dedicata e i dati restano sul tuo PC.",
-            "Scarica modello AI locale",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question);
-        if (download != DialogResult.Yes)
-        {
-            return;
-        }
-
-        if (!HasEnoughDiskSpace())
-        {
-            ShowInformation(
-                "Spazio su disco insufficiente",
-                "Per il modello AI locale servono almeno 2,5 GB liberi sul disco di Windows. " +
-                "Libera spazio e riprova dallo stesso pulsante.");
-            return;
-        }
-
-        using var progress = new ProgressDialog(
-            "AI locale",
-            $"Download del modello {model}",
-            "Connessione a Ollama…");
-        progress.Show(this);
-        try
-        {
-            await _ai.PullModelAsync(
-                model,
-                new Progress<(string Status, int Percent)>(update =>
-                {
-                    // La percentuale arriva dai byte reali: quando non è ancora
-                    // nota si mostra lo stato raccontato da Ollama.
-                    if (update.Percent >= 0)
-                    {
-                        progress.SetProgress(update.Percent, $"Download del modello {model}… {update.Percent}%");
-                    }
-                    else
-                    {
-                        progress.SetStatus($"Download del modello {model}… {update.Status}");
-                    }
-                }),
-                progress.Token);
-            progress.SetCompleted("Modello installato.");
-            _database.SaveSetting(AiModelSetting, model);
-            _ai.PreferredModel = model;
-            SetAiStatus($"AI locale pronta ({model}).", true);
-            MessageBox.Show(
-                this,
-                "Modello locale installato correttamente.",
-                "Configurazione completata",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-        }
-        catch (OperationCanceledException)
-        {
-            SetStatus("●   Download del modello annullato: nessun file incompleto è stato mantenuto.", false);
-        }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or TaskCanceledException or
-                                          System.Text.Json.JsonException or InvalidOperationException)
-        {
-            ShowError("Download del modello non riuscito", exception);
-        }
-        finally
-        {
-            progress.Close();
-        }
-    }
-
-    /// <summary>
-    /// Installa Ollama preferendo winget (scarica solo ciò che serve e gestisce
-    /// da sé versioni e aggiornamenti) e, se non è disponibile o fallisce,
-    /// usando l'installer ufficiale con barra di avanzamento e tentativi ripetuti.
-    /// </summary>
-    private async Task<bool> InstallOllamaAsync()
-    {
-        if (await TryInstallOllamaWithWingetAsync())
-        {
-            return true;
-        }
-
-        var installer = await DownloadOllamaInstallerAsync();
-        if (installer is null)
-        {
-            return false;
-        }
-        return await RunOllamaInstallerAsync(installer);
-    }
-
-    /// <summary>Percorso rapido: winget, se è disponibile sul PC.</summary>
-    private async Task<bool> TryInstallOllamaWithWingetAsync()
-    {
-        var winget = FindWingetExecutable();
-        if (winget is null)
-        {
-            return false;
-        }
-
-        SetAiStatus("Installazione di Ollama con winget…", false);
-        try
-        {
-            var start = new ProcessStartInfo(winget)
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            foreach (var argument in OllamaSetup.WingetInstallArguments())
-            {
-                start.ArgumentList.Add(argument);
-            }
-
-            using var process = Process.Start(start);
-            if (process is null)
-            {
-                return false;
-            }
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(15));
-            await process.WaitForExitAsync(timeout.Token);
-
-            // Non basta il codice di uscita: winget segnala in modi diversi
-            // "installato" e "già presente". Conta che Ollama ci sia davvero.
-            if (FindOllamaExecutable() is not null)
-            {
-                return true;
-            }
-            SetAiStatus($"winget ha terminato con codice {process.ExitCode}: uso l’installer ufficiale.", false);
-        }
-        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException or
-                                          OperationCanceledException or IOException)
-        {
-            SetAiStatus("winget non disponibile: uso l’installer ufficiale.", false);
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Scarica l'installer ufficiale mostrando l'avanzamento; in caso di rete
-    /// instabile riprova fino a tre volte prima di arrendersi.
-    /// </summary>
-    private async Task<string?> DownloadOllamaInstallerAsync()
-    {
-        var setupDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "DeGioia",
-            "PresenzeXmlConverter",
-            "setup");
-        Directory.CreateDirectory(setupDirectory);
-        var destination = Path.Combine(setupDirectory, "OllamaSetup.exe");
-
-        using var progress = new ProgressDialog(
-            "Installazione dell’AI locale",
-            "Scaricamento del motore AI (Ollama)",
-            "Connessione al sito ufficiale…");
-        progress.Show(this);
-        try
-        {
-            for (var attempt = 1; attempt <= 3; attempt++)
-            {
-                try
-                {
-                    await DownloadFileAsync(
-                        OllamaSetup.DownloadUrl,
-                        destination,
-                        new Progress<int>(percent =>
-                            progress.SetProgress(percent, $"Scaricamento di Ollama… {percent}%")),
-                        progress.Token);
-                    progress.SetCompleted("Download completato.");
-                    return destination;
-                }
-                catch (Exception exception) when (attempt < 3 &&
-                                                  exception is HttpRequestException or IOException or TaskCanceledException)
-                {
-                    progress.SetStatus($"Download interrotto: nuovo tentativo ({attempt + 1}/3)…");
-                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt));
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            SetStatus("●   Installazione dell’AI locale annullata: nulla è stato scaricato.", false);
-            return null;
-        }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or TaskCanceledException or
-                                          System.ComponentModel.Win32Exception)
-        {
-            ShowError("Download di Ollama non riuscito", exception);
-            return null;
-        }
-        finally
-        {
-            progress.Close();
-        }
-
-        ShowInformation(
-            "Download di Ollama non riuscito",
-            "Non è stato possibile scaricare Ollama. Controlla la connessione e riprova: " +
-            "la conversione Excel → XML funziona comunque senza AI.");
-        return null;
-    }
-
-    /// <summary>
-    /// Esegue l'installer scaricato in modalità silenziosa e, se questa non
-    /// funziona, lo ripropone mostrandolo all'utente.
-    /// </summary>
-    private async Task<bool> RunOllamaInstallerAsync(string installerPath)
-    {
-        try
-        {
-            SetAiStatus("Installazione di Ollama in corso…", false);
-            using (var silent = Process.Start(new ProcessStartInfo(installerPath)
-                   {
-                       UseShellExecute = true,
-                       Arguments = OllamaSetup.InstallerArguments(silent: true)
-                   }))
-            {
-                if (silent is null)
-                {
-                    return false;
-                }
-                await silent.WaitForExitAsync();
-                if (FindOllamaExecutable() is not null)
-                {
-                    return true;
-                }
-                SetAiStatus($"Installazione silenziosa non riuscita (codice {silent.ExitCode}): apro l’installer.", false);
-            }
-
-            using var interactive = Process.Start(new ProcessStartInfo(installerPath) { UseShellExecute = true });
-            if (interactive is null)
-            {
-                return false;
-            }
-            await interactive.WaitForExitAsync();
-            return FindOllamaExecutable() is not null;
-        }
-        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
-        {
-            SetStatus($"Avvio dell’installer di Ollama non riuscito: {exception.Message}", true);
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Ollama è installato? Prima le posizioni standard, poi quelle registrate
-    /// (installazioni con cartella personalizzata) e infine il PATH.
-    /// </summary>
-    private static string? FindOllamaExecutable()
-    {
-        var candidates = new List<string>(OllamaSetup.CandidateExecutablePaths(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)));
-        candidates.AddRange(RegistryOllamaCandidatePaths());
-
-        var found = OllamaSetup.FindExecutable(candidates, File.Exists);
-        return found ?? OllamaSetup.FindInPathList(
-            Environment.GetEnvironmentVariable("PATH"),
-            "ollama.exe",
-            File.Exists);
-    }
-
-    /// <summary>
-    /// Le installazioni fatte con "OllamaSetup.exe /DIR=..." non sono nelle
-    /// posizioni standard: il registro delle installazioni le conosce.
-    /// </summary>
-    private static IReadOnlyList<string> RegistryOllamaCandidatePaths()
-    {
-        var results = new List<string>();
-        if (!OperatingSystem.IsWindows())
-        {
-            return results;
-        }
-
-        var locations = new (RegistryKey Root, string Path)[]
-        {
-            (Registry.CurrentUser, @"Software\Microsoft\Windows\CurrentVersion\Uninstall"),
-            (Registry.LocalMachine, @"Software\Microsoft\Windows\CurrentVersion\Uninstall"),
-            (Registry.LocalMachine, @"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
-        };
-        foreach (var (root, path) in locations)
-        {
-            try
-            {
-                using var uninstall = root.OpenSubKey(path);
-                if (uninstall is null)
-                {
-                    continue;
-                }
-                foreach (var name in uninstall.GetSubKeyNames())
-                {
-                    using var entry = root.OpenSubKey($@"{path}\{name}");
-                    if (entry?.GetValue("DisplayName") is not string displayName ||
-                        !displayName.Contains("ollama", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                    if (entry.GetValue("InstallLocation") is string location && location.Length > 0)
-                    {
-                        results.Add(Path.Combine(location, "ollama.exe"));
-                    }
-                }
-            }
-            catch (Exception exception) when (exception is System.Security.SecurityException or UnauthorizedAccessException or IOException)
-            {
-                // Chiave non leggibile: si prosegue con le altre.
-            }
-        }
-        return results;
-    }
-
-    private static string? FindWingetExecutable()
-    {
-        var local = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Microsoft",
-            "WindowsApps",
-            "winget.exe");
-        if (File.Exists(local))
-        {
-            return local;
-        }
-        return OllamaSetup.FindInPathList(Environment.GetEnvironmentVariable("PATH"), "winget.exe", File.Exists);
-    }
-
-    /// <summary>
-    /// Avvia il servizio locale di Ollama (senza installare nulla) e attende che
-    /// risponda: su PC più lenti l'avvio può richiedere più di dieci secondi.
-    /// </summary>
-    private async Task StartOllamaAsync(string? ollamaExecutable)
-    {
-        try
-        {
-            var directory = ollamaExecutable is null ? null : Path.GetDirectoryName(ollamaExecutable);
-            var application = directory is null
-                ? null
-                : Path.Combine(directory, OllamaSetup.ServerExecutableNames[0]);
-            if (application is not null && File.Exists(application))
-            {
-                Process.Start(new ProcessStartInfo(application) { UseShellExecute = true });
-            }
-            else if (ollamaExecutable is not null)
-            {
-                Process.Start(new ProcessStartInfo(ollamaExecutable)
-                {
-                    Arguments = "serve",
-                    UseShellExecute = true,
-                    WindowStyle = ProcessWindowStyle.Hidden
-                });
-            }
-            else
-            {
-                return;
-            }
-        }
-        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
-        {
-            return;
-        }
-
-        for (var attempt = 0; attempt < 15; attempt++)
-        {
-            await Task.Delay(1000);
-            if (await _ai.IsAvailableAsync())
-            {
-                return;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Modello da usare: la scelta fatta in fase di installazione (file scritto
-    /// dall'installer), poi quella salvata dall'utente, infine il predefinito.
-    /// </summary>
-    private string ResolvePreferredModel(string? storedSetting)
-    {
-        var fromInstaller = ReadInstallerModelMarker();
-        var stored = storedSetting ?? _database.GetSetting(AiModelSetting);
-        return OllamaSetup.ResolvePreferredModel(fromInstaller, stored) ?? LocalAiAssistant.DefaultModel;
-    }
-
-    /// <summary>Legge il modello scelto durante l'installazione dell'app.</summary>
-    private static string? ReadInstallerModelMarker()
-    {
-        try
-        {
-            var marker = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "DeGioia",
-                "PresenzeXmlConverter",
-                OllamaSetup.ModelMarkerFileName);
-            return File.Exists(marker) ? File.ReadAllText(marker) : null;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>Dimensione approssimativa dei modelli proposti dall'installer.</summary>
-    private static string DescribeModelSize(string model) => model switch
-    {
-        "qwen2.5:0.5b" => "Circa 400 MB.",
-        "qwen2.5:1.5b" => "Circa 1 GB.",
-        "qwen2.5:3b" => "Circa 2 GB.",
-        _ => string.Empty
-    };
-
-    /// <summary>
-    /// Evita di avviare un download da oltre un gigabyte su un disco quasi pieno.
-    /// In caso di dubbio (unità non leggibile) non blocca nulla.
-    /// </summary>
-    private static bool HasEnoughDiskSpace()
-    {
-        try
-        {
-            var root = Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-            if (string.IsNullOrEmpty(root))
-            {
-                return true;
-            }
-            var drive = new DriveInfo(root);
-            return !drive.IsReady || drive.AvailableFreeSpace >= OllamaSetup.MinimumFreeBytes;
-        }
-        catch (Exception exception) when (exception is IOException or ArgumentException or UnauthorizedAccessException)
-        {
-            return true;
-        }
-    }
-
-    /// <summary>
-    /// Download di un file con avanzamento reale (stream + Content-Length).
-    /// Il file di destinazione viene ricreato a ogni tentativo, così un download
-    /// interrotto non lascia un installer troncato.
-    /// </summary>
-    private static async Task DownloadFileAsync(
-        string url,
-        string destination,
-        IProgress<int>? progress,
-        CancellationToken cancellationToken)
-    {
-        using var response = await DownloadClient.GetAsync(
-            url,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var total = response.Content.Headers.ContentLength ?? 0;
-        await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var file = new FileStream(
-            destination,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.None,
-            81920,
-            useAsync: true);
-
-        var buffer = new byte[81920];
-        long received = 0;
-        int read;
-        while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
-        {
-            await file.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-            received += read;
-            if (total > 0)
-            {
-                progress?.Report((int)Math.Min(100, received * 100 / total));
-            }
-        }
-        await file.FlushAsync(cancellationToken);
-    }
-
-    private async void UpdateAiStatusAsync()
-    {
-        if (!await _ai.IsAvailableAsync())
-        {
-            SetAiStatus("AI locale non configurata (opzionale).", false);
-            return;
-        }
-
-        try
-        {
-            SetAiStatus(
-                await _ai.HasModelAsync()
-                    ? $"AI locale pronta ({_ai.ActiveModel})."
-                    : "Motore disponibile; modello locale da scaricare.",
-                true);
-        }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-        {
-            SetAiStatus("AI locale non disponibile.", false);
-            SetStatus($"Verifica AI: {exception.Message}", true);
-        }
-    }
-
     private void PopulatePreview(IReadOnlyList<DailyMovement> movements)
     {
         _isPopulatingPreview = true;
@@ -1630,12 +988,6 @@ internal sealed partial class MainForm : Form
     {
         _xmlRefreshDebounce.Stop();
         _xmlRefreshDebounce.Start();
-    }
-
-    private void SetAiStatus(string text, bool isReady)
-    {
-        _aiStatusLabel.Text = text;
-        _aiStatusLabel.ForeColor = isReady ? Theme.SuccessInk : Theme.MutedInk;
     }
 
     private bool TryValidateCode(string value, int maximumLength, string label, out string normalized)

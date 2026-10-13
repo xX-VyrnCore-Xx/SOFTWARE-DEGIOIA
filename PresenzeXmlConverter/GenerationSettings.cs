@@ -10,6 +10,7 @@ namespace PresenzeXmlConverter;
 internal static class GenerationSettings
 {
     public const string HoursPerDaySetting = "generation-hours-per-day";
+    public const string AutoDetectSetting = "generation-auto-detect";
     public const string IncludeSaturdaysSetting = "generation-include-saturdays";
     public const string ExtraHolidaysSetting = "generation-extra-holidays";
 
@@ -156,6 +157,7 @@ internal static class GenerationSettings
     public static bool AreEquivalent(GenerationOptions first, GenerationOptions second) =>
         first.HoursPerDay == second.HoursPerDay &&
         first.IncludeSaturdays == second.IncludeSaturdays &&
+        first.AutoDetect == second.AutoDetect &&
         (first.ExtraHolidays ?? [])
             .Select(day => day.Date)
             .OrderBy(day => day)
@@ -167,6 +169,7 @@ internal static class GenerationSettings
         var settings = database.GetSettings(
             HoursPerDaySetting,
             IncludeSaturdaysSetting,
+            AutoDetectSetting,
             ExtraHolidaysSetting);
         var hours = ParseHoursPerDay(settings[HoursPerDaySetting]);
         var includeSaturdays = string.Equals(
@@ -177,7 +180,9 @@ internal static class GenerationSettings
         return new GenerationOptions(
             hours,
             includeSaturdays,
-            ParseHolidays(settings[ExtraHolidaysSetting], referenceYear));
+            ParseHolidays(settings[ExtraHolidaysSetting], referenceYear),
+            // Il rilevamento è attivo salvo scelta contraria.
+            !string.Equals(settings[AutoDetectSetting], "false", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Salva le impostazioni scelte, normalizzando i valori.</summary>
@@ -190,7 +195,19 @@ internal static class GenerationSettings
             IncludeSaturdaysSetting,
             options.IncludeSaturdays ? "true" : "false");
         database.SaveSetting(
+            AutoDetectSetting,
+            options.AutoDetect ? "true" : "false");
+        database.SaveSetting(
             ExtraHolidaysSetting,
             FormatHolidays(options.ExtraHolidays, referenceYear));
+    }
+
+    /// <summary>Riepilogo in una riga delle regole di conversione in uso.</summary>
+    public static string Describe(GenerationOptions options)
+    {
+        var saturday = options.IncludeSaturdays
+            ? "sabato lavorativo"
+            : options.AutoDetect ? "sabato automatico" : "sabato escluso";
+        return $"{options.HoursPerDay:0.##} h/giorno · {saturday}";
     }
 }

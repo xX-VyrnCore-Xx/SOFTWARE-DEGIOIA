@@ -41,7 +41,8 @@ internal sealed record GenerationResult(
 internal sealed record GenerationOptions(
     decimal HoursPerDay = 8m,
     bool IncludeSaturdays = false,
-    IReadOnlyList<DateTime>? ExtraHolidays = null)
+    IReadOnlyList<DateTime>? ExtraHolidays = null,
+    bool AutoDetect = true)
 {
     public static GenerationOptions Default { get; } = new();
 }

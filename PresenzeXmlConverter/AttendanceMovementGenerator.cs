@@ -38,7 +38,10 @@ internal static class AttendanceMovementGenerator
                 continue;
             }
 
-            var workDays = EnumerateWorkDays(start, end, options).ToArray();
+            // Calendario e ore ricavati dalle date: il sabato entra quando serve a non
+            // superare la giornata, una durata espressa in giorni diventa ore.
+            var plan = WorkCalendar.Plan(start, end, request.Hours, options);
+            var workDays = plan.Days.ToArray();
             if (workDays.Length == 0)
             {
                 warnings.Add(
@@ -48,8 +51,12 @@ internal static class AttendanceMovementGenerator
                 continue;
             }
 
+            if (plan.Note is not null)
+            {
+                warnings.Add($"Riga {request.SourceRow}: {plan.Note}");
+            }
             var totalMinutes = decimal.ToInt32(decimal.Round(
-                request.Hours * 60m,
+                plan.Hours * 60m,
                 0,
                 MidpointRounding.AwayFromZero));
             if (totalMinutes <= 0)
@@ -218,6 +225,92 @@ internal static class AttendanceMovementGenerator
             }
             yield return day;
         }
+    }
+}
+
+/// <summary>Giorni lavorativi e ore effettive di una richiesta, con l'eventuale nota su cosa è stato corretto.</summary>
+internal sealed record WorkPlan(IReadOnlyList<DateTime> Days, decimal Hours, string? Note);
+
+/// <summary>
+/// Ricava dalle date di una richiesta quali giorni sono lavorativi e quante ore sono
+/// davvero. Le regole sono due, entrambe attive con <see cref="GenerationOptions.AutoDetect"/>:
+/// <list type="bullet">
+/// <item>il sabato conta solo quando serve: se le ore stanno nella giornata sui soli giorni
+/// feriali restano quelli (40 h dal lunedì al sabato = 5 giorni da 8 h); se non ci
+/// stanno (48 h) il sabato è lavorativo; una richiesta che cade solo di sabato lo usa;</item>
+/// <item>una durata uguale al numero di giorni (5 su 5 giorni) è espressa in giorni, non in
+/// ore: diventa 5 × la giornata standard.</item>
+/// </list>
+/// Con «sabato lavorativo» attivo nelle impostazioni il sabato conta sempre.
+/// </summary>
+internal static class WorkCalendar
+{
+    public static WorkPlan Plan(DateTime start, DateTime end, decimal hours, GenerationOptions options)
+    {
+        var dayHours = options.HoursPerDay is > 0m and <= 24m ? options.HoursPerDay : 8m;
+        var weekdays = Days(start, end, options, includeSaturdays: false);
+        var withSaturdays = Days(start, end, options, includeSaturdays: true);
+        string? note = null;
+
+        if (options.AutoDetect && hours > 0m && hours < dayHours && dayHours > 1m)
+        {
+            // Durata in giorni: coincide con quanti giorni lavorativi ha l'intervallo.
+            foreach (var count in new[] { weekdays.Count, withSaturdays.Count }.Distinct())
+            {
+                if (count >= 2 && hours == count)
+                {
+                    var converted = count * dayHours;
+                    note = $"durata di {hours:0.##} interpretata come {count} giorni = {converted:0.##} ore.";
+                    hours = converted;
+                    break;
+                }
+            }
+        }
+
+        if (options.IncludeSaturdays)
+        {
+            return new WorkPlan(withSaturdays, hours, note);
+        }
+        if (!options.AutoDetect || weekdays.Count == withSaturdays.Count)
+        {
+            return new WorkPlan(weekdays, hours, note);
+        }
+        if (weekdays.Count == 0)
+        {
+            return new WorkPlan(withSaturdays, hours, Join(note, "la richiesta cade di sabato: sabato considerato lavorativo."));
+        }
+        if (hours <= (weekdays.Count * dayHours) + 0.01m)
+        {
+            return new WorkPlan(weekdays, hours, note);
+        }
+        if (hours <= (withSaturdays.Count * dayHours) + 0.01m)
+        {
+            return new WorkPlan(
+                withSaturdays,
+                hours,
+                Join(note, $"{hours:0.##} ore non stanno nei soli giorni feriali: sabato considerato lavorativo."));
+        }
+        return new WorkPlan(weekdays, hours, note);
+    }
+
+    private static string Join(string? first, string second) => first is null ? second : $"{first} {second}";
+
+    private static List<DateTime> Days(DateTime start, DateTime end, GenerationOptions options, bool includeSaturdays)
+    {
+        var extraHolidays = options.ExtraHolidays ?? [];
+        var days = new List<DateTime>();
+        for (var day = start.Date; day <= end.Date; day = day.AddDays(1))
+        {
+            if (day.DayOfWeek == DayOfWeek.Sunday ||
+                (day.DayOfWeek == DayOfWeek.Saturday && !includeSaturdays) ||
+                ItalianHolidays.Contains(day) ||
+                extraHolidays.Contains(day))
+            {
+                continue;
+            }
+            days.Add(day);
+        }
+        return days;
     }
 }
 

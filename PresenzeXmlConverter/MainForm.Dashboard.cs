@@ -3,7 +3,7 @@ namespace PresenzeXmlConverter;
 /// <summary>
 /// Dashboard: riepilogo a colpo d'occhio. In alto quattro schede con icona; sotto,
 /// a sinistra l'area di rilascio del foglio con l'avanzamento del lavoro e le azioni, a
-/// destra lo stato del sistema (file, database, aggiornamenti, AI); in fondo le ultime
+/// destra lo stato del sistema (file, database, aggiornamenti, regole di conversione); in fondo le ultime
 /// consegne. Le altezze sono dichiarate: nessuna scheda si allunga a riempire spazio vuoto.
 /// </summary>
 internal sealed partial class MainForm
@@ -17,7 +17,7 @@ internal sealed partial class MainForm
     private readonly StatusRow _statusFile = new("File Excel", Glyph.File);
     private readonly StatusRow _statusDatabase = new("Database", Glyph.Database);
     private readonly StatusRow _statusUpdates = new("Aggiornamenti", Glyph.Refresh);
-    private readonly StatusRow _statusAi = new("AI locale", Glyph.Chip);
+    private readonly StatusRow _statusRules = new("Regole", Glyph.Chip);
     private IconButton? _dashGenerateButton;
 
     /// <summary>La consegna in anteprima è già stata esportata? Serve al terzo passo dell'avanzamento.</summary>
@@ -186,7 +186,7 @@ internal sealed partial class MainForm
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 25));
         }
         layout.Controls.Add(CreateCardTitle("STATO DEL SISTEMA"), 0, 0);
-        var rows = new[] { _statusFile, _statusDatabase, _statusUpdates, _statusAi };
+        var rows = new[] { _statusFile, _statusDatabase, _statusUpdates, _statusRules };
         for (var index = 0; index < rows.Length; index++)
         {
             rows[index].Dock = DockStyle.Fill;
@@ -227,11 +227,9 @@ internal sealed partial class MainForm
             _sourcePath is null ? StatusTone.Neutral : StatusTone.Good);
         RefreshDatabaseStatusRow();
         RefreshUpdatesStatusRow();
-        _statusAi.SetState(
-            _aiStatusLabel.Text.Replace("AI locale", string.Empty, StringComparison.OrdinalIgnoreCase).Trim(' ', '·', ':').Length == 0
-                ? "facoltativa"
-                : _aiStatusLabel.Text.Replace("AI locale", string.Empty, StringComparison.OrdinalIgnoreCase).Trim(' ', '·', ':'),
-            _aiStatusLabel.ForeColor == Theme.SuccessInk ? StatusTone.Good : StatusTone.Neutral);
+        _statusRules.SetState(
+            GenerationSettings.Describe(_generationOptions),
+            StatusTone.Good);
 
         if (_dashGenerateButton is not null)
         {

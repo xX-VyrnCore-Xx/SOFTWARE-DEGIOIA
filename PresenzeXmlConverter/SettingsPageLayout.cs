@@ -8,7 +8,7 @@ namespace PresenzeXmlConverter;
 ///
 /// Prima le altezze erano scritte a mano accanto alle righe e una scheda più
 /// bassa delle righe che conteneva schiacciava i campi, tagliando l'ultima riga
-/// di testo (la scheda "AI locale" era alta 150 px per righe che ne chiedevano
+/// di testo (una scheda era alta 150 px per righe che ne chiedevano
 /// 142 solo per i campi utilizzati, spazi vuoti compresi).
 /// </summary>
 internal static class SettingsPageLayout
@@ -50,13 +50,7 @@ internal static class SettingsPageLayout
     /// <summary>Scheda "Conversione": giornata standard, sabato, chiusure.</summary>
     public static readonly int[] ConversionRows =
     {
-        HintRow, FieldLabelRow, FieldRow, CheckRow, FieldLabelRow, HolidaysRow, NoteRow
-    };
-
-    /// <summary>Scheda "AI locale": modello preferito e modello installato.</summary>
-    public static readonly int[] AiRows =
-    {
-        HintRow, FieldLabelRow, FieldRow, SignatureRow
+        HintRow, FieldLabelRow, FieldRow, CheckRow, CheckRow, FieldLabelRow, HolidaysRow, NoteRow
     };
 
     /// <summary>Scheda "Aggiornamenti": ricerca automatica, token e firma.</summary>
@@ -66,7 +60,7 @@ internal static class SettingsPageLayout
     };
 
     /// <summary>Tutte le schede, nell'ordine in cui compaiono.</summary>
-    public static IReadOnlyList<int[]> Pages => new[] { ConversionRows, AiRows, UpdateRows };
+    public static IReadOnlyList<int[]> Pages => new[] { ConversionRows, UpdateRows };
 
     /// <summary>Spaziatura interna della pagina (sopra e sotto).</summary>
     public const int PagePadding = 16;
