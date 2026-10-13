@@ -13,12 +13,17 @@ namespace PresenzeXmlConverter;
 internal sealed partial class MainForm
 {
     /// <summary>
-    /// Larghezza della colonna della barra di navigazione (barra 186 px + margine).
-    /// Il valore è il massimo che lascia respiro all'area di revisione anche nella
-    /// finestra più piccola consentita: con una barra più larga i comandi
-    /// dell'area di revisione uscirebbero dal bordo destro.
+    /// Larghezza della barra di navigazione con la finestra stretta (anche la più
+    /// piccola consentita): lascia respiro all'area di revisione, e per questo usa
+    /// le etichette brevi ("Conversione", "Codici", "Storico").
     /// </summary>
-    internal const int NavColumnWidth = 198;
+    internal const int NavColumnWidthCompact = 176;
+
+    /// <summary>Larghezza con la finestra larga: ci stanno le etichette per intero.</summary>
+    internal const int NavColumnWidthWide = 224;
+
+    /// <summary>Larghezza utile della finestra da cui la barra passa alla forma ampia.</summary>
+    internal const int NavWideThreshold = 1240;
 
     private const int SectionDashboard = 0;
     private const int SectionConversion = 1;
@@ -50,6 +55,7 @@ internal sealed partial class MainForm
     private readonly ThemedGrid _historyGrid = new();
     private readonly Button _historyOpenButton = new();
     private readonly Button _historyCopyButton = new();
+    private readonly Button _historySaveCopyButton = new();
     private readonly Button _historyClearButton = new();
     private IReadOnlyList<ExportRecord> _exports = Array.Empty<ExportRecord>();
     private bool _codesLoaded;
@@ -77,9 +83,9 @@ internal sealed partial class MainForm
         _conversionSection = conversionSection;
 
         _navRail.AddItem("Dashboard", NavIcon.Dashboard);
-        _navRail.AddItem("Nuova conversione", NavIcon.Convert);
-        _navRail.AddItem("Gestione codici", NavIcon.Codes);
-        _navRail.AddItem("Storico esportazioni", NavIcon.History);
+        _navRail.AddItem("Nuova conversione", NavIcon.Convert, "Conversione");
+        _navRail.AddItem("Gestione codici", NavIcon.Codes, "Codici");
+        _navRail.AddItem("Storico esportazioni", NavIcon.History, "Storico");
         _navRail.Dock = DockStyle.Top;
         _navRail.Height = _navRail.PreferredRailHeight;
         _navRail.Margin = Padding.Empty;
@@ -93,6 +99,7 @@ internal sealed partial class MainForm
             Padding = Padding.Empty
         };
         railHost.Controls.Add(_navRail);
+        railHost.Controls.Add(BuildRailFooter());
 
         _sectionHost.Dock = DockStyle.Fill;
         _sectionHost.BackColor = Theme.Canvas;
@@ -110,17 +117,104 @@ internal sealed partial class MainForm
             BackColor = Theme.Canvas,
             Margin = Padding.Empty
         };
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NavColumnWidth));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NavColumnWidthCompact));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         body.Controls.Add(railHost, 0, 0);
         body.Controls.Add(_sectionHost, 1, 0);
         root.Controls.Add(body, 0, 1);
+        _shellBody = body;
+        _navRail.UseShortTitles = true;
 
         // La dashboard è la schermata di benvenuto: dice a colpo d'occhio dove si
         // è arrivati e da lì si parte con un clic.
         _navRail.SelectedIndex = SectionDashboard;
         ApplySection();
+    }
+
+    private TableLayoutPanel? _shellBody;
+    private bool _navWidthReady;
+
+    private readonly Label _railDataLabel = new();
+    private readonly Label _railBackupLabel = new();
+
+    /// <summary>
+    /// Piede della barra laterale: lo stato dei dati e la versione sono sempre
+    /// sotto gli occhi, senza aprire nulla. Sono quattro righe fisse (nessun testo
+    /// va a capo): ogni riga è corta abbastanza per la barra più stretta.
+    /// </summary>
+    private Control BuildRailFooter()
+    {
+        var footer = new TableLayoutPanel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 92,
+            ColumnCount = 1,
+            RowCount = 4,
+            BackColor = Theme.Canvas,
+            Padding = new Padding(16, 8, 8, 10),
+            Margin = Padding.Empty
+        };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        for (var row = 0; row < 4; row++)
+        {
+            footer.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
+        }
+
+        footer.Controls.Add(CreateCardTitle("DATI LOCALI"), 0, 0);
+
+        _railDataLabel.Dock = DockStyle.Fill;
+        _railDataLabel.TextAlign = ContentAlignment.MiddleLeft;
+        _railDataLabel.ForeColor = Theme.SuccessInk;
+        _railDataLabel.Font = Theme.Fonts.SmallBold;
+        _railDataLabel.AutoEllipsis = true;
+        _railDataLabel.Margin = Padding.Empty;
+        _railDataLabel.Text = "●  Database collegato";
+        footer.Controls.Add(_railDataLabel, 0, 1);
+
+        _railBackupLabel.Dock = DockStyle.Fill;
+        _railBackupLabel.TextAlign = ContentAlignment.MiddleLeft;
+        _railBackupLabel.ForeColor = Theme.MutedInk;
+        _railBackupLabel.Font = Theme.Fonts.Tiny;
+        _railBackupLabel.AutoEllipsis = true;
+        _railBackupLabel.Margin = Padding.Empty;
+        _railBackupLabel.Text = "backup automatici";
+        footer.Controls.Add(_railBackupLabel, 0, 2);
+
+        var version = new Label
+        {
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Theme.MutedInk,
+            Font = Theme.Fonts.Tiny,
+            AutoEllipsis = true,
+            Margin = Padding.Empty,
+            Text = $"Versione {RunningVersion.ToString(3)}"
+        };
+        footer.Controls.Add(version, 0, 3);
+        return footer;
+    }
+
+    /// <summary>
+    /// Con la finestra larga la barra mostra le etichette intere, con quella
+    /// stretta le brevi. Le misure sono in pixel del dispositivo: il valore va
+    /// riscalato con il DPI, perché quelli dichiarati nel costruttore li scala la
+    /// finestra da sola ma una modifica fatta a finestra aperta no.
+    /// </summary>
+    private void ApplyNavWidth()
+    {
+        if (_shellBody is null || !_navWidthReady)
+        {
+            return;
+        }
+        var wide = ClientSize.Width >= LogicalToDeviceUnits(NavWideThreshold);
+        var width = LogicalToDeviceUnits(wide ? NavColumnWidthWide : NavColumnWidthCompact);
+        var style = _shellBody.ColumnStyles[0];
+        if ((int)style.Width != width)
+        {
+            style.Width = width;
+        }
+        _navRail.UseShortTitles = !wide;
     }
 
     private static TableLayoutPanel NewSection() => new()
@@ -644,7 +738,7 @@ internal sealed partial class MainForm
             Font = Theme.Fonts.Tiny,
             AutoEllipsis = true,
             Margin = Padding.Empty,
-            Text = "Doppio clic su una riga per aprire la cartella del file XML."
+            Text = "Doppio clic su una riga per aprire la cartella. «Salva copia» risalva l'XML conservato."
         };
         bar.Controls.Add(hint, 0, 0);
 
@@ -658,28 +752,39 @@ internal sealed partial class MainForm
         };
         _historyOpenButton.Text = "Apri cartella";
         Theme.StyleButton(_historyOpenButton, Theme.ButtonTone.Primary, compact: true);
-        _historyOpenButton.Size = new Size(132, 34);
+        _historyOpenButton.Size = new Size(124, 34);
         _historyOpenButton.Margin = new Padding(8, 0, 0, 0);
         _historyOpenButton.Click += (_, _) => OpenExportFolder(SelectedHistoryExport());
         Describe(_historyOpenButton, "Apri cartella", "Apre in Esplora file la cartella del file XML selezionato.");
 
         _historyCopyButton.Text = "Copia percorso";
         Theme.StyleButton(_historyCopyButton, Theme.ButtonTone.Neutral, compact: true);
-        _historyCopyButton.Size = new Size(132, 34);
+        _historyCopyButton.Size = new Size(124, 34);
         _historyCopyButton.Margin = new Padding(8, 0, 0, 0);
         _historyCopyButton.Click += (_, _) => CopyExportPath(SelectedHistoryExport());
         Describe(_historyCopyButton, "Copia percorso", "Copia negli appunti il percorso completo del file selezionato.");
 
         _historyClearButton.Text = "Svuota storico";
         Theme.StyleButton(_historyClearButton, Theme.ButtonTone.Neutral, compact: true);
-        _historyClearButton.Size = new Size(132, 34);
+        _historyClearButton.Size = new Size(124, 34);
         _historyClearButton.Margin = new Padding(8, 0, 0, 0);
         _historyClearButton.Click += (_, _) => ClearHistory();
         Describe(_historyClearButton, "Svuota storico", "Elimina l'elenco delle esportazioni: i file XML su disco restano.");
 
+        _historySaveCopyButton.Text = "Salva copia…";
+        Theme.StyleButton(_historySaveCopyButton, Theme.ButtonTone.Positive, compact: true);
+        _historySaveCopyButton.Size = new Size(124, 34);
+        _historySaveCopyButton.Margin = new Padding(8, 0, 0, 0);
+        _historySaveCopyButton.Click += (_, _) => SaveStoredXmlCopy(SelectedHistoryExport());
+        Describe(
+            _historySaveCopyButton,
+            "Salva copia",
+            "Risalva il file XML consegnato, conservato nel database: funziona anche se l'originale è stato spostato o cancellato.");
+
         actions.Controls.Add(_historyClearButton);
         actions.Controls.Add(_historyCopyButton);
         actions.Controls.Add(_historyOpenButton);
+        actions.Controls.Add(_historySaveCopyButton);
         bar.Controls.Add(actions, 1, 0);
         page.Controls.Add(bar, 0, 2);
         UpdateHistoryButtons();
@@ -707,6 +812,7 @@ internal sealed partial class MainForm
         var hasSelection = _historyGrid.SelectedRows.Count > 0 && _exports.Count > 0;
         _historyOpenButton.Enabled = hasSelection;
         _historyCopyButton.Enabled = hasSelection;
+        _historySaveCopyButton.Enabled = hasSelection && SelectedHistoryExport()?.HasStoredXml == true;
         _historyClearButton.Enabled = _exports.Count > 0;
     }
 
@@ -776,6 +882,48 @@ internal sealed partial class MainForm
         }
     }
 
+    /// <summary>Risalva il file XML conservato nel database per una consegna passata.</summary>
+    private void SaveStoredXmlCopy(ExportRecord? record)
+    {
+        if (record is null || !record.HasStoredXml)
+        {
+            return;
+        }
+        try
+        {
+            var xml = _database.GetExportXml(record.Id);
+            if (xml is null)
+            {
+                SetStatus("La copia dell'XML non è leggibile nel database.", true);
+                return;
+            }
+            using var picker = new SaveFileDialog
+            {
+                Title = "Salva una copia dell'XML consegnato",
+                Filter = "File XML (*.xml)|*.xml",
+                AddExtension = true,
+                DefaultExt = "xml",
+                FileName = record.FileName,
+                OverwritePrompt = true
+            };
+            if (!string.IsNullOrEmpty(_lastExportDirectory) && Directory.Exists(_lastExportDirectory))
+            {
+                picker.InitialDirectory = _lastExportDirectory;
+            }
+            if (picker.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+            File.WriteAllBytes(picker.FileName, xml);
+            SetStatus($"●   Copia salvata: {picker.FileName}", false);
+        }
+        catch (Exception exception) when (
+            exception is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            ShowError("Copia dell'XML non riuscita", exception);
+        }
+    }
+
     private void CopyExportPath(ExportRecord? record)
     {
         if (record is null || record.FilePath.Length == 0)
@@ -833,14 +981,30 @@ internal sealed partial class MainForm
         try
         {
             var totals = MovementChecks.Summarize(_movements);
-            _database.SaveExport(new ExportRecord(
-                DateTime.UtcNow,
-                Path.GetFileName(path),
-                Path.GetFullPath(path),
-                companyCode,
-                totals.Employees,
-                totals.Movements,
-                totals.TotalMinutes));
+            // Si conserva ciò che è stato davvero scritto su disco, non l'anteprima:
+            // l'XML potrebbe essere stato modificato a mano prima del salvataggio.
+            byte[]? delivered = null;
+            try
+            {
+                delivered = File.ReadAllBytes(path);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Senza la copia lo storico resta valido: manca solo "Salva copia".
+            }
+            _database.SaveExport(
+                new ExportRecord(
+                    DateTime.UtcNow,
+                    Path.GetFileName(path),
+                    Path.GetFullPath(path),
+                    companyCode,
+                    totals.Employees,
+                    totals.Movements,
+                    totals.TotalMinutes,
+                    0,
+                    ExportHistory.Fingerprint(companyCode, _movements),
+                    Path.GetFileName(_sourcePath ?? string.Empty)),
+                delivered);
             _exports = _database.GetExports();
             RefreshDashboard();
             if (_navRail.SelectedIndex == SectionHistory)
@@ -947,16 +1111,33 @@ internal sealed partial class MainForm
         {
             Dock = DockStyle.Fill,
             BackColor = Theme.HeaderFill,
-            Margin = new Padding(0, 16, 14, 0),
-            Padding = Padding.Empty
+            Margin = Padding.Empty,
+            Padding = new Padding(12, 0, 12, 0)
         };
-        _headerSearch.Dock = DockStyle.Top;
-        _headerSearch.Height = 34;
+        // Il campo sta al centro dello spazio fra titolo e pulsanti, largo al più 460 px:
+        // su uno schermo largo non diventa una barra lunghissima, su uno stretto cede
+        // spazio ma resta usabile.
+        _headerSearch.Dock = DockStyle.None;
         _headerSearch.Placeholder = "Cerca nei movimenti…";
         _headerSearch.Input.AccessibleName = "Cerca nei movimenti";
         _headerSearch.TextChanged += (_, _) => SearchFromHeader();
         host.Controls.Add(_headerSearch);
+        host.Resize += (_, _) => LayoutHeaderSearch(host);
+        LayoutHeaderSearch(host);
         return host;
+    }
+
+    private void LayoutHeaderSearch(Panel host)
+    {
+        const int Height = 34;
+        var available = Math.Max(0, host.ClientSize.Width - host.Padding.Horizontal);
+        var width = Math.Min(LogicalToDeviceUnits(460), available);
+        var height = LogicalToDeviceUnits(Height);
+        _headerSearch.SetBounds(
+            host.Padding.Left + ((available - width) / 2),
+            Math.Max(0, (host.ClientSize.Height - height) / 2),
+            width,
+            height);
     }
 
     private void SearchFromHeader()

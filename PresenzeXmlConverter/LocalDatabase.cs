@@ -29,6 +29,10 @@ internal sealed record DatabaseHealth(
         return $"Database collegato · schema {SchemaVersion} · {size} · {backups}{storage}";
     }
 
+    /// <summary>Riga breve per la barra laterale ("3 backup · 5 h fa").</summary>
+    public string DescribeBackupsShort(DateTime nowUtc) =>
+        BackupCount == 0 ? "nessun backup" : $"{BackupCount} backup · {DescribeAge(nowUtc)}";
+
     private string DescribeAge(DateTime nowUtc)
     {
         if (LastBackupUtc is not { } last)
@@ -56,10 +60,11 @@ internal sealed class LocalDatabase
 {
     /// <summary>
     /// Versione dello schema: 1 = preferenze e abbinamenti, 2 = storico delle
-    /// esportazioni. Un database di versione superiore è stato scritto da una
-    /// build più recente e non va aperto a metà.
+    /// esportazioni, 3 = impronta e file sorgente di ogni esportazione e copia
+    /// dell'XML consegnato. Un database di versione superiore è stato scritto da
+    /// una build più recente e non va aperto a metà.
     /// </summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>Quanti backup restano: i più vecchi vengono eliminati.</summary>
     public const int MaximumBackups = 10;
@@ -237,11 +242,29 @@ internal sealed class LocalDatabase
                 CompanyCode TEXT NOT NULL,
                 Employees INTEGER NOT NULL,
                 Movements INTEGER NOT NULL,
-                TotalMinutes INTEGER NOT NULL
+                TotalMinutes INTEGER NOT NULL,
+                Fingerprint TEXT NOT NULL DEFAULT '',
+                SourceName TEXT NOT NULL DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS Exports_ExportedAtUtc ON Exports (ExportedAtUtc DESC);
+            CREATE TABLE IF NOT EXISTS ExportFiles (
+                ExportId INTEGER PRIMARY KEY NOT NULL REFERENCES Exports(Id) ON DELETE CASCADE,
+                XmlGz BLOB NOT NULL,
+                RawBytes INTEGER NOT NULL
+            );
             """;
         command.ExecuteNonQuery();
+
+        // Database creato da una versione precedente: le colonne nuove si aggiungono
+        // (mai si ricrea la tabella: lo storico esistente resta intatto).
+        EnsureColumn(connection, "Exports", "Fingerprint", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(connection, "Exports", "SourceName", "TEXT NOT NULL DEFAULT ''");
+        using (var fingerprintIndex = connection.CreateCommand())
+        {
+            fingerprintIndex.CommandText =
+                "CREATE INDEX IF NOT EXISTS Exports_Fingerprint ON Exports (Fingerprint);";
+            fingerprintIndex.ExecuteNonQuery();
+        }
 
         using var updateVersion = connection.CreateCommand();
         updateVersion.CommandText = $"PRAGMA user_version = {CurrentSchemaVersion};";
@@ -268,6 +291,25 @@ internal sealed class LocalDatabase
             }
             RecordIntegrityCheck(connection);
         }
+    }
+
+    private static void EnsureColumn(SqliteConnection connection, string table, string column, string definition)
+    {
+        using var info = connection.CreateCommand();
+        info.CommandText = $"PRAGMA table_info({table});";
+        using (var reader = info.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+        }
+        using var alter = connection.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition};";
+        alter.ExecuteNonQuery();
     }
 
     private const string IntegrityCheckSetting = "integrity-check-at";
@@ -580,21 +622,25 @@ internal sealed class LocalDatabase
     /// <summary>
     /// Registra un'esportazione e fa scorrere le più vecchie fuori dalla
     /// finestra conservata: lo storico serve a ricordare le ultime consegne, non
-    /// a crescere per sempre.
+    /// a crescere per sempre. Con <paramref name="xml"/> conserva anche una copia
+    /// compressa del file consegnato. Restituisce l'identificativo della voce.
     /// </summary>
-    public void SaveExport(ExportRecord record)
+    public long SaveExport(ExportRecord record, byte[]? xml = null)
     {
         ArgumentNullException.ThrowIfNull(record);
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction();
 
+        long id;
         using (var insert = connection.CreateCommand())
         {
             insert.Transaction = transaction;
             insert.CommandText = """
                 INSERT INTO Exports
-                    (ExportedAtUtc, FileName, FilePath, CompanyCode, Employees, Movements, TotalMinutes)
-                VALUES ($at, $name, $path, $company, $employees, $movements, $minutes);
+                    (ExportedAtUtc, FileName, FilePath, CompanyCode, Employees, Movements, TotalMinutes,
+                     Fingerprint, SourceName)
+                VALUES ($at, $name, $path, $company, $employees, $movements, $minutes, $fingerprint, $source);
+                SELECT last_insert_rowid();
                 """;
             insert.Parameters.AddWithValue("$at", record.ExportedAtUtc.ToUniversalTime().ToString("O"));
             insert.Parameters.AddWithValue("$name", record.FileName ?? string.Empty);
@@ -603,12 +649,26 @@ internal sealed class LocalDatabase
             insert.Parameters.AddWithValue("$employees", record.Employees);
             insert.Parameters.AddWithValue("$movements", record.Movements);
             insert.Parameters.AddWithValue("$minutes", record.TotalMinutes);
-            insert.ExecuteNonQuery();
+            insert.Parameters.AddWithValue("$fingerprint", record.Fingerprint ?? string.Empty);
+            insert.Parameters.AddWithValue("$source", record.SourceName ?? string.Empty);
+            id = Convert.ToInt64(insert.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (xml is { Length: > 0 and <= MaximumStoredXmlBytes })
+        {
+            using var store = connection.CreateCommand();
+            store.Transaction = transaction;
+            store.CommandText = "INSERT INTO ExportFiles (ExportId, XmlGz, RawBytes) VALUES ($id, $gz, $raw);";
+            store.Parameters.AddWithValue("$id", id);
+            store.Parameters.AddWithValue("$gz", Compress(xml));
+            store.Parameters.AddWithValue("$raw", xml.Length);
+            store.ExecuteNonQuery();
         }
 
         using (var prune = connection.CreateCommand())
         {
             prune.Transaction = transaction;
+            // Le copie dell'XML escono insieme alla voce (ON DELETE CASCADE).
             prune.CommandText = """
                 DELETE FROM Exports
                 WHERE Id NOT IN (
@@ -620,7 +680,29 @@ internal sealed class LocalDatabase
         }
 
         transaction.Commit();
+        return id;
     }
+
+    /// <summary>Oltre questa dimensione l'XML non viene copiato nel database (resta solo la voce dello storico).</summary>
+    public const int MaximumStoredXmlBytes = 20 * 1024 * 1024;
+
+    private const string ExportColumns = """
+        e.Id, e.ExportedAtUtc, e.FileName, e.FilePath, e.CompanyCode, e.Employees, e.Movements,
+        e.TotalMinutes, e.Fingerprint, e.SourceName, COALESCE(f.RawBytes, 0)
+        """;
+
+    private static ExportRecord ReadExport(SqliteDataReader reader) => new(
+        ParseTimestamp(reader.GetString(1)),
+        reader.GetString(2),
+        reader.GetString(3),
+        reader.GetString(4),
+        reader.GetInt32(5),
+        reader.GetInt32(6),
+        reader.GetInt32(7),
+        reader.GetInt64(0),
+        reader.GetString(8),
+        reader.GetString(9),
+        reader.GetInt32(10));
 
     /// <summary>Le esportazioni più recenti, dalla più nuova alla più vecchia.</summary>
     public IReadOnlyList<ExportRecord> GetExports(int limit = ExportHistory.MaximumEntries)
@@ -628,10 +710,10 @@ internal sealed class LocalDatabase
         var take = Math.Clamp(limit, 1, ExportHistory.MaximumEntries);
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT ExportedAtUtc, FileName, FilePath, CompanyCode, Employees, Movements, TotalMinutes
-            FROM Exports
-            ORDER BY ExportedAtUtc DESC, Id DESC
+        command.CommandText = $"""
+            SELECT {ExportColumns}
+            FROM Exports e LEFT JOIN ExportFiles f ON f.ExportId = e.Id
+            ORDER BY e.ExportedAtUtc DESC, e.Id DESC
             LIMIT $limit;
             """;
         command.Parameters.AddWithValue("$limit", take);
@@ -639,16 +721,73 @@ internal sealed class LocalDatabase
         var records = new List<ExportRecord>();
         while (reader.Read())
         {
-            records.Add(new ExportRecord(
-                ParseTimestamp(reader.GetString(0)),
-                reader.GetString(1),
-                reader.GetString(2),
-                reader.GetString(3),
-                reader.GetInt32(4),
-                reader.GetInt32(5),
-                reader.GetInt32(6)));
+            records.Add(ReadExport(reader));
         }
         return records;
+    }
+
+    /// <summary>
+    /// L'ultima consegna con gli stessi movimenti (stessa impronta), se c'è: serve
+    /// ad avvisare prima di mandare due volte lo stesso file a PAGHE.
+    /// </summary>
+    public ExportRecord? FindExportByFingerprint(string fingerprint)
+    {
+        if (string.IsNullOrWhiteSpace(fingerprint))
+        {
+            return null;
+        }
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT {ExportColumns}
+            FROM Exports e LEFT JOIN ExportFiles f ON f.ExportId = e.Id
+            WHERE e.Fingerprint = $fingerprint
+            ORDER BY e.ExportedAtUtc DESC, e.Id DESC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$fingerprint", fingerprint);
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? ReadExport(reader) : null;
+    }
+
+    /// <summary>Il file XML conservato per una consegna (null se non c'è o è illeggibile).</summary>
+    public byte[]? GetExportXml(long exportId)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT XmlGz FROM ExportFiles WHERE ExportId = $id;";
+        command.Parameters.AddWithValue("$id", exportId);
+        if (command.ExecuteScalar() is not byte[] compressed)
+        {
+            return null;
+        }
+        try
+        {
+            return Decompress(compressed);
+        }
+        catch (InvalidDataException)
+        {
+            return null;
+        }
+    }
+
+    private static byte[] Compress(byte[] data)
+    {
+        using var output = new MemoryStream();
+        using (var gzip = new System.IO.Compression.GZipStream(output, System.IO.Compression.CompressionLevel.Optimal))
+        {
+            gzip.Write(data, 0, data.Length);
+        }
+        return output.ToArray();
+    }
+
+    private static byte[] Decompress(byte[] data)
+    {
+        using var input = new MemoryStream(data);
+        using var gzip = new System.IO.Compression.GZipStream(input, System.IO.Compression.CompressionMode.Decompress);
+        using var output = new MemoryStream();
+        gzip.CopyTo(output);
+        return output.ToArray();
     }
 
     public int GetExportCount()

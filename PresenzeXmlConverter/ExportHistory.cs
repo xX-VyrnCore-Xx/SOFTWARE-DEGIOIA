@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace PresenzeXmlConverter;
 
@@ -14,8 +16,18 @@ internal sealed record ExportRecord(
     string CompanyCode,
     int Employees,
     int Movements,
-    int TotalMinutes)
+    int TotalMinutes,
+    long Id = 0,
+    string Fingerprint = "",
+    string SourceName = "",
+    int StoredBytes = 0)
 {
+    /// <summary>
+    /// Il file XML consegnato è conservato nel database: si può risalvare una copia
+    /// anche se l'originale è stato spostato, rinominato o cancellato.
+    /// </summary>
+    public bool HasStoredXml => StoredBytes > 0;
+
     /// <summary>Momento dell'esportazione nel fuso orario del PC.</summary>
     public DateTime LocalTime => ExportedAtUtc.ToLocalTime();
 
@@ -56,6 +68,65 @@ internal static class ExportHistory
             1 => $"ieri {time}",
             _ => localTime.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)
         };
+    }
+
+    /// <summary>
+    /// Impronta del CONTENUTO di una consegna: azienda e movimenti (dipendente,
+    /// giorno, giustificativo, ore), in ordine canonico. Non dipende dal formato del
+    /// file né dall'ordine delle righe, quindi due consegne con gli stessi movimenti
+    /// hanno la stessa impronta anche se l'XML è stato scritto in modo diverso.
+    /// Serve ad accorgersi di un secondo invio identico a PAGHE.
+    /// </summary>
+    public static string Fingerprint(string companyCode, IEnumerable<DailyMovement> movements)
+    {
+        var lines = movements
+            .Select(movement => string.Join(
+                '|',
+                movement.EmployeeCode.Trim().ToUpperInvariant(),
+                movement.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+                movement.ReasonCode.Trim().ToUpperInvariant(),
+                movement.Hours.ToString(CultureInfo.InvariantCulture),
+                movement.Minutes.ToString(CultureInfo.InvariantCulture)))
+            .Order(StringComparer.Ordinal);
+        var text = (companyCode ?? string.Empty).Trim().ToUpperInvariant() + "\n" + string.Join("\n", lines);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Nome proposto per il file XML: TRRIPW, azienda e periodo dei movimenti
+    /// ("TRRIPW_AZ001_2026-08.xml"). Senza movimenti si ripiega sul nome del file
+    /// sorgente. I caratteri non ammessi nei nomi di file vengono tolti.
+    /// </summary>
+    public static string SuggestFileName(
+        string companyCode,
+        string? sourceName,
+        IReadOnlyCollection<DailyMovement> movements)
+    {
+        var parts = new List<string>();
+        var company = (companyCode ?? string.Empty).Trim().ToUpperInvariant();
+        if (movements.Count > 0)
+        {
+            parts.Add("TRRIPW");
+            if (company.Length > 0)
+            {
+                parts.Add(company);
+            }
+            var first = movements.Min(movement => movement.Date).Date;
+            var last = movements.Max(movement => movement.Date).Date;
+            parts.Add(first.Year == last.Year && first.Month == last.Month
+                ? first.ToString("yyyy-MM", CultureInfo.InvariantCulture)
+                : $"{first:yyyyMMdd}-{last:yyyyMMdd}");
+        }
+        else
+        {
+            var source = Path.GetFileNameWithoutExtension(sourceName ?? string.Empty);
+            parts.Add(string.IsNullOrWhiteSpace(source) ? "presenze" : source);
+            parts.Add("TRRIPW");
+        }
+
+        var invalid = Path.GetInvalidFileNameChars();
+        var name = string.Concat(string.Join('_', parts).Where(character => !invalid.Contains(character)));
+        return (name.Length == 0 ? "TRRIPW" : name) + ".xml";
     }
 
     /// <summary>Descrive il contenuto di un'esportazione in una riga.</summary>

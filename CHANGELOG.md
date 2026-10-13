@@ -4,7 +4,25 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.16.0] - Corrente
+## [1.17.0] - Corrente
+
+### 🧭 Intestazione e barra laterale
+- **Intestazione riordinata**: nella 1.16 la tabella dichiarava 3 colonne ma ne usava 4, quindi *Aggiornamenti*, *Impostazioni* e lo stato dell'anteprima **non comparivano**. Ora sono quattro colonne (marchio · titolo · ricerca · azioni), il marchio è centrato, la ricerca sta al centro dello spazio libero (al più 460 px) e i pulsanti hanno uno stile adatto al fondo scuro
+- **Barra laterale che si adatta**: con la finestra larga mostra le etichette intere («Nuova conversione», «Storico esportazioni», 224 px); con quella stretta passa a 176 px con le etichette brevi («Conversione», «Codici», «Storico») invece di tagliarle con i puntini
+- **Piede della barra**: stato dei dati locali («Database collegato», numero e età dei backup) e versione, sempre visibili
+
+### 🔁 Conversione
+- **Nome del file proposto**: `TRRIPW_<azienda>_<periodo>.xml` (es. `TRRIPW_AZ001_2026-08.xml`) invece del nome del foglio
+- **Protezione dal doppio invio**: ogni consegna ha un'*impronta* dei movimenti (azienda, dipendente, giorno, giustificativo, ore, indipendente dall'ordine e dal formato dell'XML). Se si esportano di nuovo gli stessi movimenti l'app avvisa — mandare due volte lo stesso file a PAGHE duplica le assenze — e chiede conferma
+
+### 🗄️ Database (schema 3)
+- Ogni consegna conserva ora il **file di origine**, l'**impronta** e una **copia compressa dell'XML effettivamente scritto** (fino a 20 MB). Nello *Storico esportazioni* il nuovo pulsante **Salva copia…** lo risalva anche se l'originale è stato spostato o cancellato
+- La copia esce dal database insieme alla voce dello storico (ultime 200 consegne), senza righe orfane
+- **Migrazione sicura**: un database dello schema 2 viene aggiornato aggiungendo le colonne (lo storico esistente resta intatto) dopo un backup automatico `prima-di-aggiornare`
+
+---
+
+## [1.16.0] - Precedente
 
 ### 🔄 Aggiornamenti sempre collegati
 - **Token iniettato in ogni build**: il workflow di rilascio legge il secret `PRESENZEFLOW_GITHUB_TOKEN`, lo **verifica** contro l'API (un token scaduto non viene mai distribuito) e lo scrive, offuscato, nel codice prima della compilazione (`tools/Inject-UpdateToken.ps1` → `EmbeddedUpdateToken`). Ogni installer esce con gli aggiornamenti già collegati, senza configurare nulla sul PC e senza token nel repository. Senza secret il rilascio si ferma (salvo la variabile `ALLOW_RELEASE_WITHOUT_UPDATE_TOKEN=true`)
