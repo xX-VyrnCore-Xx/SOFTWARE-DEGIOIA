@@ -112,3 +112,95 @@ public class ClientWorkbookTests
         Assert.Contains(result.Warnings, warning => warning.Contains("fuori dal periodo", StringComparison.Ordinal));
     }
 }
+
+/// <summary>
+/// I giorni lavorativi senza assenza vanno comunque contati come presenza con il
+/// giustificativo universale 334 (codice ufficiale 01: ore ordinarie).
+/// </summary>
+public class PresenceFillTests
+{
+    private static AttendanceRequest Request(string policy, DateTime start, DateTime end, decimal hours) =>
+        new("Rossi Mario", policy, start, end, hours, 4);
+
+    private static GenerationResult Run(params AttendanceRequest[] requests) =>
+        AttendanceMovementGenerator.Generate(
+            requests,
+            new Dictionary<string, string> { ["Rossi Mario"] = "0000001" },
+            new Dictionary<string, string> { ["Ferie"] = "FE" },
+            null,
+            null,
+            new GenerationOptions(FillPresence: true));
+
+    [Fact]
+    public void EveryWorkingDayWithoutAbsenceGetsThePresenceCode()
+    {
+        // Settembre 2026: 22 giorni lavorativi lun-ven; 3 di ferie (mar 15, mer 16, gio 17).
+        var result = Run(Request("Ferie", new DateTime(2026, 9, 15), new DateTime(2026, 9, 17), 24m));
+
+        var absences = result.Movements.Where(movement => movement.ReasonCode == "FE").ToArray();
+        var presences = result.Movements.Where(movement => movement.ReasonCode == "334").ToArray();
+        Assert.Equal(3, absences.Length);
+        Assert.Equal(19, presences.Length);
+        Assert.All(presences, movement =>
+        {
+            Assert.Equal("01", movement.OfficialCode);
+            Assert.Equal(8, movement.Hours);
+            Assert.NotEqual(DayOfWeek.Saturday, movement.Date.DayOfWeek);
+            Assert.NotEqual(DayOfWeek.Sunday, movement.Date.DayOfWeek);
+        });
+        Assert.DoesNotContain(presences, movement => absences.Any(absence => absence.Date == movement.Date));
+    }
+
+    [Fact]
+    public void AHalfDayAbsenceLeavesTheResidualHoursAsPresence()
+    {
+        var result = Run(Request("Ferie", new DateTime(2026, 9, 16), new DateTime(2026, 9, 16), 4m));
+
+        var presence = Assert.Single(result.Movements, movement =>
+            movement.ReasonCode == "334" && movement.Date == new DateTime(2026, 9, 16));
+        Assert.Equal(4, presence.Hours);
+        Assert.Equal(0, presence.Minutes);
+    }
+
+    [Fact]
+    public void NationalHolidaysAndExtraClosuresGetNoPresence()
+    {
+        var options = new GenerationOptions(
+            FillPresence: true,
+            ExtraHolidays: [new DateTime(2026, 9, 21)]);
+        var result = AttendanceMovementGenerator.Generate(
+            [Request("Ferie", new DateTime(2026, 9, 15), new DateTime(2026, 9, 15), 8m)],
+            new Dictionary<string, string> { ["Rossi Mario"] = "0000001" },
+            new Dictionary<string, string> { ["Ferie"] = "FE" },
+            null,
+            null,
+            options);
+
+        Assert.DoesNotContain(result.Movements, movement => movement.Date == new DateTime(2026, 9, 21));
+    }
+
+    [Fact]
+    public void TheWriterGivesTheOfficialCodeItsOwnElementAndTheXmlStaysValid()
+    {
+        var result = Run(Request("Ferie", new DateTime(2026, 9, 15), new DateTime(2026, 9, 15), 8m));
+        var xml = TrriPwXmlWriter.Create("000198", result.Movements);
+        var document = System.Xml.Linq.XDocument.Parse(xml);
+        var presence = document.Descendants("Movimento")
+            .First(item => (string?)item.Element("CodGiustificativoRilPres") == "334");
+
+        Assert.Equal("01", (string?)presence.Element("CodGiustificativoUfficiale"));
+        Assert.Empty(TrriPwXmlValidator.Validate(System.Text.Encoding.UTF8.GetBytes(xml)));
+    }
+
+    [Fact]
+    public void WithoutTheOptionNothingIsAdded()
+    {
+        var result = AttendanceMovementGenerator.Generate(
+            [Request("Ferie", new DateTime(2026, 9, 15), new DateTime(2026, 9, 15), 8m)],
+            new Dictionary<string, string> { ["Rossi Mario"] = "0000001" },
+            new Dictionary<string, string> { ["Ferie"] = "FE" },
+            null,
+            null);
+        Assert.Single(result.Movements);
+    }
+}

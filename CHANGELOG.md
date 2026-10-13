@@ -4,7 +4,13 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.10] - Corrente
+## [1.22.11] - Corrente
+
+### ✅ Presenza nei giorni senza assenza (334)
+- Ogni giorno lavorativo (lun-ven, esclusi festivi e chiusure) in cui il dipendente non ha assenze viene registrato come presenza con il giustificativo universale **334** (codice di rilevazione 334, codice ufficiale 01 = ore ordinarie: con 999 Paghe scarterebbe il movimento). Se nel giorno c'è un'assenza parziale, il 334 riceve le ore residue (ore standard − ore di assenza)
+- Il periodo è quello del foglio, oppure i mesi interi toccati dalle richieste. Il sabato conta solo se è attivo nelle impostazioni dell'azienda
+
+## [1.22.10]
 
 ### 🧩 XML identico a quello accettato da Zucchetti
 - Da un XML che Zucchetti importa davvero è emersa la struttura corretta: radice `<Fornitura>` (non `TRRIPW` né `Dipendenti`), `Dipendente` con i codici azienda e dipendente come **attributi**, `Movimenti` con l'attributo `GenerazioneAutomaticaDaTeorico="N"`, e per ogni movimento `CodGiustificativoRilPres`, `CodGiustificativoUfficiale`, `Data`, `NumOre` a 2 cifre (`08`); i minuti compaiono solo se diversi da zero

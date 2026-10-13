@@ -13,6 +13,7 @@ internal static class GenerationSettings
     public const string AutoDetectSetting = "generation-auto-detect";
     public const string IncludeSaturdaysSetting = "generation-include-saturdays";
     public const string ExtraHolidaysSetting = "generation-extra-holidays";
+    public const string FillPresenceSetting = "generation-fill-presence";
 
     public const decimal MinimumHoursPerDay = 1m;
     public const decimal MaximumHoursPerDay = 24m;
@@ -158,6 +159,9 @@ internal static class GenerationSettings
         first.HoursPerDay == second.HoursPerDay &&
         first.IncludeSaturdays == second.IncludeSaturdays &&
         first.AutoDetect == second.AutoDetect &&
+        first.FillPresence == second.FillPresence &&
+        first.PresenceCode == second.PresenceCode &&
+        first.PresenceOfficialCode == second.PresenceOfficialCode &&
         (first.ExtraHolidays ?? [])
             .Select(day => day.Date)
             .OrderBy(day => day)
@@ -170,7 +174,8 @@ internal static class GenerationSettings
             HoursPerDaySetting,
             IncludeSaturdaysSetting,
             AutoDetectSetting,
-            ExtraHolidaysSetting);
+            ExtraHolidaysSetting,
+            FillPresenceSetting);
         var hours = ParseHoursPerDay(settings[HoursPerDaySetting]);
         var includeSaturdays = string.Equals(
             settings[IncludeSaturdaysSetting],
@@ -182,7 +187,9 @@ internal static class GenerationSettings
             includeSaturdays,
             ParseHolidays(settings[ExtraHolidaysSetting], referenceYear),
             // Il rilevamento è attivo salvo scelta contraria.
-            !string.Equals(settings[AutoDetectSetting], "false", StringComparison.OrdinalIgnoreCase));
+            !string.Equals(settings[AutoDetectSetting], "false", StringComparison.OrdinalIgnoreCase),
+            // I giorni lavorativi senza movimenti diventano presenze (334), salvo scelta contraria.
+            !string.Equals(settings[FillPresenceSetting], "false", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Salva le impostazioni scelte, normalizzando i valori.</summary>
@@ -197,6 +204,9 @@ internal static class GenerationSettings
         database.SaveSetting(
             AutoDetectSetting,
             options.AutoDetect ? "true" : "false");
+        database.SaveSetting(
+            FillPresenceSetting,
+            options.FillPresence ? "true" : "false");
         database.SaveSetting(
             ExtraHolidaysSetting,
             FormatHolidays(options.ExtraHolidays, referenceYear));

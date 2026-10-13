@@ -594,7 +594,13 @@ internal sealed class SettingsDialog : Form
             return;
         }
         Format = new XmlFormat(_xmlRoot.Value.Trim(), _xmlNamespace.Value.Trim(), _xmlPerNode.Checked);
-        Options = new GenerationOptions(hours, _saturdays.Checked, holidays, _autoDetect.Checked);
+        Options = Options with
+        {
+            HoursPerDay = hours,
+            IncludeSaturdays = _saturdays.Checked,
+            ExtraHolidays = holidays,
+            AutoDetect = _autoDetect.Checked
+        };
         AutoUpdateCheck = _autoCheck.Checked;
         DialogResult = DialogResult.OK;
         Close();

@@ -162,6 +162,10 @@ internal static class AttendanceMovementGenerator
         }
 
         var merged = MergeSameReasonMovements(movements, warnings);
+        if (options.FillPresence)
+        {
+            AddPresenceDays(merged, periodStart, periodEnd, options, capacityMinutes);
+        }
 
         return new GenerationResult(
             merged.OrderBy(movement => movement.EmployeeName, StringComparer.CurrentCultureIgnoreCase)
@@ -169,6 +173,69 @@ internal static class AttendanceMovementGenerator
                 .ThenBy(movement => movement.ReasonCode, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
             warnings);
+    }
+
+    /// <summary>
+    /// Ogni giorno lavorativo (lun-ven, senza festivi) in cui il dipendente non ha una giornata
+    /// già coperta da assenze riceve una presenza con il giustificativo universale «334»:
+    /// le ore sono quelle standard meno le ore di assenza dello stesso giorno. Il periodo è
+    /// quello del foglio oppure i mesi interi toccati dai movimenti.
+    /// </summary>
+    private static void AddPresenceDays(
+        List<DailyMovement> movements,
+        DateTime? periodStart,
+        DateTime? periodEnd,
+        GenerationOptions options,
+        int capacityMinutes)
+    {
+        if (movements.Count == 0 || string.IsNullOrWhiteSpace(options.PresenceCode))
+        {
+            return;
+        }
+        var first = movements.Min(movement => movement.Date).Date;
+        var last = movements.Max(movement => movement.Date).Date;
+        var from = periodStart?.Date ?? new DateTime(first.Year, first.Month, 1);
+        var to = periodEnd?.Date ?? new DateTime(last.Year, last.Month, DateTime.DaysInMonth(last.Year, last.Month));
+        if (from > to)
+        {
+            return;
+        }
+
+        var extraHolidays = options.ExtraHolidays ?? [];
+        var presence = new List<DailyMovement>();
+        foreach (var employee in movements.GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase))
+        {
+            var sample = employee.First();
+            var absentByDay = employee
+                .GroupBy(movement => movement.Date.Date)
+                .ToDictionary(group => group.Key, group => group.Sum(movement => movement.Hours * 60 + movement.Minutes));
+            for (var day = from; day <= to; day = day.AddDays(1))
+            {
+                var weekday = day.DayOfWeek;
+                if (weekday == DayOfWeek.Sunday ||
+                    (weekday == DayOfWeek.Saturday && !options.IncludeSaturdays) ||
+                    ItalianHolidays.Contains(day, extraHolidays))
+                {
+                    continue;
+                }
+                var residual = capacityMinutes - (absentByDay.TryGetValue(day, out var absent) ? absent : 0);
+                if (residual <= 0)
+                {
+                    continue;
+                }
+                presence.Add(new DailyMovement(
+                    sample.EmployeeName,
+                    sample.EmployeeCode,
+                    "Presenza",
+                    options.PresenceCode.Trim(),
+                    day,
+                    residual / 60,
+                    residual % 60,
+                    0,
+                    string.IsNullOrWhiteSpace(options.PresenceOfficialCode) ? null : options.PresenceOfficialCode.Trim()));
+            }
+        }
+        movements.AddRange(presence);
     }
 
     /// <summary>

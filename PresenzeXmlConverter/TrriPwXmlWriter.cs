@@ -167,7 +167,13 @@ internal static class TrriPwXmlWriter
                 ReasonCode = ValidateCode(
                     movement.ReasonCode,
                     MaxReasonCodeLength,
-                    Describe($"codice giustificativo della richiesta “{movement.Policy}”", employeeName))
+                    Describe($"codice giustificativo della richiesta “{movement.Policy}”", employeeName)),
+                OfficialCode = movement.OfficialCode is null
+                    ? null
+                    : ValidateCode(
+                        movement.OfficialCode,
+                        MaxReasonCodeLength,
+                        Describe("codice giustificativo ufficiale", employeeName))
             };
         }
         ValidateEmployeeCodes(normalizedMovements);
@@ -290,7 +296,7 @@ internal static class TrriPwXmlWriter
         // Il file accettato da Zucchetti ripete il codice sia come «rilevazione presenze» sia
         // come «ufficiale», ha le ore a 2 cifre (08) e omette i minuti quando sono zero.
         WriteElement(writer, "CodGiustificativoRilPres", movement.ReasonCode, ns);
-        WriteElement(writer, "CodGiustificativoUfficiale", movement.ReasonCode, ns);
+        WriteElement(writer, "CodGiustificativoUfficiale", movement.OfficialCode ?? movement.ReasonCode, ns);
         WriteElement(writer, "Data", movement.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ns);
         WriteElement(writer, "NumOre", movement.Hours.ToString("00", CultureInfo.InvariantCulture), ns);
         if (movement.Minutes > 0)

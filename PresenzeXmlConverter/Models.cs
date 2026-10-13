@@ -31,7 +31,8 @@ internal sealed record DailyMovement(
     DateTime Date,
     int Hours,
     int Minutes,
-    int SourceRow = 0);
+    int SourceRow = 0,
+    string? OfficialCode = null);
 
 /// <summary>Un'azienda dell'anagrafica: il codice è quello ufficiale PAGHE (max 6 caratteri).</summary>
 internal sealed record CompanyRecord(string Code, string Name, string Notes, CompanyRules? Rules = null)
@@ -99,7 +100,10 @@ internal sealed record GenerationOptions(
     decimal HoursPerDay = 8m,
     bool IncludeSaturdays = false,
     IReadOnlyList<DateTime>? ExtraHolidays = null,
-    bool AutoDetect = true)
+    bool AutoDetect = true,
+    bool FillPresence = false,
+    string PresenceCode = "334",
+    string PresenceOfficialCode = "01")
 {
     public static GenerationOptions Default { get; } = new();
 }
