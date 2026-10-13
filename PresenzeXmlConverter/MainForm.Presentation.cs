@@ -237,15 +237,15 @@ internal sealed partial class MainForm
         mappingButton.Click += (_, _) => EditMappings();
         Describe(mappingButton, "Codici PAGHE e giustificativi", "Codici PAGHE e giustificativi delle assenze (es. Ferie → F01)");
         secondary.Controls.Add(mappingButton, 0, 0);
-        var aiButton = new IconButton("AI locale", Glyph.Chip)
+        var rulesButton = new IconButton("Regole", Glyph.Gear)
         {
             AutoSize = false,
             Dock = DockStyle.Fill,
             Margin = new Padding(4, 0, 0, 0)
         };
-        aiButton.Click += async (_, _) => await ConfigureAiAsync();
-        Describe(aiButton, "AI locale", "Installa o aggiorna il motore AI locale (facoltativo)");
-        secondary.Controls.Add(aiButton, 1, 0);
+        rulesButton.Click += (_, _) => OpenSettings();
+        Describe(rulesButton, "Regole di conversione", "Ore per giornata, sabato lavorativo e chiusure aziendali");
+        secondary.Controls.Add(rulesButton, 1, 0);
         actionsLayout.Controls.Add(secondary, 0, 1);
         band.Controls.Add(actions, 3, 0);
 
@@ -448,7 +448,7 @@ internal sealed partial class MainForm
             Margin = Padding.Empty
         };
         headerSettings.Click += (_, _) => OpenSettings();
-        Describe(headerSettings, "Impostazioni", "Regole di conversione, modello AI locale e aggiornamenti (Ctrl+,).");
+        Describe(headerSettings, "Impostazioni", "Regole di conversione e aggiornamenti (Ctrl+,).");
         side.Controls.Add(headerSettings, 2, 0);
         body.Controls.Add(side, 2, 0);
 
@@ -775,7 +775,7 @@ internal sealed partial class MainForm
     private Control BuildFooter()
     {
         // Regola sottile in alto e due colonne separate: lo stato occupa tutto
-        // lo spazio a sinistra con ellissi, il riepilogo AI resta a destra e i
+        // lo spazio a sinistra con ellissi, lo stato degli aggiornamenti resta a destra e i
         // due testi non si sovrappongono mai.
         var footer = new TableLayoutPanel
         {
@@ -792,14 +792,13 @@ internal sealed partial class MainForm
         var content = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 3,
+            ColumnCount = 2,
             RowCount = 1,
             BackColor = Theme.Canvas,
             Padding = new Padding(2, 0, 2, 0),
             Margin = Padding.Empty
         };
         content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        content.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         content.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -811,16 +810,6 @@ internal sealed partial class MainForm
         _statusLabel.ForeColor = Theme.MutedInk;
         content.Controls.Add(_statusLabel, 0, 0);
 
-        // AutoSize: la colonna si adatta al testo e non c'è mai nulla da tagliare.
-        _aiStatusLabel.AutoSize = true;
-        _aiStatusLabel.Dock = DockStyle.Right;
-        _aiStatusLabel.TextAlign = ContentAlignment.MiddleRight;
-        _aiStatusLabel.Text = "AI locale opzionale";
-        _aiStatusLabel.Font = Theme.Fonts.Small;
-        _aiStatusLabel.ForeColor = Theme.MutedInk;
-        _aiStatusLabel.Margin = new Padding(0, 0, 14, 0);
-        content.Controls.Add(_aiStatusLabel, 1, 0);
-
         // Stato degli aggiornamenti sempre visibile: si vede a colpo d'occhio se
         // il collegamento alle Release è attivo.
         _updateStatusLabel.AutoSize = true;
@@ -829,7 +818,7 @@ internal sealed partial class MainForm
         _updateStatusLabel.Text = "Aggiornamenti · verifica in corso";
         _updateStatusLabel.Font = Theme.Fonts.Small;
         _updateStatusLabel.ForeColor = Theme.MutedInk;
-        content.Controls.Add(_updateStatusLabel, 2, 0);
+        content.Controls.Add(_updateStatusLabel, 1, 0);
         footer.Controls.Add(content, 0, 1);
         return footer;
     }

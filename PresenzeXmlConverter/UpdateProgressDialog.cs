@@ -1,8 +1,8 @@
 namespace PresenzeXmlConverter;
 
 /// <summary>
-/// Avanzamento del download di un aggiornamento: stessa finestra usata per
-/// Ollama e per i modelli AI, con i testi propri dell'aggiornamento.
+/// Avanzamento del download di un aggiornamento: con i testi propri
+/// dell'aggiornamento.
 /// </summary>
 internal sealed class UpdateProgressDialog : ProgressDialog
 {

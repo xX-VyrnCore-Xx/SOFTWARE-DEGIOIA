@@ -34,12 +34,11 @@ public class InstallerPackagingTests
     }
 
     /// <summary>
-    /// Il download di Ollama è passato da un comando PowerShell silenzioso (nessuna
-    /// barra di avanzamento, nessun annullamento, nessun secondo tentativo) alla
-    /// pagina di download nativa di Inno Setup.
+    /// L'AI locale è stata rimossa: l'installer non scarica né installa più Ollama
+    /// e non chiede più modelli (nessun download, nessuna pagina dedicata).
     /// </summary>
     [Fact]
-    public void OllamaIsDownloadedWithAProgressPageAndRetries()
+    public void TheInstallerNoLongerKnowsAnythingAboutOllama()
     {
         var script = ReadInstallerScript();
         if (script is null)
@@ -47,48 +46,10 @@ public class InstallerPackagingTests
             return;
         }
 
-        Assert.Contains("CreateDownloadPage", script, StringComparison.Ordinal);
-        Assert.Contains("DownloadPage.Download", script, StringComparison.Ordinal);
-        Assert.Contains("DownloadPage.AbortedByUser", script, StringComparison.Ordinal);
-        Assert.Contains("function TryDownloadOllama", script, StringComparison.Ordinal);
-        Assert.Contains("for Attempt := 1 to 3 do", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("Invoke-WebRequest", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void OllamaIsDetectedAlsoWhenInstalledInACustomFolder()
-    {
-        var script = ReadInstallerScript();
-        if (script is null)
+        foreach (var forbidden in new[] { "Ollama", "ollama", "CreateDownloadPage", "ModelFast", "ModelQuality", "TNewRadioButton", "qwen" })
         {
-            return;
+            Assert.DoesNotContain(forbidden, script, StringComparison.Ordinal);
         }
-
-        Assert.Contains("RegGetSubkeyNames", script, StringComparison.Ordinal);
-        Assert.Contains(@"Software\Microsoft\Windows\CurrentVersion\Uninstall", script, StringComparison.Ordinal);
-        Assert.Contains("WOW6432Node", script, StringComparison.Ordinal);
-        Assert.Contains("InstallLocation", script, StringComparison.Ordinal);
-        Assert.Contains("FileSearch('ollama.exe', GetEnv('Path'))", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void TheAiModelIsChosenByTheUserAndNotDownloadedTwice()
-    {
-        var script = ReadInstallerScript();
-        if (script is null)
-        {
-            return;
-        }
-
-        Assert.Contains("TNewRadioButton", script, StringComparison.Ordinal);
-        Assert.Contains("ModelFast", script, StringComparison.Ordinal);
-        Assert.Contains("ModelBalanced", script, StringComparison.Ordinal);
-        Assert.Contains("ModelQuality", script, StringComparison.Ordinal);
-        Assert.Contains("ModelAlreadyDownloaded", script, StringComparison.Ordinal);
-        Assert.Contains("manifests-v2", script, StringComparison.Ordinal);
-        Assert.Contains("ai-model.txt", script, StringComparison.Ordinal);
-        // Il modello preferito viene riproposto: un aggiornamento non lo cambia.
-        Assert.Contains("InstalledModelFromMarker", script, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -113,27 +74,6 @@ public class InstallerPackagingTests
         Assert.Contains("if Token = '' then", script, StringComparison.Ordinal);
         // Viene salvato anche in installazione silenziosa (distribuzione aziendale).
         Assert.Contains("ProvisionGithubToken();", script, StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// L'installer deve consigliare il modello che l'app preferisce: se le due
-    /// scelte divergono, un PC nuovo scarica un modello che l'app non usa.
-    /// </summary>
-    [Fact]
-    public void TheRecommendedModelMatchesTheApplicationPreference()
-    {
-        var script = ReadInstallerScript();
-        if (script is null)
-        {
-            return;
-        }
-
-        var quality = Regex.Match(script, "#define ModelQuality \"([^\"]+)\"")
-            .Groups[1].Value;
-        Assert.Equal(LocalAiAssistant.DefaultModel, quality);
-        Assert.Contains("Consigliato — {#ModelQuality}", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("Consigliato — {#ModelBalanced}", script, StringComparison.Ordinal);
-        Assert.Contains("AiQualityRadio.Checked := True", script, StringComparison.Ordinal);
     }
 
     /// <summary>

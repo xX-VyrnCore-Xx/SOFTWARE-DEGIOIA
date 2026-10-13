@@ -2,7 +2,7 @@ namespace PresenzeXmlConverter;
 
 /// <summary>
 /// Finestra di avanzamento temizzata e riusabile: aggiornamenti dell'app,
-/// download dell'installer di Ollama, download del modello AI locale.
+/// altre operazioni lunghe.
 /// Non è chiudibile dall'utente: la chiude il codice al termine o in caso di
 /// errore, mentre il pulsante "Annulla" annulla l'operazione in corso.
 /// </summary>

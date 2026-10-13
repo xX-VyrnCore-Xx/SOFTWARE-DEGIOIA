@@ -890,8 +890,7 @@ internal sealed partial class MainForm
     private Dictionary<string, string> ReadStartupSettings() => _database.GetSettings(
         "company-code",
         "last-export-dir",
-        "last-source-dir",
-        AiModelSetting);
+        "last-source-dir");
 
     /// <summary>
     /// Campo di ricerca dell'intestazione: filtra i movimenti da qualunque

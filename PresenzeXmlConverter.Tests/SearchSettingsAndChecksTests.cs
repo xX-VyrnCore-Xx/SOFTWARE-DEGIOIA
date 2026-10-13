@@ -2,7 +2,7 @@ namespace PresenzeXmlConverter.Tests;
 
 /// <summary>
 /// Verifica la ricerca senza accenti, la lettura delle impostazioni di
-/// conversione, i controlli sui movimenti e gli aiuti dell'AI: tutta logica pura
+/// conversione, i controlli sui movimenti: tutta logica pura
 /// che gira anche fuori da Windows.
 /// </summary>
 public class SearchSettingsAndChecksTests
@@ -215,17 +215,23 @@ public class SearchSettingsAndChecksTests
     // ---------- Generazione con le nuove opzioni ----------
 
     [Fact]
-    public void SaturdaysAreOnlyUsedWhenRequested()
+    public void SaturdaysAreExcludedOnlyWhenAutomaticDetectionIsOff()
     {
         var request = new AttendanceRequest(
             "Rossi Mario", "Ferie", new DateTime(2026, 5, 9), new DateTime(2026, 5, 9), 4m, 7);
         var employees = new Dictionary<string, string> { ["Rossi Mario"] = "0012345" };
         var policies = new Dictionary<string, string> { ["Ferie"] = "01" };
 
-        var standard = AttendanceMovementGenerator.Generate([request], employees, policies, null, null);
+        // Rilevamento automatico spento e sabato non richiesto: nessun giorno lavorativo.
+        var standard = AttendanceMovementGenerator.Generate(
+            [request], employees, policies, null, null, new GenerationOptions(8m, AutoDetect: false));
         Assert.Empty(standard.Movements);
         var onlyWarning = Assert.Single(standard.Warnings);
         Assert.Contains("nessun giorno lavorativo", onlyWarning, StringComparison.Ordinal);
+
+        // Con il rilevamento automatico (predefinito) una richiesta del solo sabato si mantiene.
+        var automatic = AttendanceMovementGenerator.Generate([request], employees, policies, null, null);
+        Assert.Equal(new DateTime(2026, 5, 9), Assert.Single(automatic.Movements).Date);
 
         var withSaturdays = AttendanceMovementGenerator.Generate(
             [request],
@@ -425,56 +431,6 @@ public class SearchSettingsAndChecksTests
 
         var finding = Assert.Single(findings);
         Assert.Equal(MovementSeverity.Error, finding.Severity);
-    }
-
-    // ---------- Aiuti dell'AI locale ----------
-
-    [Theory]
-    [InlineData("Il codice 07 non è fra quelli configurati", true)]
-    [InlineData("F01 usato due volte", true)]
-    [InlineData("Il dipendente ha 7h nel giorno 12/05", false)]
-    [InlineData("Nessuna anomalia rilevata", false)]
-    public void MessagesMentioningUnknownCodesAreRejected(string message, bool expected)
-    {
-        Assert.Equal(
-            expected,
-            LocalAiAssistant.MentionsUnexpectedCode(message, new HashSet<string>(["01", "02"], StringComparer.OrdinalIgnoreCase)));
-    }
-
-    [Fact]
-    public void ReviewSummaryContainsTotalsAndIndividualMovements()
-    {
-        var movements = new[]
-        {
-            new DailyMovement("Rossi Mario", "0012345", "Ferie", "01", new DateTime(2026, 5, 12), 7, 30),
-            new DailyMovement("Bianchi Anna", "7654321", "Permesso", "02", new DateTime(2026, 5, 13), 1, 0)
-        };
-
-        var summary = LocalAiAssistant.BuildReviewSummary(movements);
-
-        Assert.Contains("Movimenti totali: 2", summary, StringComparison.Ordinal);
-        Assert.Contains("Rossi Mario: 7h 30m su 1 giorni", summary, StringComparison.Ordinal);
-        Assert.Contains("2026-05-13 | Bianchi Anna | 7654321 | 02 | 1h00", summary, StringComparison.Ordinal);
-        Assert.Empty(LocalAiAssistant.BuildReviewSummary([]));
-    }
-
-    [Theory]
-    [InlineData("qwen2.5:3b", "qwen2.5:3b", true)]
-    [InlineData("qwen2.5:3b", "qwen2.5:1.5b", false)]
-    [InlineData("llama3.2:latest", "llama3.2", true)]
-    [InlineData("qwen2.5:3b", "", false)]
-    public void ModelReferencesAreComparedWithTheirTag(string installed, string preference, bool expected)
-    {
-        Assert.Equal(expected, LocalAiAssistant.MatchesModelReference(installed, preference));
-    }
-
-    [Theory]
-    [InlineData("qwen3:4b", true)]
-    [InlineData("deepseek-r1:1.5b", true)]
-    [InlineData("qwen2.5:3b", false)]
-    public void ReasoningModelsAreRecognized(string model, bool expected)
-    {
-        Assert.Equal(expected, LocalAiAssistant.SupportsThinking(model));
     }
 
     [Theory]

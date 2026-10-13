@@ -28,9 +28,8 @@ internal sealed record MovementTotals(int Movements, int Employees, int Days, in
 }
 
 /// <summary>
-/// Controlli deterministici sui movimenti generati: girano sempre, senza AI e
+/// Controlli deterministici sui movimenti generati: girano sempre, in locale e
 /// senza rete, e sono la prima cosa che l'utente vede nell'area di revisione.
-/// L'AI può aggiungere osservazioni, ma non sostituisce questi controlli.
 /// </summary>
 internal static class MovementChecks
 {

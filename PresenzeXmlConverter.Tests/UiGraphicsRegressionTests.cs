@@ -217,21 +217,13 @@ public class UiGraphicsRegressionTests
                              new[] { "Malattia" },
                              new[] { "Malattia" },
                              new Dictionary<string, string> { ["Malattia"] = "M01" }),
-                         // Finestre di avanzamento riusate da aggiornamenti, Ollama
-                         // e download del modello AI locale.
-                         new ProgressDialog(
-                             "AI locale",
-                             "Download del modello qwen2.5:1.5b",
-                             "Connessione a Ollama…"),
                          new UpdateProgressDialog("1.0.0"),
                          // Impostazioni: ogni scheda entra intera nella finestra, quindi
                          // il dialogo non ha barre di scorrimento di sistema.
                          new SettingsDialog(
                              GenerationOptions.Default,
                              DateTime.Now.Year,
-                             true,
-                             null,
-                             "Nessun modello locale installato: l'AI resta facoltativa."),
+                             true),
                          // Novità di una Release: note lunghe, con la barra di
                          // scorrimento disegnata con il tema dell'app.
                          new ReleaseNotesDialog(
@@ -360,7 +352,7 @@ public class UiGraphicsRegressionTests
         ### Impostazioni
         - Giornata standard, sabato lavorativo e chiusure aziendali configurabili.
         - Token delle Release verificato e attivato senza riavviare il programma.
-        - Modello AI preferito, con scelta automatica se non indicato.
+        - Rilevamento automatico di sabati e ore effettive dalle date.
         """;
 
     private static T? RunOnStaThread<T>(Func<T> probe)

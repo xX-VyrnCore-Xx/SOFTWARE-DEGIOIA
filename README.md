@@ -4,15 +4,15 @@ PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.19.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.20.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
-Durante l'installazione il wizard permette di aggiungere l'**AI locale** (Ollama + un modello, opzionale e deselezionabile): la conversione funziona comunque senza. Nella pagina dedicata scegli la dimensione del modello — *Minimo* `qwen2.5:0.5b` (~400 MB), *Rapido* `qwen2.5:1.5b` (~1 GB), *Consigliato* `qwen2.5:3b` (~2 GB) — oppure *nessun modello adesso*. Il modello consigliato è quello che l'app preferisce: entrambi partono da `qwen2.5:3b` perché è il più affidabile nell'abbinare colonne e codici. Se **Ollama è già presente** (anche in una cartella personalizzata) non viene reinstallato e il modello viene scaricato con una **barra di avanzamento annullabile**. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
+L'installer non scarica nulla oltre al programma. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
 
 Se la distribuzione è gestita a distanza puoi consegnare **anche il token delle Release**: l'installer lo prende dal parametro `/GITHUBTOKEN=...` oppure da un file `github.token` lasciato accanto al setup e lo salva nel profilo dell'utente (anche in installazione silenziosa, senza mai sovrascrivere un token già presente). In questo modo il PC è collegato agli aggiornamenti fin dal primo avvio.
 
 **Primo avvio**: al primo lancio subito dopo l'installazione Windows Defender analizza l'eseguibile (circa 160 MB non firmato digitalmente) e la finestra può impare anche 15-20 secondi ad apparire; dai lanci successivi l'avvio è immediato (misurato: ~0,5 s). La firma digitale dell'eseguibile riduce ulteriormente questa attesa.
 
-Durante la disinstallazione puoi scegliere se rimuovere il programma mantenendo le impostazioni, se cancellare anche il database locale di codici azienda, dipendenti e giustificativi e, se presente, se eliminare il modello AI scaricato (Ollama stesso non viene mai rimosso). In modalità silenziosa l'installazione non cancella mai i dati utente.
+Durante la disinstallazione puoi scegliere se rimuovere il programma mantenendo le impostazioni, se cancellare anche il database locale di codici azienda, dipendenti e giustificativi. In modalità silenziosa l'installazione non cancella mai i dati utente.
 
 ## Utilizzo
 
@@ -30,7 +30,7 @@ La finestra è divisa in quattro sezioni, con la barra di navigazione a sinistra
 
 3. **Codici dipendente**: Se il foglio contiene una colonna `Codice PAGHE` o `CodDipendenteUfficiale`, il codice ufficiale PAGHE (fino a 7 caratteri) viene letto e memorizzato localmente. Per i nominativi senza codice, inseriscilo una volta nel programma: verrà riutilizzato nelle conversioni successive.
 
-4. **Giustificativi**: Associa i valori presenti nella colonna `Policy` ai codici giustificativo ufficiali PAGHE (fino a 3 caratteri). Questi codici non sono dedotti dall'AI.
+4. **Giustificativi**: Associa i valori presenti nella colonna `Policy` ai codici giustificativo ufficiali PAGHE (fino a 3 caratteri). Questi codici non vengono mai dedotti: li decidi tu.
 
 5. **Anteprima**: Genera e revisiona l'anteprima:
    - Ogni durata viene ripartita in modo uniforme sui giorni lunedì-venerdì dell'intervallo (o anche il sabato, se attivato nelle impostazioni)
@@ -43,23 +43,19 @@ La finestra è divisa in quattro sezioni, con la barra di navigazione a sinistra
 
 6. **Revisione ed export**: nella scheda **Movimenti** puoi correggere codice dipendente, giustificativo, data, ore e minuti: l'XML viene aggiornato automaticamente (con una breve pausa dopo le modifiche, per restare fluido). La scheda **Controlli** elenca ciò che va verificato prima di esportare, la scheda **Anteprima XML** mostra il documento finale. La ricerca filtra i movimenti con più parole in qualsiasi ordine e **ignora accenti e maiuscole**: `mario ferie 12/05` trova sia "Rossi Mario" sia la data, scritta come `12/05/2026` o `2026-05-12`. Il file si salva dove vuoi e il programma ricorda l'ultima cartella usata. Le correzioni ai codici fatte in griglia vengono salvate nel database locale.
 
-7. **Impostazioni** (pulsante nell'intestazione o `Ctrl+,`): ore della giornata standard, se considerare lavorativo il sabato, chiusure aziendali aggiuntive, token delle Release e modello AI preferito. Il foglio di un file con più fogli si cambia dal pulsante **Foglio: …** nella colonna di sinistra, senza reimportare il file; i **Codici PAGHE** e i giustificativi delle assenze si modificano dal pulsante omonimo, sempre nella colonna di sinistra.
+7. **Impostazioni** (pulsante nell'intestazione o `Ctrl+,`): ore della giornata standard, se considerare lavorativo il sabato, chiusure aziendali aggiuntive, rilevamento automatico di sabati e ore, token delle Release. Il foglio di un file con più fogli si cambia dal pulsante **Foglio: …** nella colonna di sinistra, senza reimportare il file; i **Codici PAGHE** e i giustificativi delle assenze si modificano dal pulsante omonimo, sempre nella colonna di sinistra.
 
 8. **Chiusura**: alla prima chiusura puoi scegliere una sola volta (o ricordare la scelta) se uscire definitivamente o restare in tray: in background ricevi una notifica quando una conversione termina.
 
 Il file generato contiene solo i movimenti di assenza presenti nell'Excel; non inventa ore ordinarie o presenze. Prima dell'esportazione vengono verificati codici, limiti del tracciato, associazioni dipendente/codice e caratteri XML; l'output è ordinato in modo deterministico, scritto in UTF-8 senza BOM e sostituito atomicamente per evitare file parziali.
 
-## AI locale opzionale
+## Sabato lavorativo e ore effettive
 
-L'app usa un modello locale (`qwen2.5:3b` per impostazione predefinita) per tre attività:
+Il motore di conversione rileva da solo, in base alle date, come distribuire le ore (impostazione **Rileva in automatico sabati e ore dalle date**, attiva di default; si può spegnere dalle impostazioni):
 
-1. **Riconoscimento assistito delle colonne** quando il foglio non ha intestazioni standard.
-2. **Proposta di abbinamenti** tra le etichette `Policy` e i giustificativi già configurati.
-3. **Revisione dei movimenti generati**: nella scheda **Controlli**, il pulsante **Revisione AI** rilegge il riepilogo dell'anteprima e aggiunge osservazioni in coda ai controlli automatici.
-
-L'AI **non scrive mai l'XML** e non può introdurre codici ufficiali: un abbinamento è accettato solo se il codice esiste già fra quelli configurati, e un'osservazione che cita un codice inesistente viene scartata. Il documento viene sempre composto e validato dal programma.
-
-Il modello può essere installato dal wizard di installazione oppure dal pulsante **AI locale** della colonna di sinistra, che scarica l'installer ufficiale di Ollama e poi il modello. Se **Ollama è già installato** (per esempio perché usato da altri programmi) né l'installer né il programma lo reinstallano: viene scaricato **solo il modello**; se il servizio non è attivo, l'app prova ad avviarlo e attende che risponda. Se è già presente un altro modello compatibile (es. `qwen2.5:0.5b` o `3b`) viene usato automaticamente. Il runtime supera 1 GB e il modello richiede altro spazio; l'AI è opzionale.
+- **Sabato lavorativo solo quando serve**: se le ore richieste non entrano nei giorni feriali del periodo ma entrano includendo i sabati (es. 48 h dal lunedì al sabato), il sabato viene usato; se bastano i feriali (es. 40 h nella stessa settimana) il sabato resta libero. Una richiesta del solo sabato si mantiene. «Il sabato è sempre lavorativo» forza l'uso dei sabati.
+- **Ore effettive dalle date**: se la durata coincide con il numero dei giorni del periodo (es. «5» dal lunedì al venerdì) viene letta come **giorni** e convertita in ore (5 × giornata standard). Ogni correzione compare fra le segnalazioni della scheda **Controlli**.
+- Festivi nazionali, domeniche e chiusure aziendali restano sempre esclusi.
 
 ### Controlli prima dell'esportazione
 
@@ -72,7 +68,7 @@ La scheda **Controlli** raccoglie in un unico elenco tutto ciò che va verificat
 - dipendenti presenti nel foglio che non hanno prodotto alcun movimento;
 - differenze fra le ore dichiarate nel foglio e quelle effettivamente generate.
 
-I controlli automatici girano **sempre**, senza AI e senza rete, e si aggiornano a ogni modifica della griglia. Il pulsante **Revisione AI** aggiunge le osservazioni del modello locale, **Copia elenco** esporta l'elenco per condividerlo con chi gestisce le paghe, e un doppio clic su una segnalazione porta al movimento corrispondente. Se restano errori, l'app li riassume in una finestra e apre direttamente la scheda Controlli.
+I controlli automatici girano **sempre**, in locale e senza rete, e si aggiornano a ogni modifica della griglia. **Copia elenco** esporta l'elenco per condividerlo con chi gestisce le paghe, e un doppio clic su una segnalazione porta al movimento corrispondente. Se restano errori, l'app li riassume in una finestra e apre direttamente la scheda Controlli.
 
 **Comunicazioni e privacy**: il programma comunica con `127.0.0.1:11434` (modello locale) e, separatamente, con `api.github.com` solo per il controllo degli aggiornamenti (vedi la sezione "Aggiornamenti automatici"). Per le attività 1 e 2 invia esclusivamente intestazioni, etichette `Policy` e mapping già configurati, mai nominativi o righe del foglio. Per la revisione invia al modello locale il **riepilogo dell'anteprima corrente** (dipendenti, codici, date, giustificativi e ore): **non esce mai dal tuo PC**. Nessun dato viene inviato a servizi esterni.
 
@@ -127,7 +123,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6.3 o successivo, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.19.0.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.20.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).
@@ -189,23 +185,7 @@ Per disattivare il controllo automatico (mantenendo quello manuale) imposta la p
 
 Per usare un feed diverso (es. un mirror interno) imposta la preferenza `update-endpoint` con l'URL completo dell'API della Release.
 
-**Rete**: l'unico traffico verso Internet è il controllo delle Release su `api.github.com`, autenticato con il token locale. L'AI resta rigidamente in locale su `127.0.0.1:11434`.
-
-## AI locale (Ollama)
-
-L'assistente AI è **opzionale** e gira interamente sul PC (Ollama su `127.0.0.1:11434`); la conversione Excel → XML non ne ha bisogno.
-
-### In fase di installazione
-- l'installer scarica l'installer ufficiale di Ollama **solo se il motore non è già presente**; il download mostra una barra di avanzamento reale, si può annullare e viene ritentato fino a tre volte se la rete è instabile;
-- Ollama viene riconosciuto anche nelle **installazioni con cartella personalizzata** (`OllamaSetup.exe /DIR=…`), cercando anche nel registro delle installazioni e nel `PATH`;
-- il modello scelto viene scaricato **solo se non è già presente**; la scelta è ricordata in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\ai-model.txt` e riproposta agli aggiornamenti successivi;
-- in disinstallazione viene rimosso **solo il modello scelto per PresenzeFlow**: Ollama e gli altri modelli restano intatti.
-
-### Dall'app (pulsante "AI locale" nella colonna di sinistra)
-- se Ollama è installato ma non attivo, l'app prova ad avviarlo e attende che risponda (fino a 15 secondi): nessuna reinstallazione;
-- se Ollama manca, l'app prova prima con **winget** (`Ollama.Ollama`, modalità silenziosa) e, se winget non è disponibile o fallisce, scarica l'installer ufficiale con barra di avanzamento; se l'installazione silenziosa non produce risultati viene riproposto l'installer visibile;
-- il download del modello avviene in streaming con **percentuale reale** (byte di tutti i blocchi dello stream `/api/pull`), annullabile; prima di partire l'app verifica che ci siano **almeno 2,5 GB liberi**;
-- il modello in uso è quello **preferito** (scelta in installazione, poi quella salvata dall'utente) e il confronto avviene sul nome completo con il tag, quindi non viene richiesto un modello diverso da quello installato.
+**Rete**: l'unico traffico verso Internet è il controllo delle Release su `api.github.com`, autenticato con il token locale.
 
 ## Firma digitale
 
@@ -270,7 +250,7 @@ Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica 
 - **Dashboard**: card di riepilogo (richieste, dipendenti, movimenti, ore), stato del file sorgente, azioni rapide e ultime esportazioni con doppio clic per aprire la cartella del file
 - **Gestione codici** come sezione della finestra, con lo **stesso** pannello del dialogo "Codici PAGHE" (una sola logica di validazione)
 - **Storico esportazioni** (nuovo): ogni XML salvato è registrato con data, file, cartella, dipendenti e ore; le voci si aprono in Esplora file o si copiano; lo storico tiene le ultime 200 consegne e i file su disco non vengono mai toccati
-- **Apertura più rapida**: `PublishReadyToRun` nel publish, preferenze di avvio lette in una sola query, storico e stato dell'AI letti **dopo** che la finestra è visibile; con `PRESENZEFLOW_TRACE_STARTUP=1` l'app scrive in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\startup.log` la durata di ogni fase di avvio
+- **Apertura più rapida**: `PublishReadyToRun` nel publish, preferenze di avvio lette in una sola query, storico e stato del database letti **dopo** che la finestra è visibile; con `PRESENZEFLOW_TRACE_STARTUP=1` l'app scrive in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\startup.log` la durata di ogni fase di avvio
 - **15 nuovi test di logica** (dashboard, storico, persistenza e schema del database) e **test grafico su ogni sezione** della finestra
 
 ## Novità v1.14.0
