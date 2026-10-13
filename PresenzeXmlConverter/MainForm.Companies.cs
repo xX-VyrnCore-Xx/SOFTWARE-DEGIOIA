@@ -21,6 +21,7 @@ internal sealed partial class MainForm
     private readonly Button _companySaveButton = new();
     private readonly Button _companyNewButton = new();
     private readonly Button _companyDeleteButton = new();
+    private readonly Button _companyRulesButton = new();
     private readonly Button _companyUseButton = new();
     private Label? _companyHintLabel;
     private IReadOnlyList<CompanyRecord> _companies = Array.Empty<CompanyRecord>();
@@ -81,10 +82,11 @@ internal sealed partial class MainForm
         _companiesGrid.ReadOnly = true;
         _companiesGrid.EmptyStateText =
             "Nessuna azienda salvata: scrivi codice e ragione sociale e premi «Salva azienda».";
-        _companiesGrid.Columns.Add(CreateGridColumn("use", "In uso", 12, true));
-        _companiesGrid.Columns.Add(CreateGridColumn("code", "Codice", 16, true));
-        _companiesGrid.Columns.Add(CreateGridColumn("name", "Ragione sociale", 40, true));
-        _companiesGrid.Columns.Add(CreateGridColumn("notes", "Note", 32, true));
+        _companiesGrid.Columns.Add(CreateGridColumn("use", "In uso", 10, true));
+        _companiesGrid.Columns.Add(CreateGridColumn("code", "Codice", 14, true));
+        _companiesGrid.Columns.Add(CreateGridColumn("name", "Ragione sociale", 32, true));
+        _companiesGrid.Columns.Add(CreateGridColumn("rules", "Regole", 20, true));
+        _companiesGrid.Columns.Add(CreateGridColumn("notes", "Note", 24, true));
         _companiesGrid.SelectionChanged += (_, _) => OnCompanySelected();
         _companiesGrid.CellDoubleClick += (_, args) =>
         {
@@ -179,7 +181,17 @@ internal sealed partial class MainForm
         _companyDeleteButton.Click += (_, _) => DeleteSelectedCompany();
         Describe(_companyDeleteButton, "Elimina azienda", "Toglie l'azienda dall'elenco: i file già esportati non cambiano.");
 
+        _companyRulesButton.Text = "Regole…";
+        Theme.StyleButton(_companyRulesButton, Theme.ButtonTone.Neutral, compact: true);
+        _companyRulesButton.Margin = new Padding(8, 0, 0, 0);
+        _companyRulesButton.Click += (_, _) => EditSelectedCompanyRules();
+        Describe(
+            _companyRulesButton,
+            "Regole di conversione dell'azienda",
+            "Giornata standard, sabato e chiusure proprie di questa azienda: si applicano da sole quando la scegli in conversione.");
+
         actions.Controls.Add(_companyDeleteButton);
+        actions.Controls.Add(_companyRulesButton);
         actions.Controls.Add(_companyNewButton);
         actions.Controls.Add(_companyUseButton);
         actions.Controls.Add(_companySaveButton);
@@ -202,6 +214,7 @@ internal sealed partial class MainForm
             _companies = Array.Empty<CompanyRecord>();
         }
         RefreshCompanyHints();
+        ApplyCompanyRules(announce: false);
     }
 
     /// <summary>Rilegge le aziende dal database e aggiorna griglia, suggerimenti e testo guida.</summary>
@@ -225,6 +238,7 @@ internal sealed partial class MainForm
                 string.Equals(company.Code, inUse, StringComparison.OrdinalIgnoreCase) ? "●" : string.Empty,
                 company.Code,
                 company.Name,
+                company.Rules is null ? "generali" : GenerationSettings.Describe(company.Rules.ToOptions(DateTime.Today.Year)),
                 company.Notes);
             _companiesGrid.Rows[index].Tag = company;
             if (selectedCode is not null && string.Equals(company.Code, selectedCode, StringComparison.OrdinalIgnoreCase))
@@ -239,6 +253,7 @@ internal sealed partial class MainForm
               (inUse.Length == 0 ? string.Empty : $" · in uso: {inUse}");
         RefreshCompanyHints();
         UpdateCompanyButtons();
+        ApplyCompanyRules(announce: true);
     }
 
     /// <summary>Suggerimenti del campo azienda in conversione e ragione sociale sotto al campo.</summary>
@@ -270,6 +285,85 @@ internal sealed partial class MainForm
         _railCompanyLabel.Text = code.Length == 0
             ? "nessuna azienda"
             : known is { Name.Length: > 0 } ? $"Azienda {known.Label}" : $"Azienda {code}";
+    }
+
+    /// <summary>
+    /// Calcola le regole in uso: quelle proprie dell'azienda scelta, altrimenti le generali.
+    /// Se cambiano, l'anteprima già generata non vale più e le richieste del foglio si rileggono
+    /// con la nuova giornata standard.
+    /// </summary>
+    private void ApplyCompanyRules(bool announce)
+    {
+        var code = _companyCode.Value.Trim();
+        var company = _companies.FirstOrDefault(item =>
+            string.Equals(item.Code, code, StringComparison.OrdinalIgnoreCase));
+        var referenceYear = _inspection?.PeriodStart?.Year ?? DateTime.Today.Year;
+        var effective = company?.Rules is { } rules ? rules.ToOptions(referenceYear) : _globalOptions;
+        var wasOwn = _companyRulesActive;
+        _companyRulesActive = company?.Rules is not null;
+        var changed = !GenerationSettings.AreEquivalent(_generationOptions, effective);
+        if (!changed && wasOwn == _companyRulesActive)
+        {
+            return;
+        }
+        var previousHours = _generationOptions.HoursPerDay;
+        _generationOptions = effective;
+        if (_inspection is not null && _columns is not null && previousHours != effective.HoursPerDay)
+        {
+            try
+            {
+                _requests = _inspection.Read(_columns, effective.HoursPerDay).Requests;
+            }
+            catch (InvalidDataException)
+            {
+                // Le richieste restano quelle già lette: la conversione le segnalerà.
+            }
+        }
+        RefreshDashboard();
+        if (announce && changed)
+        {
+            InvalidatePreview();
+            SetStatus(
+                _companyRulesActive
+                    ? $"●   Regole dell'azienda {code} applicate: {GenerationSettings.Describe(effective)}. Rigenera l'anteprima."
+                    : "●   Regole generali applicate. Rigenera l'anteprima.",
+                false);
+        }
+    }
+
+    private bool _companyRulesActive;
+
+    private void EditSelectedCompanyRules()
+    {
+        var company = SelectedCompany();
+        if (company is null)
+        {
+            return;
+        }
+        using var dialog = new CompanyRulesDialog(
+            company,
+            _globalOptions,
+            _inspection?.PeriodStart?.Year ?? DateTime.Today.Year);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+        try
+        {
+            _database.SaveCompanyRules(company.Code, dialog.Rules);
+        }
+        catch (Exception exception) when (exception is SqliteException or InvalidDataException)
+        {
+            ShowError("Impossibile salvare le regole", exception);
+            return;
+        }
+        RefreshCompanies();
+        SelectCompanyRow(company.Code);
+        SetStatus(
+            dialog.Rules is null
+                ? $"●   L'azienda {company.Code} usa le regole generali."
+                : $"●   Regole dell'azienda {company.Code} salvate: {GenerationSettings.Describe(dialog.Rules.ToOptions(DateTime.Today.Year))}.",
+            false);
     }
 
     private void UpdateCompanyHintLabel()
@@ -309,6 +403,7 @@ internal sealed partial class MainForm
     {
         var hasSelection = SelectedCompany() is not null;
         _companyUseButton.Enabled = hasSelection;
+        _companyRulesButton.Enabled = hasSelection;
         _companyDeleteButton.Enabled = hasSelection;
     }
 

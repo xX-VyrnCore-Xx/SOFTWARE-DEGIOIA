@@ -224,6 +224,11 @@ public class UiGraphicsRegressionTests
                              GenerationOptions.Default,
                              DateTime.Now.Year,
                              true),
+                         // Regole di conversione di un'azienda.
+                         new CompanyRulesDialog(
+                             new CompanyRecord("AZ001", "Rossi Srl", string.Empty, new CompanyRules(8m, false, true, "02/06, 24/12")),
+                             GenerationOptions.Default,
+                             DateTime.Now.Year),
                          // Novità di una Release: note lunghe, con la barra di
                          // scorrimento disegnata con il tema dell'app.
                          new ReleaseNotesDialog(

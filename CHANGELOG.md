@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.21.0] - Corrente
+## [1.22.0] - Corrente
+
+### 🏢 Regole di conversione per azienda
+- Nella sezione **Aziende** il pulsante **Regole…** apre le regole proprie dell'azienda: giornata standard, sabato sempre lavorativo, rilevamento automatico di sabati e ore, chiusure aziendali. Senza regole proprie vale quanto impostato in Impostazioni (che restano le regole generali)
+- Scegliendo l'azienda in conversione le regole si applicano da sole: l'anteprima già generata si invalida e le richieste del foglio si rileggono con la nuova giornata standard; la colonna **Regole** dell'elenco mostra per ogni azienda «generali» oppure il riepilogo delle proprie
+- Salvate nel database (schema 5, incluse nei backup); rinominare l'azienda non le cancella
+
+---
+
+## [1.21.0] - Precedente
 
 ### ✨ Nuovo nome: Vyrn Presence
 - L'app si chiama **Vyrn Presence** (prima PresenzeFlow): finestra, tray, notifiche, impostazioni, aggiornamenti, installer, collegamenti e proprietà del file. Restano invariati i nomi interni (eseguibile, installer, cartella dei dati, identificatori), così gli aggiornamenti dalle versioni già installate continuano a funzionare e i dati si ritrovano

@@ -32,6 +32,13 @@ internal sealed partial class MainForm : Form
     private string? _lastSourceDirectory;
     private IReadOnlyList<string> _sheetNames = Array.Empty<string>();
     private ColumnSelection? _columns;
+    /// <summary>Regole generali (Impostazioni).</summary>
+    private GenerationOptions _globalOptions = GenerationOptions.Default;
+
+    /// <summary>
+    /// Regole in uso per la conversione: quelle proprie dell'azienda scelta, se ci sono,
+    /// altrimenti le generali.
+    /// </summary>
     private GenerationOptions _generationOptions = GenerationOptions.Default;
 
     public MainForm()
@@ -71,7 +78,8 @@ internal sealed partial class MainForm : Form
             SaveCompanyCode();
         };
         _lastSourceDirectory = startup["last-source-dir"].Length == 0 ? null : startup["last-source-dir"];
-        _generationOptions = GenerationSettings.Read(_database);
+        _globalOptions = GenerationSettings.Read(_database);
+        _generationOptions = _globalOptions;
         MeasureStartup("aggiornamenti", InitializeUpdates);
         SetupTrayIcon();
         UpdateButtons();
@@ -967,6 +975,7 @@ internal sealed partial class MainForm : Form
         if (value.Length is > 0 and <= 6)
         {
             _database.SaveSetting("company-code", value);
+            ApplyCompanyRules(announce: true);
             try
             {
                 // Ogni codice usato entra nell'anagrafica (senza toccare ragione sociale e

@@ -30,7 +30,7 @@ internal sealed partial class MainForm
         try
         {
             using var dialog = new SettingsDialog(
-                _generationOptions,
+                _globalOptions,
                 _inspection?.PeriodStart?.Year ?? DateTime.Today.Year,
                 AutoUpdateEnabled());
             var result = dialog.ShowDialog(this);
@@ -59,8 +59,10 @@ internal sealed partial class MainForm
         {
             var previous = _generationOptions;
             var referenceYear = _inspection?.PeriodStart?.Year ?? DateTime.Today.Year;
-            _generationOptions = dialog.Options with { ExtraHolidays = dialog.Options.ExtraHolidays ?? [] };
-            GenerationSettings.Save(_database, _generationOptions, referenceYear);
+            _globalOptions = dialog.Options with { ExtraHolidays = dialog.Options.ExtraHolidays ?? [] };
+            GenerationSettings.Save(_database, _globalOptions, referenceYear);
+            // Le regole in uso sono quelle dell'azienda scelta, se ne ha di proprie.
+            ApplyCompanyRules(announce: false);
             _database.SaveSetting(AutoUpdateSetting, dialog.AutoUpdateCheck ? "true" : "false");
 
             if (!GenerationSettings.AreEquivalent(previous, _generationOptions))
