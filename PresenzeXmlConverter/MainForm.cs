@@ -14,7 +14,7 @@ internal sealed partial class MainForm : Form
     private readonly Label _aiStatusLabel = new();
     private readonly Button _generateButton = new();
     private readonly Button _sheetButton = new();
-    private readonly Button _exportButton = new();
+    private readonly IconButton _exportButton = new("Scarica XML", Glyph.Download, Theme.ButtonTone.Primary);
     private readonly ThemedGrid _movementsGrid = new();
     private readonly RichTextBox _xmlPreview = new();
     private readonly ThemedTabControl _previewTabs = new();
@@ -604,6 +604,7 @@ internal sealed partial class MainForm : Form
 
             _movements = result.Movements.ToList();
             _xml = xml;
+            _currentPreviewExported = false;
             PopulatePreview(result.Movements);
             _xmlPreview.Text = _xml;
             ApplyXmlSyntaxHighlighting();
@@ -1574,6 +1575,7 @@ internal sealed partial class MainForm : Form
     private void ClearGeneratedPreview()
     {
         _xml = null;
+        _currentPreviewExported = false;
         _xmlPreview.Clear();
         _movementsGrid.Rows.Clear();
         _previewTabs.SetPageText(0, "Movimenti  ·  0");
@@ -1592,6 +1594,15 @@ internal sealed partial class MainForm : Form
         _generateButton.Enabled = !_isBusy && hasSource;
         _exportButton.Enabled = !_isBusy && !string.IsNullOrWhiteSpace(_xml);
         _copyXmlButton.Enabled = !_isBusy && !string.IsNullOrWhiteSpace(_xml);
+        if (_dashGenerateButton is not null)
+        {
+            _dashGenerateButton.Enabled = _generateButton.Enabled;
+        }
+        if (_conversionGenerateButton is not null)
+        {
+            _conversionGenerateButton.Enabled = _generateButton.Enabled;
+        }
+        UpdateDropZones();
     }
 
     private void SetBusy(bool busy, string? status = null)

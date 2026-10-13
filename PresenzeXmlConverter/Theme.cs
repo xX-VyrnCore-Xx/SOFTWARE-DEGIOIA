@@ -112,6 +112,8 @@ internal static class Theme
         public static readonly Font ButtonSmall = new("Segoe UI", 9f, FontStyle.Bold);
         public static readonly Font Pill = new("Segoe UI", 8.2f, FontStyle.Bold);
         public static readonly Font Metric = new("Segoe UI", 22f, FontStyle.Bold);
+        public static readonly Font Stat = new("Segoe UI", 15f, FontStyle.Bold);
+        public static readonly Font Kpi = new("Segoe UI", 19f, FontStyle.Bold);
         public static readonly Font Field = new("Segoe UI", 13f, FontStyle.Bold);
         public static readonly Font DialogTitle = new("Segoe UI", 13f, FontStyle.Bold);
         public static readonly Font Grid = new("Segoe UI", 8.9f);
