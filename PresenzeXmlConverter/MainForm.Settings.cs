@@ -32,7 +32,8 @@ internal sealed partial class MainForm
             using var dialog = new SettingsDialog(
                 _globalOptions,
                 _inspection?.PeriodStart?.Year ?? DateTime.Today.Year,
-                AutoUpdateEnabled());
+                AutoUpdateEnabled(),
+                XmlFormat.Active);
             var result = dialog.ShowDialog(this);
             if (result == DialogResult.OK)
             {
@@ -64,6 +65,14 @@ internal sealed partial class MainForm
             // Le regole in uso sono quelle dell'azienda scelta, se ne ha di proprie.
             ApplyCompanyRules(announce: false);
             _database.SaveSetting(AutoUpdateSetting, dialog.AutoUpdateCheck ? "true" : "false");
+            var xmlChanged = dialog.Format != XmlFormat.Active;
+            XmlFormat.Active = dialog.Format;
+            dialog.Format.Save(_database);
+            if (xmlChanged)
+            {
+                // L'XML già generato ha la vecchia forma: va rifatto.
+                InvalidatePreview();
+            }
 
             if (!GenerationSettings.AreEquivalent(previous, _generationOptions))
             {

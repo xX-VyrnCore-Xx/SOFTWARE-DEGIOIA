@@ -28,15 +28,21 @@ internal sealed class SettingsDialog : Form
     private readonly Label _errorLabel = new();
     private readonly Button _verifyTokenButton;
     private readonly Button _clearTokenButton;
+    private readonly RoundedField _xmlRoot = new();
+    private readonly RoundedField _xmlNamespace = new();
+    private readonly CheckBox _xmlPerNode = new();
+    private readonly Label _xmlStatus = new();
 
     public SettingsDialog(
         GenerationOptions options,
         int referenceYear,
-        bool autoUpdateCheck)
+        bool autoUpdateCheck,
+        XmlFormat? xmlFormat = null)
     {
         _referenceYear = referenceYear;
         Options = options;
         AutoUpdateCheck = autoUpdateCheck;
+        Format = xmlFormat ?? XmlFormat.Active;
 
         // I due pulsanti del token servono già mentre si costruisce la scheda
         // degli aggiornamenti: vanno creati prima del layout.
@@ -120,6 +126,7 @@ internal sealed class SettingsDialog : Form
         var tabs = new ThemedTabControl { Dock = DockStyle.Fill, Margin = Padding.Empty };
         tabs.AddPage("Conversione", BuildConversionPage());
         tabs.AddPage("Aggiornamenti", BuildUpdatePage());
+        tabs.AddPage("Formato XML", BuildXmlPage());
         tabs.SelectedIndex = 0;
         shell.Controls.Add(tabs);
         root.Controls.Add(shell, 0, 1);
@@ -178,6 +185,9 @@ internal sealed class SettingsDialog : Form
     public GenerationOptions Options { get; private set; }
 
     public bool AutoUpdateCheck { get; private set; }
+
+    /// <summary>Forma del file XML scelta (valida solo dopo "Salva impostazioni").</summary>
+    public XmlFormat Format { get; private set; }
 
     /// <summary>True se in questa sessione è stato salvato un token valido.</summary>
     public bool TokenSaved { get; private set; }
@@ -283,6 +293,101 @@ internal sealed class SettingsDialog : Form
         body.Controls.Add(CreateNote(
             "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore."), 0, 7);
         return page;
+    }
+
+    /// <summary>
+    /// Scheda "Formato XML": il tracciato non dice come si chiama l'elemento radice né se
+    /// c'è uno spazio dei nomi, ma il validatore di Zucchetti li pretende. Si possono
+    /// impostare a mano o leggere da un file XML che Zucchetti accetta.
+    /// </summary>
+    private Control BuildXmlPage()
+    {
+        var (page, body) = CreatePage(SettingsPageLayout.XmlRows);
+
+        body.Controls.Add(CreateHint(
+            "Impostazioni avanzate: servono solo se Zucchetti respinge il file con «cvc-elt.1: impossibile trovare la dichiarazione dell'elemento…»."), 0, 0);
+
+        body.Controls.Add(CreateFieldLabel("Nome dell'elemento radice del file XML (la prima riga dopo <?xml …?>)"), 0, 1);
+        _xmlRoot.MaxLength = 64;
+        _xmlRoot.Dock = DockStyle.Fill;
+        _xmlRoot.InputFont = Theme.Fonts.Field;
+        _xmlRoot.Placeholder = "es. Dipendenti";
+        _xmlRoot.Value = Format.RootElement;
+        _xmlRoot.Input.AccessibleName = "Nome dell'elemento radice";
+        _xmlRoot.Margin = new Padding(0, 2, 0, 8);
+        body.Controls.Add(_xmlRoot, 0, 2);
+
+        body.Controls.Add(CreateFieldLabel("Spazio dei nomi (xmlns) dell'elemento radice: lascia vuoto se il file non ne ha"), 0, 3);
+        _xmlNamespace.MaxLength = 300;
+        _xmlNamespace.Dock = DockStyle.Fill;
+        _xmlNamespace.InputFont = Theme.Fonts.Small;
+        _xmlNamespace.Placeholder = "es. http://www.esempio.it/schema";
+        _xmlNamespace.Value = Format.Namespace;
+        _xmlNamespace.Input.AccessibleName = "Spazio dei nomi del file XML";
+        _xmlNamespace.Margin = new Padding(0, 2, 0, 8);
+        body.Controls.Add(_xmlNamespace, 0, 4);
+
+        _xmlPerNode.Text = "Ogni movimento è un nodo «Movimenti» a sé (senza il nodo «Movimento» dentro)";
+        _xmlPerNode.Dock = DockStyle.Fill;
+        _xmlPerNode.TextAlign = ContentAlignment.MiddleLeft;
+        _xmlPerNode.ForeColor = Theme.InkSecondary;
+        _xmlPerNode.Font = Theme.Fonts.Small;
+        _xmlPerNode.Checked = Format.MovementPerNode;
+        _xmlPerNode.AccessibleName = "Un nodo Movimenti per ogni movimento";
+        _xmlPerNode.Margin = Padding.Empty;
+        body.Controls.Add(_xmlPerNode, 0, 5);
+
+        var actions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        var detect = Theme.CreateButton("Leggi da un XML di esempio…", Theme.ButtonTone.Neutral, compact: true);
+        detect.Size = new Size(260, 34);
+        detect.Margin = Padding.Empty;
+        detect.AccessibleName = "Leggi la forma da un XML di esempio";
+        detect.AccessibleDescription = "Sceglie un file XML accettato da Zucchetti e ne copia radice, spazio dei nomi e disposizione dei movimenti.";
+        detect.Click += (_, _) => DetectFormatFromSample();
+        actions.Controls.Add(detect);
+        body.Controls.Add(actions, 0, 6);
+
+        _xmlStatus.Dock = DockStyle.Fill;
+        _xmlStatus.TextAlign = ContentAlignment.MiddleLeft;
+        _xmlStatus.ForeColor = Theme.MutedInk;
+        _xmlStatus.Font = Theme.Fonts.Tiny;
+        _xmlStatus.AutoEllipsis = true;
+        _xmlStatus.Margin = Padding.Empty;
+        _xmlStatus.Text = "Con un file XML che Zucchetti accetta (anche di un altro programma) la forma si copia senza indovinare.";
+        body.Controls.Add(_xmlStatus, 0, 7);
+        return page;
+    }
+
+    private void DetectFormatFromSample()
+    {
+        using var picker = new OpenFileDialog
+        {
+            Title = "Scegli un file XML accettato da Zucchetti",
+            Filter = "File XML (*.xml)|*.xml|Tutti i file (*.*)|*.*",
+            CheckFileExists = true
+        };
+        if (picker.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+        if (!XmlFormat.TryDetect(picker.FileName, out var detected, out var message))
+        {
+            _xmlStatus.ForeColor = Theme.DangerInk;
+            _xmlStatus.Text = message;
+            return;
+        }
+        _xmlRoot.Value = detected.RootElement;
+        _xmlNamespace.Value = detected.Namespace;
+        _xmlPerNode.Checked = detected.MovementPerNode;
+        _xmlStatus.ForeColor = Theme.SuccessInk;
+        _xmlStatus.Text = message + " Premi «Salva impostazioni» per usarla.";
     }
 
     /// <summary>Scheda "Aggiornamenti": ricerca automatica, token delle Release, firma.</summary>
@@ -476,6 +581,19 @@ internal sealed class SettingsDialog : Form
             return;
         }
 
+        if (!XmlFormat.IsValidElementName(_xmlRoot.Value))
+        {
+            _errorLabel.Text = "Il nome dell'elemento radice non è valido: usa lettere, cifre, trattino o underscore, senza spazi.";
+            _xmlRoot.FocusInput();
+            return;
+        }
+        if (!XmlFormat.IsValidNamespace(_xmlNamespace.Value))
+        {
+            _errorLabel.Text = "Lo spazio dei nomi deve essere un indirizzo completo (es. http://…) oppure vuoto.";
+            _xmlNamespace.FocusInput();
+            return;
+        }
+        Format = new XmlFormat(_xmlRoot.Value.Trim(), _xmlNamespace.Value.Trim(), _xmlPerNode.Checked);
         Options = new GenerationOptions(hours, _saturdays.Checked, holidays, _autoDetect.Checked);
         AutoUpdateCheck = _autoCheck.Checked;
         DialogResult = DialogResult.OK;

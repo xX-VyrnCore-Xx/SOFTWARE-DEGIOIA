@@ -56,15 +56,16 @@ internal static class TrriPwXmlWriter
     /// Scrive il tracciato direttamente su disco in streaming: per file molto grandi
     /// evita di tenere in memoria sia la stringa XML sia il buffer dei byte.
     /// </summary>
-    public static void SaveFile(string path, string companyCode, IReadOnlyList<DailyMovement> movements)
+    public static void SaveFile(string path, string companyCode, IReadOnlyList<DailyMovement> movements, XmlFormat? format = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        format ??= XmlFormat.Active;
         var (company, normalizedMovements) = Validate(companyCode, movements);
         ReplaceAtomically(path, stream =>
         {
             using (var writer = CreateWriter(stream))
             {
-                WriteDocument(writer, company, normalizedMovements);
+                WriteDocument(writer, company, normalizedMovements, format);
             }
         });
     }
@@ -117,14 +118,15 @@ internal static class TrriPwXmlWriter
         }
     }
 
-    public static string Create(string companyCode, IReadOnlyList<DailyMovement> movements)
+    public static string Create(string companyCode, IReadOnlyList<DailyMovement> movements, XmlFormat? format = null)
     {
+        format ??= XmlFormat.Active;
         var (company, normalizedMovements) = Validate(companyCode, movements);
 
         using var output = new MemoryStream();
         using (var writer = CreateWriter(output))
         {
-            WriteDocument(writer, company, normalizedMovements);
+            WriteDocument(writer, company, normalizedMovements, format);
         }
 
         return Encoding.UTF8.GetString(output.ToArray());
@@ -230,40 +232,66 @@ internal static class TrriPwXmlWriter
         CheckCharacters = true
     });
 
-    private static void WriteDocument(XmlWriter writer, string companyCode, IReadOnlyList<DailyMovement> normalizedMovements)
+    private static void WriteDocument(
+        XmlWriter writer,
+        string companyCode,
+        IReadOnlyList<DailyMovement> normalizedMovements,
+        XmlFormat format)
     {
+        var ns = format.NamespaceOrNull;
         writer.WriteStartDocument();
-        writer.WriteStartElement(RootElement);
+        writer.WriteStartElement(format.RootElement, ns);
         foreach (var employeeGroup in normalizedMovements
                      .GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase)
                      .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
-            writer.WriteStartElement("Dipendente");
-            WriteElement(writer, "CodAziendaUfficiale", companyCode);
-            WriteElement(writer, "CodDipendenteUfficiale", employeeGroup.Key);
-            writer.WriteStartElement("Movimenti");
-            // Il tracciato (Paghe Infinity, nodo "Movimenti" → "Attributi") definisce
-            // GenerazioneAutomaticaDaTeorico su Movimenti, non su Dipendente: "N" =
-            // leggi i movimenti giornalieri comunicati. Su Dipendente l'attributo non
-            // è previsto e PAGHE potrebbe ignorarlo, applicando l'orario teorico.
-            writer.WriteAttributeString("GenerazioneAutomaticaDaTeorico", "N");
-            foreach (var movement in employeeGroup
-                         .OrderBy(movement => movement.Date.Date)
-                         .ThenBy(movement => movement.ReasonCode, StringComparer.OrdinalIgnoreCase)
-                         .ThenBy(movement => movement.SourceRow))
+            writer.WriteStartElement("Dipendente", ns);
+            WriteElement(writer, "CodAziendaUfficiale", companyCode, ns);
+            WriteElement(writer, "CodDipendenteUfficiale", employeeGroup.Key, ns);
+            var ordered = employeeGroup
+                .OrderBy(movement => movement.Date.Date)
+                .ThenBy(movement => movement.ReasonCode, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(movement => movement.SourceRow)
+                .ToArray();
+            if (format.MovementPerNode)
             {
-                writer.WriteStartElement("Movimento");
-                WriteElement(writer, "CodGiustificativoUfficiale", movement.ReasonCode);
-                WriteElement(writer, "Data", movement.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-                WriteElement(writer, "NumOre", movement.Hours.ToString(CultureInfo.InvariantCulture));
-                WriteElement(writer, "NumMinuti", movement.Minutes.ToString(CultureInfo.InvariantCulture));
+                // Un nodo «Movimenti» per ogni giorno: i campi del movimento sono suoi figli.
+                foreach (var movement in ordered)
+                {
+                    writer.WriteStartElement("Movimenti", ns);
+                    writer.WriteAttributeString("GenerazioneAutomaticaDaTeorico", "N");
+                    WriteMovementFields(writer, movement, ns);
+                    writer.WriteEndElement();
+                }
+            }
+            else
+            {
+                writer.WriteStartElement("Movimenti", ns);
+                // Il tracciato (Paghe Infinity, nodo "Movimenti" → "Attributi") definisce
+                // GenerazioneAutomaticaDaTeorico su Movimenti, non su Dipendente: "N" =
+                // leggi i movimenti giornalieri comunicati. Su Dipendente l'attributo non
+                // è previsto e PAGHE potrebbe ignorarlo, applicando l'orario teorico.
+                writer.WriteAttributeString("GenerazioneAutomaticaDaTeorico", "N");
+                foreach (var movement in ordered)
+                {
+                    writer.WriteStartElement("Movimento", ns);
+                    WriteMovementFields(writer, movement, ns);
+                    writer.WriteEndElement();
+                }
                 writer.WriteEndElement();
             }
-            writer.WriteEndElement();
             writer.WriteEndElement();
         }
         writer.WriteEndElement();
         writer.WriteEndDocument();
+    }
+
+    private static void WriteMovementFields(XmlWriter writer, DailyMovement movement, string? ns)
+    {
+        WriteElement(writer, "CodGiustificativoUfficiale", movement.ReasonCode, ns);
+        WriteElement(writer, "Data", movement.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ns);
+        WriteElement(writer, "NumOre", movement.Hours.ToString(CultureInfo.InvariantCulture), ns);
+        WriteElement(writer, "NumMinuti", movement.Minutes.ToString(CultureInfo.InvariantCulture), ns);
     }
 
     /// <summary>
@@ -325,8 +353,8 @@ internal static class TrriPwXmlWriter
         }
     }
 
-    private static void WriteElement(XmlWriter writer, string name, string value)
+    private static void WriteElement(XmlWriter writer, string name, string value, string? ns)
     {
-        writer.WriteElementString(name, value);
+        writer.WriteElementString(name, ns, value);
     }
 }
