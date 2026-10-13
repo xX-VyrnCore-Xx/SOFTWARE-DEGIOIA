@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.4] - Corrente
+## [1.22.5] - Corrente
+
+### 💾 Finestra e aggiornamenti
+- La posizione e la dimensione della finestra (e lo stato «ingrandita») si salvano mentre si usa l'app, non solo alla chiusura: dopo un aggiornamento la finestra ricompare dov'era
+- L'aggiornamento non ricrea più l'icona sul desktop se esiste già: non si sposta
+- I dati salvati (aziende, codici, storico, impostazioni) non vengono toccati dall'aggiornamento
+
+### 🎨 Aspetto più curato
+- Campo di ricerca dell'intestazione scuro, in tono con la fascia, con la lente
+
+## [1.22.4]
 
 ### 🎨 Aspetto più curato
 - Pulsanti dipinti dall'app: angoli arrotondati con bordo morbido come card e campi, stato al passaggio e alla pressione, anello di focus da tastiera, testo sempre su una riga (mai più etichette spezzate su due righe)
