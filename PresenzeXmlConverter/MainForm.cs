@@ -130,6 +130,7 @@ internal sealed partial class MainForm : Form
                 return;
             }
             LoadExportsNow();
+            LoadCompaniesQuietly();
             StartDatabaseMaintenance();
             Trace?.WriteTo(StartupLogPath);
         });
@@ -267,12 +268,32 @@ internal sealed partial class MainForm : Form
         }
     }
 
+    /// <summary>
+    /// Un altro avvio dell'app ha chiesto di mostrarsi: la finestra torna in primo piano
+    /// (dal tray o da ridotta a icona). Arriva da un thread del pool.
+    /// </summary>
+    internal void ActivateFromAnotherInstance()
+    {
+        if (IsDisposed || !IsHandleCreated)
+        {
+            return;
+        }
+        try
+        {
+            BeginInvoke(RestoreFromTray);
+        }
+        catch (InvalidOperationException)
+        {
+            // La finestra si sta chiudendo.
+        }
+    }
+
     private void SetupTrayIcon()
     {
         _trayIcon.Icon = _applicationIcon;
         _trayIcon.Text = WindowCaption;
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Apri PresenzeFlow", null, (_, _) => RestoreFromTray());
+        menu.Items.Add("Apri Vyrn Presence", null, (_, _) => RestoreFromTray());
         AddUpdateCommands(menu);
         AddDataCommands(menu);
         menu.Items.Add(new ToolStripSeparator());
@@ -371,7 +392,7 @@ internal sealed partial class MainForm : Form
     {
         Hide();
         ShowTrayNotification(
-            "PresenzeFlow in background",
+            "Vyrn Presence in background",
             "Il programma resta attivo in tray: riceverai una notifica quando una conversione termina.",
             4000);
     }
@@ -392,7 +413,7 @@ internal sealed partial class MainForm : Form
         }
         ShowTrayNotification(
             "Conversione completata",
-            $"{movementCount:N0} movimenti pronti. Apri PresenzeFlow per revisionare ed esportare l'XML.");
+            $"{movementCount:N0} movimenti pronti. Apri Vyrn Presence per revisionare ed esportare l'XML.");
     }
 
     private async Task ImportWorkbookAsync()
@@ -400,7 +421,7 @@ internal sealed partial class MainForm : Form
         using var picker = new OpenFileDialog
         {
             Title = "Seleziona il file presenze da convertire",
-            Filter = "Fogli Excel (*.xlsx)|*.xlsx",
+            Filter = WorkbookDrop.OpenFileFilter,
             CheckFileExists = true,
             Multiselect = false
         };
@@ -452,7 +473,7 @@ internal sealed partial class MainForm : Form
             _inspection = inspection;
             _columns = columns;
             _sourcePath = path;
-            LoadSheetNames(path);
+            LoadSheetNames(path, inspection.SheetNames);
             var sourceDirectory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(sourceDirectory))
             {
@@ -562,8 +583,7 @@ internal sealed partial class MainForm : Form
             _xml = xml;
             _currentPreviewExported = false;
             PopulatePreview(result.Movements);
-            _xmlPreview.Text = _xml;
-            ApplyXmlSyntaxHighlighting();
+            ShowXmlPreview(_xml);
             UpdatePreviewSummary(result.Movements);
             // I controlli girano sempre: prima dell'esportazione l'utente deve
             // vedere che cosa richiede attenzione, non solo le ore prodotte.
@@ -771,6 +791,14 @@ internal sealed partial class MainForm : Form
             {
                 TrriPwXmlWriter.SaveFile(picker.FileName, _xml!);
             }
+            // Il file si rilegge e si controlla contro il tracciato prima di darlo per consegnato.
+            var problems = TrriPwXmlValidator.ValidateFile(picker.FileName);
+            if (problems.Count > 0)
+            {
+                throw new InvalidDataException(
+                    "Il file salvato non rispetta il tracciato TRRIPW e non va consegnato:" + Environment.NewLine +
+                    string.Join(Environment.NewLine, problems.Take(6).Select(problem => "• " + problem)));
+            }
             var directory = Path.GetDirectoryName(picker.FileName);
             if (!string.IsNullOrEmpty(directory))
             {
@@ -829,10 +857,14 @@ internal sealed partial class MainForm : Form
         _isPopulatingPreview = true;
         try
         {
-            _movementsGrid.Rows.Clear();
+            // Le righe si preparano tutte e si aggiungono in blocco: una a una, con la griglia
+            // che si ricalcola a ogni riga, migliaia di movimenti richiedevano secondi.
+            var rows = new List<DataGridViewRow>(movements.Count);
             foreach (var movement in movements)
             {
-                _movementsGrid.Rows.Add(
+                var row = new DataGridViewRow();
+                row.CreateCells(
+                    _movementsGrid,
                     movement.EmployeeName,
                     movement.EmployeeCode,
                     movement.Date.ToString("dd/MM/yyyy"),
@@ -841,6 +873,17 @@ internal sealed partial class MainForm : Form
                     movement.Hours,
                     movement.Minutes,
                     movement.SourceRow == 0 ? string.Empty : movement.SourceRow.ToString());
+                rows.Add(row);
+            }
+            _movementsGrid.SuspendLayout();
+            try
+            {
+                _movementsGrid.Rows.Clear();
+                _movementsGrid.Rows.AddRange(rows.ToArray());
+            }
+            finally
+            {
+                _movementsGrid.ResumeLayout();
             }
         }
         finally
@@ -898,8 +941,7 @@ internal sealed partial class MainForm : Form
 
             _movements = movements;
             _xml = TrriPwXmlWriter.Create(companyCode, movements);
-            _xmlPreview.Text = _xml;
-            ApplyXmlSyntaxHighlighting();
+            ShowXmlPreview(_xml);
             PersistMovementMappings();
             RunDeterministicChecks(movements);
             UpdatePreviewSummary(movements);
@@ -925,6 +967,20 @@ internal sealed partial class MainForm : Form
         if (value.Length is > 0 and <= 6)
         {
             _database.SaveSetting("company-code", value);
+            try
+            {
+                // Ogni codice usato entra nell'anagrafica (senza toccare ragione sociale e
+                // note di un'azienda già presente): le aziende si ritrovano da sole.
+                _database.SaveCompany(value, string.Empty, string.Empty, keepExistingDetails: true);
+                if (!_companies.Any(company => string.Equals(company.Code, value, StringComparison.OrdinalIgnoreCase)))
+                {
+                    RefreshCompanies();
+                }
+            }
+            catch (Exception exception) when (exception is SqliteException or InvalidDataException)
+            {
+                // Il codice resta salvato fra le preferenze: l'anagrafica si riallinea al prossimo avvio.
+            }
         }
     }
 

@@ -17,6 +17,13 @@ static class Program
         AppIdentity.Apply();
         using var setupMutex = AppIdentity.HoldSetupMutex();
 
+        // Un solo Vyrn Presence per utente: un secondo avvio mostra la finestra già aperta.
+        using var instance = SingleInstance.TryAcquire();
+        if (instance is null)
+        {
+            return;
+        }
+
         // Nessun errore deve restare silenzioso: se l'avvio o un evento dell'interfaccia
         // falliscono, l'utente vede un messaggio leggibile invece di un'app che "non parte".
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
@@ -27,7 +34,9 @@ static class Program
 
         try
         {
-            Application.Run(new MainForm());
+            var window = new MainForm();
+            instance.OnActivationRequested(window.ActivateFromAnotherInstance);
+            Application.Run(window);
         }
         catch (Exception exception)
         {
@@ -44,7 +53,7 @@ static class Program
             details + Environment.NewLine + Environment.NewLine +
             "Il dettaglio è stato salvato in:" + Environment.NewLine +
             ErrorLogPath,
-            "PresenzeFlow non può partire",
+            "Vyrn Presence non può partire",
             MessageBoxButtons.OK,
             MessageBoxIcon.Error);
     }

@@ -597,4 +597,38 @@ public class ConversionTests
             }
         }
     }
+
+    [Theory]
+    [InlineData(@"C:\x\presenze.xlsx", true)]
+    [InlineData(@"C:\x\PRESENZE.XLSM", true)]
+    [InlineData(@"C:\x\presenze.xls", false)]
+    [InlineData(@"C:\x\presenze.csv", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void BothExcelFormatsAreAcceptedAndNothingElse(string? path, bool expected)
+    {
+        Assert.Equal(expected, WorkbookDrop.HasSupportedExtension(path));
+        Assert.Equal(expected, WorkbookDrop.LooksLikeWorkbook(path));
+    }
+
+    [Fact]
+    public void AMacroEnabledWorkbookIsReadLikeAnyOther()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"presenze-macro-{Guid.NewGuid():N}.xlsm");
+        try
+        {
+            File.Copy(SampleWorkbook.Path, path);
+
+            var inspection = AttendanceWorkbookReader.Inspect(path);
+
+            Assert.Equal(SampleWorkbook.RequestCount, inspection.ReadRequests(inspection.SuggestedColumns!).Count);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
 }

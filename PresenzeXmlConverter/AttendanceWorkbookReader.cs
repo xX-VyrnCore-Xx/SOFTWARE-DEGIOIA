@@ -35,8 +35,10 @@ internal sealed class WorkbookInspection
         DateTime? periodStart,
         DateTime? periodEnd,
         int headerRowNumber = 0,
-        int lastRowNumber = 0)
+        int lastRowNumber = 0,
+        IReadOnlyList<string>? sheetNames = null)
     {
+        SheetNames = sheetNames ?? Array.Empty<string>();
         SheetName = sheetName;
         Headers = headers;
         _rows = rows;
@@ -50,6 +52,13 @@ internal sealed class WorkbookInspection
     }
 
     public string SheetName { get; }
+
+    /// <summary>
+    /// Fogli visibili del file, letti mentre il file era già aperto: l'interfaccia non
+    /// deve riaprirlo (e rileggerlo da capo) solo per conoscere i nomi dei fogli.
+    /// </summary>
+    public IReadOnlyList<string> SheetNames { get; }
+
     public IReadOnlyList<string> Headers { get; }
     public ColumnSelection? SuggestedColumns { get; }
     public DateTime? PeriodStart { get; }
@@ -456,7 +465,11 @@ internal static class AttendanceWorkbookReader
             periodStart,
             periodEnd,
             headerRowNumber,
-            lastRowNumber);
+            lastRowNumber,
+            workbook.Worksheets
+                .Where(sheet => sheet.Visibility != XLWorksheetVisibility.VeryHidden)
+                .Select(sheet => sheet.Name)
+                .ToArray());
     }
 
     /// <summary>
@@ -712,9 +725,9 @@ internal static class AttendanceWorkbookReader
 
     private static void ValidateWorkbookArchive(string path)
     {
-        if (!string.Equals(Path.GetExtension(path), ".xlsx", StringComparison.OrdinalIgnoreCase))
+        if (!WorkbookDrop.HasSupportedExtension(path))
         {
-            throw new InvalidDataException("Seleziona un file Excel in formato .xlsx.");
+            throw new InvalidDataException("Seleziona un file Excel in formato .xlsx o .xlsm.");
         }
 
         var file = new FileInfo(path);

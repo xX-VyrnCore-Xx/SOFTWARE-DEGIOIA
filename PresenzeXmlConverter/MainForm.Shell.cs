@@ -27,8 +27,9 @@ internal sealed partial class MainForm
 
     private const int SectionDashboard = 0;
     private const int SectionConversion = 1;
-    private const int SectionCodes = 2;
-    private const int SectionHistory = 3;
+    private const int SectionCompanies = 2;
+    private const int SectionCodes = 3;
+    private const int SectionHistory = 4;
 
     private readonly NavRail _navRail = new();
     private readonly Panel _sectionHost = new();
@@ -78,6 +79,7 @@ internal sealed partial class MainForm
 
         _navRail.AddItem("Dashboard", NavIcon.Dashboard);
         _navRail.AddItem("Nuova conversione", NavIcon.Convert, "Conversione");
+        _navRail.AddItem("Aziende", NavIcon.Company);
         _navRail.AddItem("Gestione codici", NavIcon.Codes, "Codici");
         _navRail.AddItem("Storico esportazioni", NavIcon.History, "Storico");
         _navRail.Dock = DockStyle.Top;
@@ -99,6 +101,7 @@ internal sealed partial class MainForm
         _sectionHost.BackColor = Theme.Canvas;
         _sectionHost.Margin = Padding.Empty;
         _sectionHost.Controls.Add(BuildDashboardSection());
+        _sectionHost.Controls.Add(BuildCompaniesSection());
         _sectionHost.Controls.Add(BuildCodesSection());
         _sectionHost.Controls.Add(BuildHistorySection());
         _sectionHost.Controls.Add(conversionSection);
@@ -131,6 +134,7 @@ internal sealed partial class MainForm
 
     private readonly Label _railDataLabel = new();
     private readonly Label _railBackupLabel = new();
+    private readonly Label _railCompanyLabel = new();
 
     /// <summary>
     /// Piede della barra laterale: lo stato dei dati e la versione sono sempre
@@ -142,15 +146,15 @@ internal sealed partial class MainForm
         var footer = new TableLayoutPanel
         {
             Dock = DockStyle.Bottom,
-            Height = 92,
+            Height = 110,
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 5,
             BackColor = Theme.Canvas,
             Padding = new Padding(16, 8, 8, 10),
             Margin = Padding.Empty
         };
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var row = 0; row < 4; row++)
+        for (var row = 0; row < 5; row++)
         {
             footer.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
         }
@@ -175,6 +179,15 @@ internal sealed partial class MainForm
         _railBackupLabel.Text = "backup automatici";
         footer.Controls.Add(_railBackupLabel, 0, 2);
 
+        _railCompanyLabel.Dock = DockStyle.Fill;
+        _railCompanyLabel.TextAlign = ContentAlignment.MiddleLeft;
+        _railCompanyLabel.ForeColor = Theme.MutedInk;
+        _railCompanyLabel.Font = Theme.Fonts.Tiny;
+        _railCompanyLabel.AutoEllipsis = true;
+        _railCompanyLabel.Margin = Padding.Empty;
+        _railCompanyLabel.Text = "nessuna azienda";
+        footer.Controls.Add(_railCompanyLabel, 0, 3);
+
         var version = new Label
         {
             Dock = DockStyle.Fill,
@@ -185,7 +198,7 @@ internal sealed partial class MainForm
             Margin = Padding.Empty,
             Text = $"Versione {RunningVersion.ToString(3)}"
         };
-        footer.Controls.Add(version, 0, 3);
+        footer.Controls.Add(version, 0, 4);
         return footer;
     }
 
@@ -230,6 +243,7 @@ internal sealed partial class MainForm
         }
         _dashboardSection.Visible = index == SectionDashboard;
         _conversionSection.Visible = index == SectionConversion;
+        _companiesSection.Visible = index == SectionCompanies;
         _codesSection.Visible = index == SectionCodes;
         _historySection.Visible = index == SectionHistory;
 
@@ -237,6 +251,9 @@ internal sealed partial class MainForm
         {
             case SectionDashboard:
                 RefreshDashboard();
+                break;
+            case SectionCompanies:
+                RefreshCompanies();
                 break;
             case SectionCodes:
                 EnsureCodesLoaded();
@@ -325,7 +342,7 @@ internal sealed partial class MainForm
 
         page.Controls.Add(BuildSectionHeading(
             "Gestione codici",
-            "Abinamenti fra i valori del foglio e i codici ufficiali PAGHE."), 0, 0);
+            "Abbinamenti fra i valori del foglio e i codici ufficiali PAGHE."), 0, 0);
 
         var card = new SurfacePanel
         {
@@ -596,6 +613,7 @@ internal sealed partial class MainForm
         PopulateExports(_historyGrid, _exports, compact: false);
         _historySummaryLabel.Text = ExportHistory.DescribeSummary(_exports, DateTime.Now);
         UpdateHistoryButtons();
+        UpdateNavSummaries();
     }
 
     private void UpdateHistoryButtons()
@@ -973,5 +991,6 @@ internal sealed partial class MainForm
         }
         RefreshDashboard();
         UpdateHistoryButtons();
+        UpdateNavSummaries();
     }
 }

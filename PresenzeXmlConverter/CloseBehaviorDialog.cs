@@ -10,7 +10,7 @@ internal sealed class CloseBehaviorDialog : Form
 
     public CloseBehaviorDialog()
     {
-        Text = "Chiudi PresenzeFlow";
+        Text = "Chiudi Vyrn Presence";
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MinimizeBox = false;

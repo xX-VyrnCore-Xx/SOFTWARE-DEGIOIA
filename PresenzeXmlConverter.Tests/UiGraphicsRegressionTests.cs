@@ -106,7 +106,7 @@ public class UiGraphicsRegressionTests
         }
         var version = typeof(MainForm).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
         Assert.False(string.IsNullOrWhiteSpace(version), "la versione dell'assembly non e' leggibile");
-        Assert.Equal($"PresenzeFlow {version}", result.Value.title);
+        Assert.Equal($"Vyrn Presence {version}", result.Value.title);
     }
 
     /// <summary>
@@ -181,10 +181,10 @@ public class UiGraphicsRegressionTests
         }
         // Un test che non disegna nulla non verifica nulla: con la finestra vuota
         // (interfaccia mai costruita) il ciclo sulle sezioni non girava e il test
-        // risultava verde. Le sezioni devono esserci tutte e quattro.
+        // risultava verde. Le sezioni devono esserci tutte e cinque.
         Assert.True(
-            result.Value.sections >= 4,
-            $"La finestra ha {result.Value.sections} sezioni invece di 4: l'interfaccia non è stata costruita. " +
+            result.Value.sections >= 5,
+            $"La finestra ha {result.Value.sections} sezioni invece di 5: l'interfaccia non è stata costruita. " +
             result.Value.report);
         Assert.True(
             string.IsNullOrEmpty(result.Value.clipped),
@@ -227,7 +227,7 @@ public class UiGraphicsRegressionTests
                          // Novità di una Release: note lunghe, con la barra di
                          // scorrimento disegnata con il tema dell'app.
                          new ReleaseNotesDialog(
-                             "Novità di PresenzeFlow",
+                             "Novità di Vyrn Presence",
                              "Riepilogo delle modifiche di questa versione.",
                              LongReleaseNotes,
                              true)

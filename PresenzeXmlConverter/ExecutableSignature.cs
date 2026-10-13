@@ -45,6 +45,33 @@ internal static class ExecutableSignature
         }
     }
 
+    /// <summary>Impronta del certificato con cui è firmato il file, o null se non è firmato.</summary>
+    public static string? SignerThumbprint(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return null;
+        }
+        try
+        {
+            using var certificate = new X509Certificate2(X509Certificate.CreateFromSignedFile(path));
+            return certificate.Thumbprint;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Un aggiornamento NON firmato che sostituisce un'app firmata è un passo indietro
+    /// (o una sostituzione del file): va rifiutato. Un certificato diverso invece è
+    /// ammesso, altrimenti il rinnovo del certificato bloccherebbe gli aggiornamenti
+    /// di chi ha già installato la versione precedente.
+    /// </summary>
+    internal static bool IsSignatureDowngrade(string? runningSigner, string? installerSigner) =>
+        !string.IsNullOrEmpty(runningSigner) && string.IsNullOrEmpty(installerSigner);
+
     /// <summary>Testo mostrato all'utente a partire dai dati del certificato.</summary>
     internal static string FormatSigner(string? subject, DateTime? notAfter)
     {

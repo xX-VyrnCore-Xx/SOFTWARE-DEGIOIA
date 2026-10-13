@@ -7,13 +7,14 @@ internal enum NavIcon
 {
     Dashboard,
     Convert,
+    Company,
     Codes,
     History
 }
 
 /// <summary>
-/// Barra di navigazione verticale disegnata con la palette dell'app: le quattro
-/// sezioni della finestra (Dashboard, Nuova conversione, Gestione codici,
+/// Barra di navigazione verticale disegnata con la palette dell'app: le cinque
+/// sezioni della finestra (Dashboard, Nuova conversione, Aziende, Gestione codici,
 /// Storico esportazioni). È il controllo che sostituisce la fila di schede in
 /// alto: le voci sono più alte, il bersaglio del clic è più grande e la voce
 /// attiva si legge a colpo d'occhio (fondo chiaro, testo e icona nel colore di
@@ -67,6 +68,34 @@ internal sealed class NavRail : Control
     }
 
     public event EventHandler? SelectionChanged;
+
+    private readonly Dictionary<int, string> _badges = new();
+
+    /// <summary>
+    /// Contatore a destra di una voce (per esempio il numero di aziende salvate): si
+    /// vede a colpo d'occhio che cosa c'è in ogni sezione. Testo vuoto = nessun contatore.
+    /// </summary>
+    public void SetBadge(int index, string? text)
+    {
+        if (index < 0 || index >= _items.Count)
+        {
+            return;
+        }
+        var changed = string.IsNullOrEmpty(text)
+            ? _badges.Remove(index)
+            : !_badges.TryGetValue(index, out var current) || current != text;
+        if (!string.IsNullOrEmpty(text))
+        {
+            _badges[index] = text;
+        }
+        if (changed)
+        {
+            Invalidate();
+        }
+    }
+
+    /// <summary>Testo del contatore di una voce (per i test).</summary>
+    public string BadgeText(int index) => _badges.TryGetValue(index, out var text) ? text : string.Empty;
 
     public void AddItem(string title, NavIcon icon, string? shortTitle = null)
     {
@@ -184,10 +213,37 @@ internal sealed class NavRail : Control
                 DrawIcon(e.Graphics, iconBox, item.Icon, ink, iconPen);
             }
 
+            var badgeWidth = 0;
+            if (_badges.TryGetValue(index, out var badge) && badge.Length > 0)
+            {
+                var badgeSize = TextRenderer.MeasureText(
+                    badge,
+                    Theme.Fonts.Tiny,
+                    new Size(int.MaxValue, int.MaxValue),
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                badgeWidth = Math.Max(22, badgeSize.Width + 12);
+                var pill = new Rectangle(
+                    (int)box.Right - badgeWidth - 10,
+                    (int)(box.Top + (box.Height - 20) / 2),
+                    badgeWidth,
+                    20);
+                using var pillPath = Theme.RoundedRectangle(pill, 10);
+                using var pillFill = new SolidBrush(active ? Theme.Surface : Theme.Sunken);
+                e.Graphics.FillPath(pillFill, pillPath);
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    badge,
+                    Theme.Fonts.Tiny,
+                    pill,
+                    ink,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                badgeWidth += 8;
+            }
+
             var textBounds = new Rectangle(
                 iconBox.Right + 10,
                 (int)box.Top,
-                Math.Max(1, (int)box.Right - iconBox.Right - 14),
+                Math.Max(1, (int)box.Right - iconBox.Right - 14 - badgeWidth),
                 (int)box.Height);
             TextRenderer.DrawText(
                 e.Graphics,
@@ -231,6 +287,20 @@ internal sealed class NavRail : Control
                 graphics.DrawLine(pen, box.Left + 5, box.Top + 6, box.Right - 6, box.Top + 6);
                 graphics.DrawLine(pen, box.Left + 5, box.Top + 10, box.Right - 6, box.Top + 10);
                 graphics.DrawLine(pen, box.Left + 5, box.Top + 14, box.Left + 9, box.Top + 14);
+                break;
+
+            case NavIcon.Company:
+                // Edificio: corpo, porta e due file di finestre.
+                graphics.DrawRectangle(pen, box.Left + 3, box.Top + 2, box.Width - 7, box.Height - 4);
+                graphics.DrawLine(pen, box.Left + box.Width / 2 - 1, box.Bottom - 2, box.Left + box.Width / 2 - 1, box.Bottom - 7);
+                using (var window = new SolidBrush(ink))
+                {
+                    for (var row = 0; row < 2; row++)
+                    {
+                        graphics.FillRectangle(window, box.Left + 6, box.Top + 5 + (row * 5), 2, 2);
+                        graphics.FillRectangle(window, box.Right - 8, box.Top + 5 + (row * 5), 2, 2);
+                    }
+                }
                 break;
 
             case NavIcon.Codes:

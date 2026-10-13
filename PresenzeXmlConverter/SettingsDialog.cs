@@ -45,7 +45,7 @@ internal sealed class SettingsDialog : Form
         _clearTokenButton = Theme.CreateButton("Rimuovi token", Theme.ButtonTone.Neutral, compact: true);
         _clearTokenButton.AccessibleName = "Rimuovi il token GitHub";
 
-        Text = "Impostazioni di PresenzeFlow";
+        Text = "Impostazioni di Vyrn Presence";
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.Sizable;
         MinimizeBox = false;
@@ -97,7 +97,7 @@ internal sealed class SettingsDialog : Form
         }, 0, 0);
         heading.Controls.Add(new Label
         {
-            Text = $"PresenzeFlow {ExecutableSignature.DisplayVersion}  ·  regole di conversione e aggiornamenti.",
+            Text = $"Vyrn Presence {ExecutableSignature.DisplayVersion}  ·  regole di conversione e aggiornamenti.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.TopLeft,
             ForeColor = Theme.MutedInk,

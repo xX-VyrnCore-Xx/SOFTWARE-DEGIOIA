@@ -1,10 +1,12 @@
-# PresenzeFlow
+# Vyrn Presence
 
-PresenzeFlow è un'applicazione Windows 11 x64 per convertire un foglio Excel di richieste di assenza nel tracciato XML TRRIPW per Paghe Infinity. Con interfaccia moderna, analisi dati avanzata e validazione completa.
+> Vyrn Presence (già «PresenzeFlow») — i nomi dei file e dei dati sul PC restano quelli di prima, così gli aggiornamenti continuano a funzionare.
+
+Vyrn Presence è un'applicazione Windows 11 x64 per convertire un foglio Excel di richieste di assenza nel tracciato XML TRRIPW per Paghe Infinity. Con interfaccia moderna, analisi dati avanzata e validazione completa.
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.20.1.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.21.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
 L'installer non scarica nulla oltre al programma. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
 
@@ -48,6 +50,14 @@ La finestra è divisa in quattro sezioni, con la barra di navigazione a sinistra
 8. **Chiusura**: alla prima chiusura puoi scegliere una sola volta (o ricordare la scelta) se uscire definitivamente o restare in tray: in background ricevi una notifica quando una conversione termina.
 
 Il file generato contiene solo i movimenti di assenza presenti nell'Excel; non inventa ore ordinarie o presenze. Prima dell'esportazione vengono verificati codici, limiti del tracciato, associazioni dipendente/codice e caratteri XML; l'output è ordinato in modo deterministico, scritto in UTF-8 senza BOM e sostituito atomicamente per evitare file parziali.
+
+## Aziende
+
+La sezione **Aziende** della barra laterale è l'anagrafica delle aziende per cui prepari i file: **codice ufficiale PAGHE** (fino a 6 caratteri), **ragione sociale** e note. Si crea, si modifica e si elimina da lì; **Usa in conversione** (o doppio clic) imposta l'azienda del file XML.
+
+- Tutto è salvato nel database locale (schema 4) e quindi incluso nei backup automatici e nel ripristino.
+- Ogni codice digitato nel campo Azienda della conversione entra da solo nell'elenco, senza toccare ragione sociale e note di un'azienda già presente; il codice usato nelle versioni precedenti viene importato al primo avvio.
+- Nel campo Azienda compaiono i suggerimenti scrivendo le prime lettere; sotto al campo e nel piede della barra laterale si vede la ragione sociale dell'azienda in uso.
 
 ## Sabato lavorativo e ore effettive
 
@@ -107,7 +117,7 @@ Prima del primo utilizzo produttivo, verifica un XML di prova nell'ambiente Zucc
 | `Ctrl+F` | Cerca nei movimenti |
 | `Ctrl+0` | Sezione Dashboard |
 | `Ctrl+1` / `Ctrl+2` / `Ctrl+3` | Scheda Movimenti / Anteprima XML / Controlli |
-| `Ctrl+4` / `Ctrl+5` | Sezione Gestione codici / Storico esportazioni |
+| `Ctrl+4` / `Ctrl+5` / `Ctrl+6` | Sezione Aziende / Gestione codici / Storico esportazioni |
 | `Ctrl+,` | Impostazioni |
 | `F1` | Elenco delle scorciatoie |
 
@@ -123,14 +133,14 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6.3 o successivo, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.20.1.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.21.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).
 
 ⚠️ **Nota per chi cura la build**: il `PublishSingleFile` non include le librerie native, quindi `dist/app/e_sqlite3.dll` **deve** essere copiato dall'installer accanto a `PresenzeFlow.exe`. Senza quel file l'app non può aprire il database locale e termina all'avvio (ora con un messaggio d'errore esplicito invece di un silenzioso crash).
 
-Per rigenerare l'icona e le immagini della procedura guidata, esegui `.\assets\Create-BrandAssets.ps1`.
+Per rigenerare l'icona e le immagini della procedura guidata (tre scale per lo schermo ad alta risoluzione), esegui `python3 assets/Create-BrandIcon.py` (richiede Pillow).
 
 ## Rilasci automatici (GitHub Actions)
 
@@ -246,7 +256,7 @@ Un certificato **autofirmato non elimina** l'avviso SmartScreen per chi scarica 
 
 ## Novità v1.15.0
 
-- **Barra di navigazione laterale** con quattro sezioni: **Dashboard**, **Nuova conversione**, **Gestione codici** e **Storico esportazioni**, con ricerca nell'intestazione che filtra i movimenti da qualunque sezione (scorciatoie `Ctrl+0…5`)
+- **Barra di navigazione laterale** con cinque sezioni: **Dashboard**, **Nuova conversione**, **Aziende**, **Gestione codici** e **Storico esportazioni**, con ricerca nell'intestazione che filtra i movimenti da qualunque sezione (scorciatoie `Ctrl+0…5`)
 - **Dashboard**: card di riepilogo (richieste, dipendenti, movimenti, ore), stato del file sorgente, azioni rapide e ultime esportazioni con doppio clic per aprire la cartella del file
 - **Gestione codici** come sezione della finestra, con lo **stesso** pannello del dialogo "Codici PAGHE" (una sola logica di validazione)
 - **Storico esportazioni** (nuovo): ogni XML salvato è registrato con data, file, cartella, dipendenti e ore; le voci si aprono in Esplora file o si copiano; lo storico tiene le ultime 200 consegne e i file su disco non vengono mai toccati

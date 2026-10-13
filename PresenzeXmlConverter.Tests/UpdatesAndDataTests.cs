@@ -306,7 +306,7 @@ public class UpdatesAndDataTests
 
         var script = File.ReadAllText(Path.Combine(root, "Installer.iss")).Replace("\r\n", "\n");
         // Domanda esplicita con tre esiti e conferma doppia prima di cancellare.
-        Assert.Contains("Vuoi CONSERVARE i dati di PresenzeFlow?", script, StringComparison.Ordinal);
+        Assert.Contains("Vuoi CONSERVARE i dati di Vyrn Presence?", script, StringComparison.Ordinal);
         Assert.Contains("MB_YESNOCANCEL", script, StringComparison.Ordinal);
         Assert.Contains("MB_DEFBUTTON2", script, StringComparison.Ordinal);
         // In silenzioso si conserva, salvo richiesta esplicita.
