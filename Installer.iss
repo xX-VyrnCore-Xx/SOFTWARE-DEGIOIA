@@ -134,14 +134,11 @@ Type: files; Name: "{autodesktop}\PresenzeFlow.lnk"
 Type: files; Name: "{localappdata}\DeGioia\PresenzeXmlConverter\ai-model.txt"
 
 [Icons]
-; Il collegamento sul desktop non viene ricreato se esiste gia': un aggiornamento
-; non deve spostare l'icona che l'utente ha messo dove voleva (Windows ne ricorda la
-; posizione solo finche' il file resta lo stesso).
 ; AppUserModelID: lo stesso valore che l'app dichiara a Windows (AppIdentity.cs): senza
 ; un collegamento con questo identificatore le notifiche del tray non vengono
 ; attribuite al programma e Windows puo' sopprimerle.
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; AppUserModelID: "{#AppUserModelId}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon; AppUserModelID: "{#AppUserModelId}"; Flags: onlyifdoesntexist
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon; AppUserModelID: "{#AppUserModelId}"
 
 [UninstallDelete]
 ; Cartella del programma: se resta vuota dopo la rimozione dei file, sparisce anch'essa.
