@@ -373,11 +373,14 @@ public class ConversionTests
         // L'attributo è del nodo Movimenti, come nel tracciato Zucchetti.
         Assert.Equal("N", (string?)employee.Element("Movimenti")!.Attribute("GenerazioneAutomaticaDaTeorico"));
         Assert.Null(employee.Attribute("GenerazioneAutomaticaDaTeorico"));
-        Assert.Equal("AZ001", (string?)employee.Element("CodAziendaUfficiale"));
-        Assert.Equal("1234567", (string?)employee.Element("CodDipendenteUfficiale"));
+        // Struttura identica al file che Zucchetti importa: codici come attributi del nodo.
+        Assert.Equal("Fornitura", document.Root!.Name.LocalName);
+        Assert.Equal("AZ001", (string?)employee.Attribute("CodAziendaUfficiale"));
+        Assert.Equal("1234567", (string?)employee.Attribute("CodDipendenteUfficiale"));
+        Assert.Equal("01", (string?)movement.Element("CodGiustificativoRilPres"));
         Assert.Equal("01", (string?)movement.Element("CodGiustificativoUfficiale"));
         Assert.Equal("2026-08-17", (string?)movement.Element("Data"));
-        Assert.Equal("7", (string?)movement.Element("NumOre"));
+        Assert.Equal("07", (string?)movement.Element("NumOre"));
         Assert.Equal("30", (string?)movement.Element("NumMinuti"));
     }
 
@@ -397,7 +400,7 @@ public class ConversionTests
 
         Assert.Equal(2, list.Length);
         var holiday = Assert.Single(list, item => (string?)item.Element("CodGiustificativoUfficiale") == "01");
-        Assert.Equal("7", (string?)holiday.Element("NumOre"));
+        Assert.Equal("07", (string?)holiday.Element("NumOre"));
         Assert.Equal("45", (string?)holiday.Element("NumMinuti"));
     }
 
@@ -410,7 +413,7 @@ public class ConversionTests
     [Fact]
     public void XmlWriterEnforcesTheDocumentedTracciatoLimits()
     {
-        Assert.Equal("Dipendenti", TrriPwXmlWriter.RootElement);
+        Assert.Equal("Fornitura", TrriPwXmlWriter.RootElement);
         var company = new string('A', TrriPwXmlWriter.MaxCompanyCodeLength);
         var movement = new DailyMovement(
             "Rossi Mario",
@@ -422,7 +425,7 @@ public class ConversionTests
             TrriPwXmlWriter.MaxMinutesPerMovement);
 
         // Al limite: il documento viene prodotto.
-        Assert.Contains("<Dipendenti>", TrriPwXmlWriter.Create(company, [movement]));
+        Assert.Contains("<Fornitura>", TrriPwXmlWriter.Create(company, [movement]));
 
         // Un carattere oltre il limite: rifiutato.
         Assert.Throws<InvalidDataException>(() =>
@@ -500,7 +503,7 @@ public class ConversionTests
             var bytes = File.ReadAllBytes(path);
             Assert.False(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF);
             Assert.Equal(xml, Encoding.UTF8.GetString(bytes));
-            Assert.Equal("Dipendenti", XDocument.Load(path).Root!.Name.LocalName);
+            Assert.Equal("Fornitura", XDocument.Load(path).Root!.Name.LocalName);
         }
         finally
         {

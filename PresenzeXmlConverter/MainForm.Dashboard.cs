@@ -121,7 +121,7 @@ internal sealed partial class MainForm
         Describe(
             _dashDropZone,
             "Scegli o trascina il foglio Excel",
-            "Apre un foglio .xlsx da convertire in TRRIPA: fai clic oppure trascina il file qui.");
+            "Apre un foglio .xlsx da convertire in XML TRRIPW: fai clic oppure trascina il file qui.");
         layout.Controls.Add(_dashDropZone, 0, 1);
 
         _dashStepper.Dock = DockStyle.Fill;

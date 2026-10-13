@@ -68,8 +68,12 @@ internal static class TrriPwXmlValidator
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var employee in employees)
         {
-            var company = (string?)employee.Element(ns + "CodAziendaUfficiale") ?? string.Empty;
-            var code = (string?)employee.Element(ns + "CodDipendenteUfficiale") ?? string.Empty;
+            // I codici sono attributi del nodo (come nel file accettato da Zucchetti); si
+            // leggono anche come elementi figli, per i file scritti dalle versioni precedenti.
+            var company = (string?)employee.Attribute("CodAziendaUfficiale") ??
+                          (string?)employee.Element(ns + "CodAziendaUfficiale") ?? string.Empty;
+            var code = (string?)employee.Attribute("CodDipendenteUfficiale") ??
+                       (string?)employee.Element(ns + "CodDipendenteUfficiale") ?? string.Empty;
             var who = code.Length == 0 ? "un dipendente" : $"il dipendente {code}";
             if (company.Length is 0 or > TrriPwXmlWriter.MaxCompanyCodeLength)
             {
@@ -123,7 +127,7 @@ internal static class TrriPwXmlValidator
                         issues.Add($"Data «{dateText}» non valida per {who}: il formato è aaaa-mm-gg.");
                     }
                     if (!TryNumber(movement.Element(ns + "NumOre"), TrriPwXmlWriter.MaxHoursPerMovement) ||
-                        !TryNumber(movement.Element(ns + "NumMinuti"), TrriPwXmlWriter.MaxMinutesPerMovement))
+                        !TryOptionalNumber(movement.Element(ns + "NumMinuti"), TrriPwXmlWriter.MaxMinutesPerMovement))
                     {
                         issues.Add(
                             $"Ore o minuti non validi per {who} il {dateText} " +
@@ -138,6 +142,10 @@ internal static class TrriPwXmlValidator
         }
         return issues;
     }
+
+    /// <summary>I minuti si possono omettere: vale zero.</summary>
+    private static bool TryOptionalNumber(XElement? element, int maximum) =>
+        element is null || TryNumber(element, maximum);
 
     private static bool TryNumber(XElement? element, int maximum) =>
         element is not null &&

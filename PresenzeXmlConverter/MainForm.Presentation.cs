@@ -181,7 +181,7 @@ internal sealed partial class MainForm
         Describe(
             _conversionDropZone,
             "Seleziona file Excel",
-            "Apre un foglio .xlsx da convertire in TRRIPA. Puoi anche trascinare il file qui o sulla finestra.");
+            "Apre un foglio .xlsx da convertire in XML TRRIPW. Puoi anche trascinare il file qui o sulla finestra.");
         fileLayout.Controls.Add(_conversionDropZone, 0, 1);
 
         // Foglio in uso: mostra il nome e, quando il file ne ha più di uno,
@@ -397,7 +397,7 @@ internal sealed partial class MainForm
         }, 0, 0);
         titles.Controls.Add(new Label
         {
-            Text = "Importa · Verifica · Esporta in TRRIPA",
+            Text = "Importa · Verifica · Esporta in XML TRRIPW",
             AutoSize = true,
             ForeColor = Theme.HeaderMuted,
             Font = Theme.Fonts.Small,
@@ -608,7 +608,7 @@ internal sealed partial class MainForm
         Describe(
             _exportButton,
             "Scarica XML",
-            "Salva il file TRRIPA (o XML) nella cartella che scegli (Ctrl+S).");
+            "Salva il file XML TRRIPW nella cartella che scegli (Ctrl+S).");
 
         toolbarActions.Controls.Add(_previewSearch, 0, 0);
         toolbarActions.Controls.Add(_copyXmlButton, 1, 0);
@@ -681,7 +681,7 @@ internal sealed partial class MainForm
         _movementsGrid.EmptyStateText = EmptyMovementsText;
         _movementsGrid.AccessibleName = "Movimenti generati";
         _movementsGrid.AccessibleDescription = "Movimenti giornalieri dell'anteprima: le colonne dei codici e delle ore sono modificabili.";
-        _xmlPreview.AccessibleName = "Anteprima TRRIPA";
+        _xmlPreview.AccessibleName = "Anteprima XML TRRIPW";
         _previewTabs.AccessibleName = "Area di revisione";
         movementPage.Controls.Add(_movementsGrid);
 
@@ -697,7 +697,7 @@ internal sealed partial class MainForm
         _xmlPreview.Margin = Padding.Empty;
         xmlPage.Controls.Add(_xmlPreview);
         _previewTabs.AddPage("Movimenti  ·  0", movementPage);
-        _previewTabs.AddPage("Anteprima TRRIPA", xmlPage);
+        _previewTabs.AddPage("Anteprima XML", xmlPage);
         _previewTabs.AddPage("Controlli", BuildReviewPanel());
         _previewTabs.SelectedIndex = 0;
         return _previewTabs;
@@ -807,7 +807,7 @@ internal sealed partial class MainForm
         _statusLabel.Dock = DockStyle.Fill;
         _statusLabel.AutoEllipsis = true;
         _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _statusLabel.Text = "●   Pronto  ·  Formato di esportazione: TRRIPA";
+        _statusLabel.Text = "●   Pronto  ·  Formato di esportazione: XML TRRIPW";
         _statusLabel.Font = Theme.Fonts.Small;
         _statusLabel.ForeColor = Theme.MutedInk;
         content.Controls.Add(_statusLabel, 0, 0);
@@ -952,7 +952,7 @@ internal sealed partial class MainForm
             _xmlPreview.Clear();
             return;
         }
-        if (xml.Length > highlightingLimit || !xml.TrimStart().StartsWith('<'))
+        if (xml.Length > highlightingLimit)
         {
             _xmlPreview.Text = xml;
             return;
