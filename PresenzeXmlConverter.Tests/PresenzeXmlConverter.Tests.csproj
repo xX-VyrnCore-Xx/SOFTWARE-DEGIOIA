@@ -23,7 +23,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PresenzeXmlConverter\PresenzeXmlConverter.csproj" />
-    <Content Include="..\file presenze cliente.xlsx" Link="file presenze cliente.xlsx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

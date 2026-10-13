@@ -16,6 +16,10 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 - Un Ollama già installato sul PC **non viene toccato né disinstallato**: si rimuove da Windows (Impostazioni → App) se non serve più
 - La dashboard mostra le regole di conversione in uso al posto dello stato dell'AI; il pulsante **Regole** apre le impostazioni
 
+### 🧪 Build e dettagli
+- **Test indipendenti dall'Excel del cliente**: il progetto di test copiava `file presenze cliente.xlsx`; cancellato quel file dal repository, la build dei test (e quindi la Release 1.19.0) si fermava con «file non trovato». Ora il foglio di esempio viene generato dai test (`SampleWorkbook`)
+- Menu del tray: voce **Notifiche di fine conversione** per attivarle o spegnerle
+
 ---
 
 ## [1.19.0] - Precedente

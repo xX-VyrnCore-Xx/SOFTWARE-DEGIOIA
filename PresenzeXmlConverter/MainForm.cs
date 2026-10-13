@@ -276,6 +276,17 @@ internal sealed partial class MainForm : Form
         AddUpdateCommands(menu);
         AddDataCommands(menu);
         menu.Items.Add(new ToolStripSeparator());
+        var notifications = new ToolStripMenuItem("Notifiche di fine conversione")
+        {
+            CheckOnClick = true,
+            Checked = !string.Equals(_database.GetSetting("notifications"), "false", StringComparison.OrdinalIgnoreCase)
+        };
+        notifications.CheckedChanged += (_, _) =>
+        {
+            _database.SaveSetting("notifications", notifications.Checked ? "true" : "false");
+            SetStatus(notifications.Checked ? "●   Notifiche attivate." : "●   Notifiche disattivate.", false);
+        };
+        menu.Items.Add(notifications);
         menu.Items.Add("Alla chiusura chiedi di nuovo", null, (_, _) =>
         {
             _database.SaveSetting("close-behavior", string.Empty);
