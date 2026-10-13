@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.3] - Corrente
+## [1.22.4] - Corrente
+
+### ✨ Note di aggiornamento più belle
+- Le novità di una versione non sono più testo grezzo: i titoli («What's Changed» diventa «Novità») hanno la barretta d'accento, le voci un punto colorato, e spariscono autore, link alla pull request e «Full Changelog»
+- Tolta la riga d'apertura che ripeteva il titolo («Vyrn Presence 1.22.2 — PresenzeFlow 1.22.2 (v1.22.2)»)
+- Testo più grande e leggibile; «Copia note» copia sempre il testo originale
+
+## [1.22.3]
 
 ### 🐞 Correzioni grafiche (verificate sulle schermate rese in CI)
 - Novità di una versione: la barra di scorrimento stava sopra il testo, a sinistra; ora è a destra. I segni Markdown (`##`, `**`) non compaiono più

@@ -604,7 +604,9 @@ internal sealed class StatusPill : Control
 /// </summary>
 internal sealed class NoteTextView : Control
 {
-    private const int TextPadding = 2;
+    private const int TextPadding = 4;
+    private static readonly Font HeadingFont = new("Segoe UI", 10.5f, FontStyle.Bold);
+    private IReadOnlyList<NoteBlock> _blocks = Array.Empty<NoteBlock>();
     private string _text = string.Empty;
     private ScrollBarLayout _layout;
     private int _requestedOffset;
@@ -622,7 +624,7 @@ internal sealed class NoteTextView : Control
             true);
         BackColor = Theme.FieldFill;
         ForeColor = Theme.InkSecondary;
-        Font = Theme.Fonts.Small;
+        Font = Theme.Fonts.Ui;
         TabStop = false;
         AccessibleRole = AccessibleRole.StaticText;
     }
@@ -633,7 +635,13 @@ internal sealed class NoteTextView : Control
         get => _text;
         set
         {
-            _text = value ?? string.Empty;
+            _blocks = ReleaseNotesDocument.Parse(value);
+            // Con note senza una struttura riconoscibile si mostra il testo com'è.
+            if (_blocks.Count == 0 && !string.IsNullOrWhiteSpace(value))
+            {
+                _blocks = new[] { new NoteBlock(NoteBlockKind.Paragraph, value.Trim()) };
+            }
+            _text = ReleaseNotesDocument.ToPlainText(_blocks);
             Text = _text;
             _requestedOffset = 0;
             Recalculate();
@@ -684,14 +692,51 @@ internal sealed class NoteTextView : Control
         Invalidate();
     }
 
-    private int MeasureHeight(int width) =>
-        string.IsNullOrEmpty(_text)
-            ? 0
-            : TextRenderer.MeasureText(
-                  _text,
-                  Font,
-                  new Size(Math.Max(1, width - (TextPadding * 2)), int.MaxValue),
-                  TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height + TextPadding;
+    private float Scale => DeviceDpi / 96f;
+
+    private int Px(int logical) => (int)Math.Round(logical * Scale);
+
+    private const TextFormatFlags BodyFlags =
+        TextFormatFlags.WordBreak | TextFormatFlags.NoPadding | TextFormatFlags.Left | TextFormatFlags.Top;
+
+    /// <summary>
+    /// Posizione di ogni blocco per la larghezza data e altezza totale: stessa
+    /// funzione per misurare e per disegnare, così le due cose non si separano.
+    /// </summary>
+    private List<(NoteBlock Block, Rectangle Bounds)> Arrange(int width, out int height)
+    {
+        var placed = new List<(NoteBlock, Rectangle)>(_blocks.Count);
+        var y = Px(TextPadding);
+        var left = Px(TextPadding + 2);
+        var right = Math.Max(left + 20, width - Px(TextPadding + 2));
+        var indent = Px(18);
+        for (var index = 0; index < _blocks.Count; index++)
+        {
+            var block = _blocks[index];
+            var isHeading = block.Kind == NoteBlockKind.Heading;
+            var x = block.Kind == NoteBlockKind.Bullet ? left + indent : left;
+            var font = isHeading ? HeadingFont : Font;
+            if (isHeading && index > 0)
+            {
+                y += Px(14);
+            }
+            var measured = TextRenderer.MeasureText(
+                block.Text,
+                font,
+                new Size(Math.Max(1, right - x), int.MaxValue),
+                BodyFlags).Height;
+            placed.Add((block, new Rectangle(x, y, Math.Max(1, right - x), measured)));
+            y += measured + Px(isHeading ? 6 : 5);
+        }
+        height = _blocks.Count == 0 ? 0 : y + Px(TextPadding);
+        return placed;
+    }
+
+    private int MeasureHeight(int width)
+    {
+        Arrange(width, out var height);
+        return height;
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -699,20 +744,44 @@ internal sealed class NoteTextView : Control
         {
             e.Graphics.FillRectangle(background, ClientRectangle);
         }
-        if (_text.Length > 0)
+        if (_blocks.Count > 0)
         {
-            var bounds = new Rectangle(
-                TextPadding,
-                TextPadding - _layout.Offset,
-                Math.Max(1, _layout.ContentWidth - (TextPadding * 2)),
-                Math.Max(1, TextHeight));
-            TextRenderer.DrawText(
-                e.Graphics,
-                _text,
-                Font,
-                bounds,
-                ForeColor,
-                TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            foreach (var (block, bounds) in Arrange(_layout.ContentWidth, out _))
+            {
+                var area = new Rectangle(bounds.X, bounds.Y - _layout.Offset, bounds.Width, bounds.Height);
+                if (area.Bottom < 0 || area.Top > ClientSize.Height)
+                {
+                    continue;
+                }
+                switch (block.Kind)
+                {
+                    case NoteBlockKind.Heading:
+                        // Barretta d'accento a sinistra del titolo di sezione.
+                        using (var accent = new SolidBrush(Theme.Brand))
+                        {
+                            e.Graphics.FillRectangle(accent, area.X - Px(7), area.Y + Px(2), Px(3), Math.Max(4, area.Height - Px(4)));
+                        }
+                        TextRenderer.DrawText(e.Graphics, block.Text, HeadingFont, area, Theme.BrandInk, BodyFlags);
+                        break;
+                    case NoteBlockKind.Bullet:
+                        var dot = Px(6);
+                        using (var dotBrush = new SolidBrush(Theme.Brand))
+                        {
+                            e.Graphics.FillEllipse(
+                                dotBrush,
+                                area.X - Px(14),
+                                area.Y + ((Font.Height - dot) / 2) + 1,
+                                dot,
+                                dot);
+                        }
+                        TextRenderer.DrawText(e.Graphics, block.Text, Font, area, Theme.Ink, BodyFlags);
+                        break;
+                    default:
+                        TextRenderer.DrawText(e.Graphics, block.Text, Font, area, Theme.InkSecondary, BodyFlags);
+                        break;
+                }
+            }
         }
         DrawThumb(e.Graphics);
     }
