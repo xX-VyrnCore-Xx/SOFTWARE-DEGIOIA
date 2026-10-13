@@ -18,11 +18,11 @@ internal sealed partial class MainForm
     private readonly RoundedField _companyEditName = new();
     private readonly RoundedField _companyEditNotes = new();
     private readonly Label _companiesSummaryLabel = new();
-    private readonly Button _companySaveButton = new();
-    private readonly Button _companyNewButton = new();
-    private readonly Button _companyDeleteButton = new();
-    private readonly Button _companyRulesButton = new();
-    private readonly Button _companyUseButton = new();
+    private readonly Button _companySaveButton = new ThemedButton();
+    private readonly Button _companyNewButton = new ThemedButton();
+    private readonly Button _companyDeleteButton = new ThemedButton();
+    private readonly Button _companyRulesButton = new ThemedButton();
+    private readonly Button _companyUseButton = new ThemedButton();
     private Label? _companyHintLabel;
     private IReadOnlyList<CompanyRecord> _companies = Array.Empty<CompanyRecord>();
     private bool _companyFormLoading;

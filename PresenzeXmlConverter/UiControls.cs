@@ -1,4 +1,5 @@
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 
 namespace PresenzeXmlConverter;
 
@@ -28,13 +29,17 @@ internal sealed class ThemedGrid : DataGridView
         EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
         EnableHeadersVisualStyles = false;
         ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableAlwaysIncludeHeaderText;
+        // Intestazione senza le linee scure di sistema che incorniciavano ogni cella:
+        // una fascia chiara con il testo di supporto, come nelle app curate.
+        ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+        ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         ColumnHeadersDefaultCellStyle.BackColor = Theme.Sunken;
-        ColumnHeadersDefaultCellStyle.ForeColor = Theme.InkSecondary;
+        ColumnHeadersDefaultCellStyle.ForeColor = Theme.MutedInk;
         ColumnHeadersDefaultCellStyle.Font = Theme.Fonts.GridHeader;
         ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 4, 0);
         ColumnHeadersDefaultCellStyle.SelectionBackColor = Theme.Sunken;
         ColumnHeadersDefaultCellStyle.SelectionForeColor = Theme.InkSecondary;
-        ColumnHeadersHeight = 42;
+        ColumnHeadersHeight = 38;
         RowTemplate.Height = 38;
         DefaultCellStyle.Font = Theme.Fonts.Grid;
         DefaultCellStyle.ForeColor = Theme.Ink;
@@ -127,8 +132,13 @@ internal sealed class ThemedGrid : DataGridView
 internal sealed class RoundedField : Panel
 {
     private const int Radius = 8;
+    private const int EmSetCueBanner = 0x1501;
     private readonly TextBox _input = new();
-    private readonly Label _placeholder = new();
+    private string _placeholder = string.Empty;
+    private bool _onDark;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, string lParam);
 
     public RoundedField()
     {
@@ -148,36 +158,14 @@ internal sealed class RoundedField : Panel
         _input.BackColor = Theme.FieldFill;
         _input.ForeColor = Theme.Ink;
         _input.Margin = Padding.Empty;
-        _input.TextChanged += (_, _) => UpdatePlaceholder();
-        // Con il campo vuoto il testo guida stava SOPRA il TextBox anche a campo
-        // attivo: copriva il cursore lampeggiante e non si vedeva dove si scriveva.
-        // Appena il campo prende il focus il testo guida sparisce, e torna quando
-        // si esce lasciandolo vuoto.
-        _input.GotFocus += (_, _) =>
-        {
-            UpdatePlaceholder();
-            Invalidate();
-        };
-        _input.LostFocus += (_, _) =>
-        {
-            UpdatePlaceholder();
-            Invalidate();
-        };
+        _input.GotFocus += (_, _) => Invalidate();
+        _input.LostFocus += (_, _) => Invalidate();
+        // Il testo guida è quello nativo di Windows (cue banner) e non più un'etichetta
+        // sovrapposta: l'etichetta stava sopra il campo anche quando era attivo e
+        // copriva il cursore lampeggiante. Il cue banner sparisce appena il campo
+        // prende il focus e il cursore si vede sempre.
+        _input.HandleCreated += (_, _) => ApplyPlaceholder();
         Controls.Add(_input);
-
-        _placeholder.TextAlign = ContentAlignment.MiddleLeft;
-        _placeholder.ForeColor = Theme.FaintInk;
-        _placeholder.Font = _input.Font;
-        _placeholder.BackColor = Theme.FieldFill;
-        _placeholder.AutoEllipsis = true;
-        // Un clic sul testo guida deve mettere il cursore nel campo.
-        _placeholder.MouseDown += (_, _) => _input.Focus();
-        Controls.Add(_placeholder);
-        // Il testo guida va SOPRA il TextBox: aggiunto dopo, finiva dietro e il campo
-        // restava vuoto (il TextBox ha lo stesso fondo e lo copriva).
-        _placeholder.BringToFront();
-
-        UpdatePlaceholder();
     }
 
     /// <summary>Il TextBox sottostante, per gli attributi non replicati qui.</summary>
@@ -191,9 +179,42 @@ internal sealed class RoundedField : Panel
 
     public string Placeholder
     {
-        get => _placeholder.Text;
-        set => _placeholder.Text = value;
+        get => _placeholder;
+        set
+        {
+            _placeholder = value ?? string.Empty;
+            ApplyPlaceholder();
+        }
     }
+
+    private void ApplyPlaceholder()
+    {
+        if (_input.IsHandleCreated)
+        {
+            SendMessage(_input.Handle, EmSetCueBanner, IntPtr.Zero, _placeholder);
+        }
+    }
+
+    /// <summary>
+    /// Variante per l'intestazione scura: fondo e bordo in tono con la fascia,
+    /// testo chiaro e lente di ricerca a sinistra. Un campo bianco su una fascia
+    /// blu notte è la prima cosa che fa sembrare l'interfaccia improvvisata.
+    /// </summary>
+    public bool OnDark
+    {
+        get => _onDark;
+        set
+        {
+            _onDark = value;
+            _input.BackColor = FillColor;
+            _input.ForeColor = value ? Theme.HeaderInk : Theme.Ink;
+            Padding = value ? new Padding(38, 2, 12, 2) : new Padding(12, 2, 12, 2);
+            PerformLayout();
+            Invalidate();
+        }
+    }
+
+    private Color FillColor => _onDark ? Color.FromArgb(27, 41, 66) : Theme.FieldFill;
 
     public int MaxLength
     {
@@ -210,11 +231,7 @@ internal sealed class RoundedField : Panel
     public Font InputFont
     {
         get => _input.Font;
-        set
-        {
-            _input.Font = value;
-            _placeholder.Font = value;
-        }
+        set => _input.Font = value;
     }
 
     /// <summary>Riassegna il focus al campo di testo interno.</summary>
@@ -232,25 +249,18 @@ internal sealed class RoundedField : Panel
     {
         base.OnLayout(levent);
         // Un TextBox monoriga ha un'altezza naturale minore della scatola:
-        // allineando a mano testo e placeholder sulla stessa riga non c'è lo
-        // scarto di qualche pixel quando il campo passa da vuoto a compilato.
+        // lo si centra a mano nel campo.
         var innerHeight = _input.PreferredHeight;
         var top = Math.Max(0, (ClientSize.Height - innerHeight) / 2);
         var width = Math.Max(0, ClientSize.Width - Padding.Horizontal);
         _input.SetBounds(Padding.Left, top, width, innerHeight);
-        // Il testo guida occupa l'altezza intera del campo (un pixel di margine
-        // per non coprire il bordo disegnato a mano): così non viene tagliato
-        // quando la riga di testo è più alta del TextBox monoriga.
-        _placeholder.SetBounds(
-            Padding.Left,
-            1,
-            width,
-            Math.Max(innerHeight, ClientSize.Height - 2));
     }
 
-    private void UpdatePlaceholder()
+    protected override void OnMouseDown(MouseEventArgs e)
     {
-        _placeholder.Visible = _input.Text.Length == 0 && !_input.Focused;
+        base.OnMouseDown(e);
+        // Un clic sul bordo del campo (fuori dal TextBox) mette comunque il cursore dentro.
+        _input.Focus();
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -264,9 +274,14 @@ internal sealed class RoundedField : Panel
 
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.RoundedRectangle(bounds, Radius);
-        using (var fill = new SolidBrush(Theme.FieldFill))
+        using (var fill = new SolidBrush(FillColor))
         {
             e.Graphics.FillPath(fill, path);
+        }
+        if (_onDark)
+        {
+            var lens = new Rectangle(12, (ClientSize.Height - 16) / 2, 16, 16);
+            Glyphs.Draw(e.Graphics, lens, Glyph.Search, _input.Focused ? Theme.HeaderInk : Theme.HeaderMuted, 1.6f);
         }
         // Il bordo si accende quando il campo ha il focus, con un alone morbido:
         // l'utente vede subito dove finirà ciò che sta scrivendo.
@@ -276,11 +291,13 @@ internal sealed class RoundedField : Panel
             if (ringBounds.Width > 2 && ringBounds.Height > 2)
             {
                 using var ringPath = Theme.RoundedRectangle(ringBounds, Radius - 1);
-                using var ring = new Pen(Theme.BrandLite, 3f);
+                using var ring = new Pen(_onDark ? Color.FromArgb(60, Theme.Accent) : Theme.BrandLite, 3f);
                 e.Graphics.DrawPath(ring, ringPath);
             }
         }
-        using var pen = new Pen(_input.Focused ? Theme.Brand : Theme.DividerStrong, 1f);
+        var idleBorder = _onDark ? Color.FromArgb(52, 71, 105) : Theme.DividerStrong;
+        var activeBorder = _onDark ? Theme.Accent : Theme.Brand;
+        using var pen = new Pen(_input.Focused ? activeBorder : idleBorder, 1f);
         e.Graphics.DrawPath(pen, path);
     }
 }
@@ -714,9 +731,9 @@ internal sealed class NoteTextView : Control
         Invalidate();
     }
 
-    private float Scale => DeviceDpi / 96f;
+    private float DpiScale => DeviceDpi / 96f;
 
-    private int Px(int logical) => (int)Math.Round(logical * Scale);
+    private int Px(int logical) => (int)Math.Round(logical * DpiScale);
 
     private const TextFormatFlags BodyFlags =
         TextFormatFlags.WordBreak | TextFormatFlags.NoPadding | TextFormatFlags.Left | TextFormatFlags.Top;

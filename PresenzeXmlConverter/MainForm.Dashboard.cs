@@ -255,7 +255,8 @@ internal sealed partial class MainForm
 
     private void RefreshUpdatesStatusRow()
     {
-        var text = _updateStatusLabel.Text.Replace("Aggiornamenti", string.Empty, StringComparison.Ordinal).Trim(' ', '·');
+        var text = _updateStatusLabel.Text.Replace("Aggiornamenti", string.Empty, StringComparison.Ordinal).Trim(' ', '·')
+            .Replace("token GitHub", "token", StringComparison.Ordinal);
         var warning = _updateStatusLabel.ForeColor == Theme.WarningInk;
         _statusUpdates.SetState(
             text.Length == 0 ? "verifica in corso" : text,

@@ -48,10 +48,10 @@ internal sealed partial class MainForm
 
     private readonly Label _historySummaryLabel = new();
     private readonly ThemedGrid _historyGrid = new();
-    private readonly Button _historyOpenButton = new();
-    private readonly Button _historyCopyButton = new();
-    private readonly Button _historySaveCopyButton = new();
-    private readonly Button _historyClearButton = new();
+    private readonly Button _historyOpenButton = new ThemedButton();
+    private readonly Button _historyCopyButton = new ThemedButton();
+    private readonly Button _historySaveCopyButton = new ThemedButton();
+    private readonly Button _historyClearButton = new ThemedButton();
     private IReadOnlyList<ExportRecord> _exports = Array.Empty<ExportRecord>();
     private bool _codesLoaded;
 
@@ -943,6 +943,7 @@ internal sealed partial class MainForm
         // su uno schermo largo non diventa una barra lunghissima, su uno stretto cede
         // spazio ma resta usabile.
         _headerSearch.Dock = DockStyle.None;
+        _headerSearch.OnDark = true;
         _headerSearch.Placeholder = "Cerca nei movimenti…  (Ctrl+F)";
         _headerSearch.Input.AccessibleName = "Cerca nei movimenti";
         _headerSearch.TextChanged += (_, _) => SearchFromHeader();

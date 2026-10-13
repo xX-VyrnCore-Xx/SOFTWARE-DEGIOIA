@@ -10,7 +10,7 @@ internal sealed partial class MainForm
 
     private readonly ThemedGrid _findingsGrid = new();
     private readonly Label _findingsSummaryLabel = new();
-    private readonly Button _copyFindingsButton = new();
+    private readonly Button _copyFindingsButton = new ThemedButton();
     private IReadOnlyList<string> _sourceProblems = Array.Empty<string>();
     private IReadOnlyList<string> _generationWarnings = Array.Empty<string>();
     private IReadOnlyList<MovementFinding> _findings = Array.Empty<MovementFinding>();
