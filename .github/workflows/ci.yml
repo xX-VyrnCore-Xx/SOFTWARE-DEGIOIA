@@ -104,7 +104,14 @@ jobs:
             if ($command) { $iscc = $command.Source }
           }
           if (-not $iscc) { throw 'ISCC.exe non trovato: Inno Setup 6 non e'' installato sul runner.' }
-          & $iscc Installer.iss
+
+          # Il ramo "certificato attendibile" dell'installer esiste solo se si passano i
+          # simboli del rilascio: per non scoprirne gli errori a rilascio gia' partito si
+          # compila qui con un certificato usa e getta (mai usato per firmare).
+          $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=PresenzeFlow CI (prova)' -CertStoreLocation 'Cert:\CurrentUser\My'
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Export-Certificate -Cert $certificate -FilePath 'dist\PresenzeFlow-codesign.cer' | Out-Null
+          & $iscc '-dTrustCertificate=1' "-dCertThumbprint=$($certificate.Thumbprint)" Installer.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC e' terminato con codice ${LASTEXITCODE}: l'installer non compila." }
           $version = (Select-String -Path Installer.iss -Pattern '#define AppVersion "([^"]+)"').Matches[0].Groups[1].Value
           $installer = "dist\PresenzeFlow-Setup-$version.exe"

@@ -4,7 +4,28 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.17.0] - Corrente
+## [1.18.0] - Corrente
+
+### 🚪 «Esci definitivamente» funziona
+- Nel dialogo di chiusura il pulsante **Esci definitivamente** restituisce l'esito *Abort*, ma la finestra principale considerava valida solo la risposta *OK*: l'*Abort* veniva letto come «annulla» e il programma **non si chiudeva mai**. Ora solo la X e Esc annullano la chiusura
+- Un'unica routine di uscita (`ExitApplication`), usata anche dal menu del tray, ferma comunque il ciclo dei messaggi; salvataggi e backup alla chiusura non possono più bloccarla
+- «Non chiedere più» non è più preselezionato (un primo clic su «Riduci in tray» nascondeva per sempre il programma) e il menu del tray ha *Alla chiusura chiedi di nuovo*
+
+### 🔔 Notifiche
+- Una notifica arrivava **solo con la finestra nascosta**: con la finestra ridotta a icona o coperta da altre il fine conversione non veniva mai segnalato. Ora conta se l'utente sta davvero usando la finestra (visibile, non ridotta, attiva)
+- La prima notifica dopo la comparsa dell'icona si perdeva (Windows non l'aveva ancora registrata): ora parte dopo un istante
+- Un clic sulla notifica riporta la finestra davanti; con la finestra aperta l'icona non resta nel tray; una sola notifica di aggiornamento per versione
+- I collegamenti del menu Start portano l'**AppUserModelID** dell'app: senza, Windows non attribuisce le notifiche al programma e può sopprimerle. Si disattivano con l'impostazione `notifications = false`
+
+### 🔏 Firma e attendibilità
+- L'installer propone **«Considera attendibile il certificato di firma»**: aggiunge il certificato agli archivi *dell'utente corrente* (editori attendibili e autorità attendibili; nessun privilegio di amministratore, Windows chiede conferma una volta) e lo toglie alla disinstallazione. Mai in installazione silenziosa, quindi nessun avviso durante gli aggiornamenti
+- Il rilascio passa all'installer il certificato e la sua impronta; la **CI compila lo stesso ramo con un certificato usa e getta**, così un errore non emerge a rilascio partito
+- Informazioni dell'editore nell'eseguibile (Company, Copyright)
+- Resta valido il limite del certificato autofirmato: sui PC dove non è installato SmartScreen continua a diffidare. Per una firma riconosciuta da tutti serve un certificato di una CA pubblica o un servizio di firma gestito (vedi README)
+
+---
+
+## [1.17.0] - Precedente
 
 ### 🧭 Intestazione e barra laterale
 - **Intestazione riordinata**: nella 1.16 la tabella dichiarava 3 colonne ma ne usava 4, quindi *Aggiornamenti*, *Impostazioni* e lo stato dell'anteprima **non comparivano**. Ora sono quattro colonne (marchio · titolo · ricerca · azioni), il marchio è centrato, la ricerca sta al centro dello spazio libero (al più 460 px) e i pulsanti hanno uno stile adatto al fondo scuro

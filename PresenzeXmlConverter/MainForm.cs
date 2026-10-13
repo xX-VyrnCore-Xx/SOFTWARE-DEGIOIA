@@ -226,7 +226,7 @@ internal sealed partial class MainForm : Form
                 // La scelta viene proposta una sola volta: se l'utente spunta
                 // "ricorda", non verrà più richiesta.
                 using var dialog = new CloseBehaviorDialog();
-                if (dialog.ShowDialog(this) != DialogResult.OK)
+                if (!CloseBehaviorDialog.IsChoice(dialog.ShowDialog(this)))
                 {
                     e.Cancel = true;
                     return;
@@ -246,12 +246,48 @@ internal sealed partial class MainForm : Form
             }
         }
 
-        SaveWindowBounds();
-        // Chiusura vera: copia di sicurezza se serve e registro WAL riportato nel file.
-        _database.MaintainOnExit();
-        _trayIcon.Visible = false;
-        _trayIcon.Dispose();
+        // Chiusura vera. Sono tutte operazioni "di cortesia" (posizione della finestra,
+        // copia di sicurezza, icona del tray): se una fallisce, l'uscita non deve
+        // fermarsi, altrimenti il programma sembra non rispondere al comando Esci.
+        try
+        {
+            SaveWindowBounds();
+            _database.MaintainOnExit();
+        }
+        catch (Exception)
+        {
+            // Salvataggio best-effort: niente deve impedire la chiusura.
+        }
+        try
+        {
+            _trayCleanup.Stop();
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+        }
+        catch (Exception)
+        {
+        }
         base.OnFormClosing(e);
+    }
+
+    /// <summary>
+    /// Chiude il programma per davvero (non in tray). Se la chiusura normale venisse
+    /// annullata da qualcosa, il ciclo dei messaggi viene fermato comunque.
+    /// </summary>
+    private void ExitApplication()
+    {
+        _forceClose = true;
+        try
+        {
+            Close();
+        }
+        finally
+        {
+            if (!IsDisposed)
+            {
+                Application.Exit();
+            }
+        }
     }
 
     private void SetupTrayIcon()
@@ -263,24 +299,93 @@ internal sealed partial class MainForm : Form
         AddUpdateCommands(menu);
         AddDataCommands(menu);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Esci definitivamente", null, (_, _) =>
+        menu.Items.Add("Alla chiusura chiedi di nuovo", null, (_, _) =>
         {
-            _forceClose = true;
-            Close();
+            _database.SaveSetting("close-behavior", string.Empty);
+            SetStatus("●   Alla chiusura della finestra il programma tornerà a chiedere come comportarsi.", false);
         });
+        menu.Items.Add("Esci definitivamente", null, (_, _) => ExitApplication());
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
+        // Un clic sulla notifica riporta la finestra davanti.
+        _trayIcon.BalloonTipClicked += (_, _) => RestoreFromTray();
+        _trayCleanup.Tick += (_, _) =>
+        {
+            _trayCleanup.Stop();
+            // Con la finestra aperta l'icona serviva solo alla notifica: non resta nel tray.
+            if (!IsDisposed && Visible)
+            {
+                _trayIcon.Visible = false;
+            }
+        };
+    }
+
+    private readonly System.Windows.Forms.Timer _trayCleanup = new() { Interval = 20_000 };
+
+    /// <summary>
+    /// L'utente sta guardando la finestra? Solo allora una notifica è superflua: una
+    /// finestra aperta ma dietro altre, o ridotta a icona nella barra, non conta
+    /// (prima bastava che fosse "visibile" e la notifica non arrivava mai).
+    /// </summary>
+    private bool IsWindowInUse =>
+        Visible && WindowState != FormWindowState.Minimized && ReferenceEquals(Form.ActiveForm, this);
+
+    /// <summary>
+    /// Mostra una notifica dall'icona del tray. L'icona deve essere registrata da
+    /// Windows prima di poter mostrare un fumetto: se è appena stata resa visibile la
+    /// prima notifica andrebbe persa, quindi si attende un istante.
+    /// </summary>
+    private void ShowTrayNotification(string title, string text, int milliseconds = 6000)
+    {
+        if (IsDisposed || string.Equals(_database.GetSetting("notifications"), "false", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        try
+        {
+            var alreadyRegistered = _trayIcon.Visible;
+            _trayIcon.Visible = true;
+
+            void Show()
+            {
+                if (IsDisposed)
+                {
+                    return;
+                }
+                _trayIcon.ShowBalloonTip(milliseconds, title, text, ToolTipIcon.Info);
+                _trayCleanup.Stop();
+                _trayCleanup.Interval = milliseconds + 15_000;
+                _trayCleanup.Start();
+            }
+
+            if (alreadyRegistered)
+            {
+                Show();
+                return;
+            }
+            var delay = new System.Windows.Forms.Timer { Interval = 600 };
+            delay.Tick += (_, _) =>
+            {
+                delay.Stop();
+                delay.Dispose();
+                Show();
+            };
+            delay.Start();
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or ObjectDisposedException or System.ComponentModel.Win32Exception)
+        {
+            // Una notifica mancata non deve mai disturbare il lavoro.
+        }
     }
 
     private void MinimizeToTray()
     {
         Hide();
-        _trayIcon.Visible = true;
-        _trayIcon.ShowBalloonTip(
-            4000,
+        ShowTrayNotification(
             "PresenzeFlow in background",
             "Il programma resta attivo in tray: riceverai una notifica quando una conversione termina.",
-            ToolTipIcon.Info);
+            4000);
     }
 
     private void RestoreFromTray()
@@ -293,16 +398,13 @@ internal sealed partial class MainForm : Form
 
     private void NotifyConversionCompleted(int movementCount)
     {
-        if (Visible)
+        if (IsWindowInUse)
         {
             return;
         }
-        _trayIcon.Visible = true;
-        _trayIcon.ShowBalloonTip(
-            5000,
+        ShowTrayNotification(
             "Conversione completata",
-            $"{movementCount:N0} movimenti pronti. Apri PresenzeFlow per revisionare ed esportare l'XML.",
-            ToolTipIcon.Info);
+            $"{movementCount:N0} movimenti pronti. Apri PresenzeFlow per revisionare ed esportare l'XML.");
     }
 
     private async Task ImportWorkbookAsync()

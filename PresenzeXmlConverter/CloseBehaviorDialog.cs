@@ -72,7 +72,9 @@ internal sealed class CloseBehaviorDialog : Form
 
         _remember.Text = "Ricorda questa scelta (non chiedere più)";
         _remember.AutoSize = true;
-        _remember.Checked = true;
+        // Non preselezionata: «non chiedere più» è una scelta da fare di proposito,
+        // perché poi la finestra si chiude in tray senza più domande.
+        _remember.Checked = false;
         _remember.Dock = DockStyle.Fill;
         _remember.TextAlign = ContentAlignment.MiddleLeft;
         _remember.ForeColor = Theme.InkSecondary;
@@ -81,11 +83,28 @@ internal sealed class CloseBehaviorDialog : Form
         root.Controls.Add(_remember, 0, 4);
 
         AcceptButton = trayButton;
-        CancelButton = exitButton;
+        // Esc e la X non devono uscire dal programma: sono un ripensamento, e la
+        // finestra principale resta aperta (DialogResult.Cancel). Il pulsante
+        // «Esci definitivamente» NON è il pulsante di annullamento: l'esito Abort
+        // era interpretato come «annulla» e il programma non si chiudeva mai.
+        KeyPreview = true;
+        KeyDown += (_, args) =>
+        {
+            if (args.KeyCode == Keys.Escape)
+            {
+                DialogResult = DialogResult.Cancel;
+            }
+        };
     }
 
     /// <summary>"tray" per restare in background, "exit" per chiudere definitivamente.</summary>
     public string SelectedBehavior => DialogResult == DialogResult.Abort ? "exit" : "tray";
+
+    /// <summary>
+    /// La scelta fatta nel dialogo: solo «Riduci in tray» (OK) e «Esci definitivamente»
+    /// (Abort) sono scelte; la X e Esc (Cancel) lasciano il programma com'è.
+    /// </summary>
+    public static bool IsChoice(DialogResult result) => result is DialogResult.OK or DialogResult.Abort;
 
     public bool RememberChoice => _remember.Checked;
 }
