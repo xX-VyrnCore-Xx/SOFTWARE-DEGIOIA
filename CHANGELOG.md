@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.12] - Corrente
+## [1.22.13] - Corrente
+
+### 🎨 Grafica più curata (la conversione non cambia)
+- Nuovo marchio nell'intestazione: quadrato con sfumatura di marca e spunta, al posto dell'icona generica
+- Pulsanti con transizione morbida al passaggio del mouse e un filo di luce sul bordo alto dei pulsanti pieni
+- Card con un filo d'ombra sul bordo inferiore, e barra colorata in cima alle metriche della dashboard
+- Nelle griglie la riga sotto il mouse si evidenzia con un azzurro leggero
+
+## [1.22.12]
 
 ### ✅ Presenza: il giustificativo è 01
 - Il codice delle presenze nei giorni lavorativi senza assenza non è né 334 né 999: è **01** (ore ordinarie) sia come codice di rilevazione sia come codice ufficiale

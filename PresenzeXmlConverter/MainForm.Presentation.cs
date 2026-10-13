@@ -366,11 +366,8 @@ internal sealed partial class MainForm
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         brand.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        brand.Controls.Add(new PictureBox
+        brand.Controls.Add(new BrandMark
         {
-            Image = _applicationIcon.ToBitmap(),
-            Size = new Size(40, 40),
-            SizeMode = PictureBoxSizeMode.Zoom,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 0, 12, 0)
         }, 0, 0);

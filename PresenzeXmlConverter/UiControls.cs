@@ -59,6 +59,51 @@ internal sealed class ThemedGrid : DataGridView
     /// </summary>
     public string EmptyStateText { get; set; } = string.Empty;
 
+    private static readonly Color HoverRow = Color.FromArgb(243, 247, 255);
+    private int _hoverRow = -1;
+
+    protected override void OnCellMouseEnter(DataGridViewCellEventArgs e)
+    {
+        base.OnCellMouseEnter(e);
+        SetHoverRow(e.RowIndex);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        SetHoverRow(-1);
+    }
+
+    private void SetHoverRow(int row)
+    {
+        if (row == _hoverRow)
+        {
+            return;
+        }
+        var previous = _hoverRow;
+        _hoverRow = row;
+        if (previous >= 0 && previous < RowCount)
+        {
+            InvalidateRow(previous);
+        }
+        if (row >= 0 && row < RowCount)
+        {
+            InvalidateRow(row);
+        }
+    }
+
+    protected override void OnCellFormatting(DataGridViewCellFormattingEventArgs e)
+    {
+        base.OnCellFormatting(e);
+        // Solo le celle con i colori di base: le righe evidenziate dai controlli (avvisi, errori)
+        // e la selezione conservano il proprio colore.
+        if (e.RowIndex == _hoverRow && e.CellStyle is { } style &&
+            (style.BackColor.ToArgb() == Theme.Surface.ToArgb() || style.BackColor.ToArgb() == Theme.AltRow.ToArgb()))
+        {
+            style.BackColor = HoverRow;
+        }
+    }
+
     /// <summary>Icona sopra il testo dello stato vuoto: la pagina vuota ha un volto, non solo una riga grigia.</summary>
     public Glyph EmptyGlyph { get; set; } = Glyph.File;
 
@@ -306,6 +351,66 @@ internal sealed class RoundedField : Panel
 /// Striscia decorativa con gradiente orizzontale: usata come accento in cima
 /// all'header per dare profondità senza ricorrere a immagini esterne.
 /// </summary>
+/// <summary>
+/// Marchio dell'app nell'intestazione: quadrato arrotondato con la sfumatura di marca e una
+/// spunta bianca. Sostituisce l'immagine dell'icona, che sul fondo scuro risultava un
+/// rettangolo azzurro generico.
+/// </summary>
+internal sealed class BrandMark : Control
+{
+    public BrandMark()
+    {
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+        Size = new Size(42, 42);
+        AccessibleRole = AccessibleRole.Graphic;
+        AccessibleName = "Vyrn Presence";
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var graphics = e.Graphics;
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using (var back = new SolidBrush(Parent?.BackColor ?? Theme.HeaderFill))
+        {
+            graphics.FillRectangle(back, ClientRectangle);
+        }
+        var box = new Rectangle(0, 0, Width - 1, Height - 1);
+        if (box.Width < 12 || box.Height < 12)
+        {
+            return;
+        }
+        using var path = Theme.RoundedRectangle(box, 12);
+        using (var gradient = new System.Drawing.Drawing2D.LinearGradientBrush(
+                   box, Theme.Brand, Theme.Accent, 45f))
+        {
+            graphics.FillPath(gradient, path);
+        }
+        // Riflesso morbido in alto e filo di luce sul contorno.
+        var state = graphics.Save();
+        graphics.SetClip(path, System.Drawing.Drawing2D.CombineMode.Replace);
+        using (var shine = new System.Drawing.Drawing2D.LinearGradientBrush(
+                   new Rectangle(0, 0, box.Width + 1, box.Height / 2 + 1),
+                   Color.FromArgb(70, Color.White),
+                   Color.FromArgb(0, Color.White),
+                   90f))
+        {
+            graphics.FillRectangle(shine, 0, 0, box.Width + 1, box.Height / 2 + 1);
+        }
+        graphics.Restore(state);
+        using (var rim = new Pen(Color.FromArgb(60, Color.White), 1f))
+        {
+            graphics.DrawPath(rim, path);
+        }
+        Glyphs.Draw(graphics, Rectangle.Inflate(box, -11, -11), Glyph.Check, Color.White, 2.6f);
+    }
+}
+
 internal sealed class AccentBar : Control
 {
     public AccentBar()
