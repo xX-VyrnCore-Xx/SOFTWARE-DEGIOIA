@@ -4,7 +4,12 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.0] - Corrente
+## [1.22.1] - Corrente
+
+### 🐞 Correzioni
+- Finestra delle novità: il pulsante **Più tardi** accanto ad **Aggiorna ora** non viene più tagliato fuori dal bordo
+
+## [1.22.0]
 
 ### 🏢 Regole di conversione per azienda
 - Nella sezione **Aziende** il pulsante **Regole…** apre le regole proprie dell'azienda: giornata standard, sabato sempre lavorativo, rilevamento automatico di sabati e ore, chiusure aziendali. Senza regole proprie vale quanto impostato in Impostazioni (che restano le regole generali)
