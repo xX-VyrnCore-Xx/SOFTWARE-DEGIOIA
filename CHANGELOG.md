@@ -4,7 +4,18 @@ Tutti i cambiamenti significativi di PresenzeFlow sono documentati in questo fil
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.20.0] - Corrente
+## [1.20.1] - Corrente
+
+### 📄 XML riconosciuto da Zucchetti
+- **Attributo al posto giusto**: `GenerazioneAutomaticaDaTeorico="N"` stava sul nodo `Dipendente`; il tracciato TRRIPW (Paghe Infinity) lo prevede sul nodo `Movimenti`. Messo sul nodo sbagliato PAGHE può ignorarlo e applicare l'orario teorico al posto dei movimenti comunicati
+- **Un movimento per giorno e giustificativo**: righe dello stesso dipendente con stessa data e stesso giustificativo (es. due ferie sovrapposte) sono unite in un solo `Movimento` con le ore sommate
+
+### 🔘 Pulsanti non più tagliati
+- I pulsanti avevano larghezza fissa (110 px): «Salva abbinamenti», «Copia percorso» e simili venivano tagliati. Ora ogni pulsante si allarga al proprio testo; il test grafico controlla anche i pulsanti, oltre alle etichette
+
+---
+
+## [1.20.0] - Precedente
 
 ### 🗓️ Motore di conversione
 - **Sabato lavorativo rilevato dalle date**: se le ore richieste non entrano nei giorni feriali ma entrano includendo i sabati (es. 48 h dal lunedì al sabato) il sabato riceve ore; se bastano i feriali resta libero; una richiesta del solo sabato non viene più scartata

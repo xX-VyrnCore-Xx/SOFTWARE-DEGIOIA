@@ -178,7 +178,41 @@ internal static class TrriPwXmlWriter
                 $"non rientrano nei limiti del tracciato TRRIPW " +
                 $"(ore 0-{MaxHoursPerMovement}, minuti 0-{MaxMinutesPerMovement}).");
         }
-        return (companyCode, normalizedMovements);
+        return (companyCode, MergeSameDayMovements(normalizedMovements));
+    }
+
+    /// <summary>
+    /// Il tracciato descrive «una singola movimentazione giornaliera» per giorno e
+    /// giustificativo: due righe dello stesso dipendente con la stessa data e lo stesso
+    /// giustificativo (per esempio due richieste di ferie sovrapposte) diventano un solo
+    /// movimento con le ore sommate, invece di due nodi identici che PAGHE può scartare
+    /// o contare male.
+    /// </summary>
+    internal static DailyMovement[] MergeSameDayMovements(IReadOnlyList<DailyMovement> movements)
+    {
+        var merged = new List<DailyMovement>(movements.Count);
+        foreach (var group in movements.GroupBy(movement => (
+                     movement.EmployeeCode.ToUpperInvariant(),
+                     movement.Date.Date,
+                     movement.ReasonCode.ToUpperInvariant())))
+        {
+            var first = group.OrderBy(movement => movement.SourceRow).First();
+            if (group.Count() == 1)
+            {
+                merged.Add(first);
+                continue;
+            }
+            var totalMinutes = group.Sum(movement => movement.Hours * 60 + movement.Minutes);
+            var hours = totalMinutes / 60;
+            if (hours > MaxHoursPerMovement)
+            {
+                throw new InvalidDataException(
+                    $"Le ore di “{first.EmployeeName}” del {first.Date:dd/MM/yyyy} con il giustificativo " +
+                    $"{first.ReasonCode} sommano oltre {MaxHoursPerMovement} ore: controlla le richieste sovrapposte.");
+            }
+            merged.Add(first with { Hours = hours, Minutes = totalMinutes % 60 });
+        }
+        return merged.ToArray();
     }
 
     private static XmlWriter CreateWriter(Stream output) => XmlWriter.Create(output, new XmlWriterSettings
@@ -199,10 +233,14 @@ internal static class TrriPwXmlWriter
                      .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
             writer.WriteStartElement("Dipendente");
-            writer.WriteAttributeString("GenerazioneAutomaticaDaTeorico", "N");
             WriteElement(writer, "CodAziendaUfficiale", companyCode);
             WriteElement(writer, "CodDipendenteUfficiale", employeeGroup.Key);
             writer.WriteStartElement("Movimenti");
+            // Il tracciato (Paghe Infinity, nodo "Movimenti" → "Attributi") definisce
+            // GenerazioneAutomaticaDaTeorico su Movimenti, non su Dipendente: "N" =
+            // leggi i movimenti giornalieri comunicati. Su Dipendente l'attributo non
+            // è previsto e PAGHE potrebbe ignorarlo, applicando l'orario teorico.
+            writer.WriteAttributeString("GenerazioneAutomaticaDaTeorico", "N");
             foreach (var movement in employeeGroup
                          .OrderBy(movement => movement.Date.Date)
                          .ThenBy(movement => movement.ReasonCode, StringComparer.OrdinalIgnoreCase)

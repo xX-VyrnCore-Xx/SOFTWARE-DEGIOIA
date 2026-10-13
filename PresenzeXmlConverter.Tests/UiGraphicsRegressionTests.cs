@@ -505,6 +505,21 @@ public class UiGraphicsRegressionTests
                     string.Join(" + ", cell.Select(DescribeControl)) + ".");
             }
         }
+        if (control is Button button && button.Text.Length > 0 && button.Visible && button.Parent is not null)
+        {
+            var measuredButton = TextRenderer.MeasureText(
+                button.Text,
+                button.Font,
+                new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+            var available = button.ClientSize.Width - button.Padding.Horizontal;
+            if (measuredButton.Width > available + 2)
+            {
+                problems.Add(
+                    $"Pulsante tagliato «{button.Text}»: servono {measuredButton.Width}px, ne restano {available}px." +
+                    DescribeParent(button));
+            }
+        }
         foreach (Control child in control.Controls)
         {
             WalkCells(child, problems);

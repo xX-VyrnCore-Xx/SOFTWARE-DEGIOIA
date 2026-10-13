@@ -370,13 +370,35 @@ public class ConversionTests
         var movement = Assert.Single(employee.Element("Movimenti")!.Elements("Movimento"));
 
         Assert.False(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF);
-        Assert.Equal("N", (string?)employee.Attribute("GenerazioneAutomaticaDaTeorico"));
+        // L'attributo è del nodo Movimenti, come nel tracciato Zucchetti.
+        Assert.Equal("N", (string?)employee.Element("Movimenti")!.Attribute("GenerazioneAutomaticaDaTeorico"));
+        Assert.Null(employee.Attribute("GenerazioneAutomaticaDaTeorico"));
         Assert.Equal("AZ001", (string?)employee.Element("CodAziendaUfficiale"));
         Assert.Equal("1234567", (string?)employee.Element("CodDipendenteUfficiale"));
         Assert.Equal("01", (string?)movement.Element("CodGiustificativoUfficiale"));
         Assert.Equal("2026-08-17", (string?)movement.Element("Data"));
         Assert.Equal("7", (string?)movement.Element("NumOre"));
         Assert.Equal("30", (string?)movement.Element("NumMinuti"));
+    }
+
+    [Fact]
+    public void SameEmployeeDayAndReasonAreMergedIntoOneMovement()
+    {
+        var day = new DateTime(2026, 8, 17);
+        var movements = new[]
+        {
+            new DailyMovement("Mario Rossi", "1234567", "Ferie", "01", day, 4, 0, 5),
+            new DailyMovement("Mario Rossi", "1234567", "Ferie", "01", day, 3, 45, 9),
+            new DailyMovement("Mario Rossi", "1234567", "Permesso", "02", day, 1, 0, 11)
+        };
+
+        var document = XDocument.Parse(TrriPwXmlWriter.Create("AZ001", movements));
+        var list = document.Root!.Element("Dipendente")!.Element("Movimenti")!.Elements("Movimento").ToArray();
+
+        Assert.Equal(2, list.Length);
+        var holiday = Assert.Single(list, item => (string?)item.Element("CodGiustificativoUfficiale") == "01");
+        Assert.Equal("7", (string?)holiday.Element("NumOre"));
+        Assert.Equal("45", (string?)holiday.Element("NumMinuti"));
     }
 
     /// <summary>
