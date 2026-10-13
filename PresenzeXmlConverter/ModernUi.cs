@@ -457,7 +457,7 @@ internal sealed class DropZone : Control
     private bool _hover;
     private bool _dragging;
     private string _title = "Trascina qui il foglio Excel";
-    private string _subtitle = "oppure fai clic per scegliere un file .xlsx";
+    private string _subtitle = "oppure fai clic per scegliere un file";
     private bool _loaded;
 
     public DropZone()
@@ -496,7 +496,7 @@ internal sealed class DropZone : Control
     {
         _loaded = false;
         _title = "Trascina qui il foglio Excel";
-        _subtitle = "oppure fai clic per scegliere un file .xlsx";
+        _subtitle = "oppure fai clic per scegliere un file";
         Invalidate();
     }
 

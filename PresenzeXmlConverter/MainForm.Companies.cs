@@ -126,28 +126,18 @@ internal sealed partial class MainForm
 
     private Control BuildCompaniesActions()
     {
+        // Solo i pulsanti: il testo guida («Doppio clic su una riga…») rubava ai
+        // cinque pulsanti la larghezza che serviva a tenere ogni etichetta su una riga.
         var bar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
+            ColumnCount = 1,
             RowCount = 1,
             BackColor = Theme.Canvas,
             Margin = Padding.Empty
         };
         bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         bar.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        bar.Controls.Add(new Label
-        {
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.MutedInk,
-            Font = Theme.Fonts.Tiny,
-            AutoEllipsis = true,
-            Margin = Padding.Empty,
-            Text = "Doppio clic su una riga per usarla in conversione. Le aziende restano nel profilo Windows."
-        }, 0, 0);
 
         var actions = new FlowLayoutPanel
         {
@@ -201,7 +191,7 @@ internal sealed partial class MainForm
         actions.Controls.Add(_companyNewButton);
         actions.Controls.Add(_companyRulesButton);
         actions.Controls.Add(_companyDeleteButton);
-        bar.Controls.Add(actions, 1, 0);
+        bar.Controls.Add(actions, 0, 0);
         return bar;
     }
 
