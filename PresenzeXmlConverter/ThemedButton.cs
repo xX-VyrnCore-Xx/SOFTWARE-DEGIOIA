@@ -15,6 +15,10 @@ internal sealed class ThemedButton : Button
     private const int Radius = 8;
     private bool _hover;
     private bool _pressed;
+    // 0 = riposo, 1 = passaggio del mouse: il colore scorre fra i due in pochi fotogrammi
+    // invece di scattare, come nelle app curate.
+    private float _blend;
+    private System.Windows.Forms.Timer? _fade;
 
     public ThemedButton()
     {
@@ -30,7 +34,7 @@ internal sealed class ThemedButton : Button
     protected override void OnMouseEnter(EventArgs e)
     {
         _hover = true;
-        Invalidate();
+        StartFade();
         base.OnMouseEnter(e);
     }
 
@@ -38,9 +42,55 @@ internal sealed class ThemedButton : Button
     {
         _hover = false;
         _pressed = false;
-        Invalidate();
+        StartFade();
         base.OnMouseLeave(e);
     }
+
+    private void StartFade()
+    {
+        if (!IsHandleCreated || !Enabled)
+        {
+            _blend = _hover && Enabled ? 1f : 0f;
+            Invalidate();
+            return;
+        }
+        _fade ??= CreateFadeTimer();
+        _fade.Start();
+    }
+
+    private System.Windows.Forms.Timer CreateFadeTimer()
+    {
+        var timer = new System.Windows.Forms.Timer { Interval = 16 };
+        timer.Tick += (_, _) =>
+        {
+            var target = _hover ? 1f : 0f;
+            var step = target > _blend ? 0.25f : -0.2f;
+            _blend = Math.Clamp(_blend + step, 0f, 1f);
+            if (Math.Abs(_blend - target) < 0.01f)
+            {
+                _blend = target;
+                timer.Stop();
+            }
+            Invalidate();
+        };
+        return timer;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _fade?.Dispose();
+            _fade = null;
+        }
+        base.Dispose(disposing);
+    }
+
+    private static Color Mix(Color from, Color to, float amount) => Color.FromArgb(
+        255,
+        (int)Math.Round(from.R + ((to.R - from.R) * amount)),
+        (int)Math.Round(from.G + ((to.G - from.G) * amount)),
+        (int)Math.Round(from.B + ((to.B - from.B) * amount)));
 
     protected override void OnMouseDown(MouseEventArgs mevent)
     {
@@ -63,6 +113,7 @@ internal sealed class ThemedButton : Button
     {
         _hover = false;
         _pressed = false;
+        _blend = 0f;
         base.OnEnabledChanged(e);
         Invalidate();
     }
@@ -97,9 +148,9 @@ internal sealed class ThemedButton : Button
         {
             fill = FlatAppearance.MouseDownBackColor;
         }
-        else if (Enabled && _hover)
+        else if (Enabled && _blend > 0f)
         {
-            fill = FlatAppearance.MouseOverBackColor;
+            fill = Mix(BackColor, FlatAppearance.MouseOverBackColor, _blend);
         }
 
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -114,6 +165,13 @@ internal sealed class ThemedButton : Button
             {
                 using var border = new Pen(FlatAppearance.BorderColor, 1f);
                 graphics.DrawPath(border, path);
+            }
+            // Riflesso sottile lungo il bordo alto dei pulsanti pieni (blu, verde): da' un
+            // minimo di rilievo senza sfumature pesanti.
+            if (Enabled && !_pressed && fill.GetBrightness() < 0.5f && bounds.Width > radius * 2 + 6)
+            {
+                using var gloss = new Pen(Color.FromArgb(46, Color.White), 1f);
+                graphics.DrawLine(gloss, bounds.Left + radius, bounds.Top + 1, bounds.Right - radius, bounds.Top + 1);
             }
         }
 

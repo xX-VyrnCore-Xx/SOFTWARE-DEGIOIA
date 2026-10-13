@@ -76,6 +76,14 @@ internal sealed class SurfacePanel : Panel
             _radius);
         using var pen = new Pen(_border);
         eventArgs.Graphics.DrawPath(pen, path);
+        // Sulle card bianche, un filo d'ombra sul bordo inferiore: l'effetto di rilievo
+        // che una vera ombra darebbe, senza uscire dai bordi del pannello.
+        if (_fill.ToArgb() == Theme.Surface.ToArgb() && _radius >= 8 && ClientSize.Width > _radius * 2 + 4)
+        {
+            using var edge = new Pen(Color.FromArgb(22, 15, 26, 44), 1.4f);
+            var y = ClientSize.Height - 2f;
+            eventArgs.Graphics.DrawLine(edge, _radius, y, ClientSize.Width - _radius - 1, y);
+        }
     }
 
     private void UpdateRoundedRegion()

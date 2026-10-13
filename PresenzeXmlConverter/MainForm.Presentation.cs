@@ -334,7 +334,7 @@ internal sealed partial class MainForm
         {
             Dock = DockStyle.Fill,
             SurfaceFill = Theme.HeaderFill,
-            SurfaceBorder = Theme.HeaderFill,
+            SurfaceBorder = Theme.Divider,
             Radius = 14,
             Margin = new Padding(0, 0, 0, 14)
         };
@@ -366,11 +366,8 @@ internal sealed partial class MainForm
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         brand.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        brand.Controls.Add(new PictureBox
+        brand.Controls.Add(new BrandMark
         {
-            Image = _applicationIcon.ToBitmap(),
-            Size = new Size(40, 40),
-            SizeMode = PictureBoxSizeMode.Zoom,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 0, 12, 0)
         }, 0, 0);
@@ -464,7 +461,7 @@ internal sealed partial class MainForm
             Margin = Padding.Empty
         };
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 4));
+        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         shell.Controls.Add(new AccentBar { Dock = DockStyle.Fill, Margin = Padding.Empty }, 0, 0);
         shell.Controls.Add(body, 0, 1);

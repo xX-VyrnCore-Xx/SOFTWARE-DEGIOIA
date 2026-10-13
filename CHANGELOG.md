@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.12] - Corrente
+## [1.22.13] - Corrente
+
+### 🎨 Nuovo aspetto in stile macOS (la conversione non cambia)
+- Tavolozza chiara alla Apple: sfondo grigio perla, blu di sistema, verde/arancio/rosso di sistema, testi grigio antracite; titoli in «Segoe UI Semibold» al posto del grassetto
+- Intestazione chiara (bianca, con bordo sottile) con il nuovo marchio e il campo di ricerca grigio; sparito il fondo blu notte
+- Barra laterale: la sezione attiva è una pillola blu piena con testo e icona bianchi, al passaggio del mouse un velo grigio
+- Schede dell'area di revisione a pillola (azzurra l'attiva) invece della sottolineatura
+- Pulsanti bianchi con bordo sottile, transizione morbida al passaggio del mouse; card con un filo d'ombra; barra colorata in cima alle metriche; righe delle griglie evidenziate al passaggio
+
+## [1.22.12]
 
 ### ✅ Presenza: il giustificativo è 01
 - Il codice delle presenze nei giorni lavorativi senza assenza non è né 334 né 999: è **01** (ore ordinarie) sia come codice di rilevazione sia come codice ufficiale
