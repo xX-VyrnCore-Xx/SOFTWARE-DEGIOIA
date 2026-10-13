@@ -68,10 +68,31 @@ internal sealed class NavRail : Control
 
     public event EventHandler? SelectionChanged;
 
-    public void AddItem(string title, NavIcon icon)
+    public void AddItem(string title, NavIcon icon, string? shortTitle = null)
     {
-        _items.Add(new Item(title, icon));
+        _items.Add(new Item(title, icon, string.IsNullOrWhiteSpace(shortTitle) ? title : shortTitle));
         Invalidate();
+    }
+
+    private bool _useShortTitles;
+
+    /// <summary>
+    /// Con la finestra stretta la barra si restringe e usa le etichette brevi
+    /// ("Conversione" invece di "Nuova conversione"): meglio un nome corto e intero
+    /// che un nome lungo tagliato con i puntini.
+    /// </summary>
+    public bool UseShortTitles
+    {
+        get => _useShortTitles;
+        set
+        {
+            if (_useShortTitles == value)
+            {
+                return;
+            }
+            _useShortTitles = value;
+            Invalidate();
+        }
     }
 
     /// <summary>Seleziona una voce e avvisa la finestra del cambio di sezione.</summary>
@@ -166,11 +187,11 @@ internal sealed class NavRail : Control
             var textBounds = new Rectangle(
                 iconBox.Right + 10,
                 (int)box.Top,
-                Math.Max(1, (int)box.Right - iconBox.Right - 18),
+                Math.Max(1, (int)box.Right - iconBox.Right - 14),
                 (int)box.Height);
             TextRenderer.DrawText(
                 e.Graphics,
-                item.Title,
+                _useShortTitles ? item.ShortTitle : item.Title,
                 active ? Theme.Fonts.TabBold : Theme.Fonts.Tab,
                 textBounds,
                 ink,
@@ -320,5 +341,5 @@ internal sealed class NavRail : Control
     /// <summary>Altezza che serve a tutte le voci: la colonna la usa per restare compatta.</summary>
     public int PreferredRailHeight => (_items.Count * ItemHeight) + (Math.Max(0, _items.Count - 1) * ItemGap);
 
-    private sealed record Item(string Title, NavIcon Icon);
+    private sealed record Item(string Title, NavIcon Icon, string ShortTitle);
 }

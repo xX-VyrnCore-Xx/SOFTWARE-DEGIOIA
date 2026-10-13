@@ -154,7 +154,8 @@ internal static class Theme
         Primary,   // azione principale: blu pieno
         Positive,  // conferma di flusso: verde pieno
         Neutral,   // azione secondaria: fondo chiaro con bordo
-        Danger     // uscita / azione irreversibile
+        Danger,    // uscita / azione irreversibile
+        OnDark     // azione secondaria sull'intestazione scura: fondo appena più chiaro, bordo sottile
     }
 
     private readonly record struct ButtonPalette(
@@ -236,6 +237,9 @@ internal static class Theme
         ButtonTone.Primary => new ButtonPalette(Brand, BrandHover, BrandPressed, Brand, Color.White, 0),
         ButtonTone.Positive => new ButtonPalette(Success, SuccessHover, SuccessPressed, Success, Color.White, 0),
         ButtonTone.Danger => new ButtonPalette(Danger, Color.FromArgb(185, 28, 28), Color.FromArgb(153, 27, 27), Danger, Color.White, 0),
+        ButtonTone.OnDark => new ButtonPalette(
+            Color.FromArgb(28, 44, 72), Color.FromArgb(42, 64, 102), Color.FromArgb(22, 35, 58),
+            Color.FromArgb(70, 96, 140), Color.White, 1),
         _ => new ButtonPalette(NeutralFill, NeutralHover, NeutralPressed, NeutralBorder, NeutralInk, 1)
     };
 

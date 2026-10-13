@@ -40,17 +40,41 @@ internal sealed partial class MainForm
             MessageBox.Show(this, note, "Database locale", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
+        RefreshRailStatus();
         _ = Task.Run(() =>
         {
             try
             {
-                _database.BackupIfDue(TimeSpan.FromHours(20));
+                if (_database.BackupIfDue(TimeSpan.FromHours(20)) is not null && !IsDisposed)
+                {
+                    BeginInvoke(RefreshRailStatus);
+                }
             }
-            catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (
+                exception is SqliteException or IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                // Il backup è un di più: l'app funziona comunque.
+                // Il backup è un di più: l'app funziona comunque (InvalidOperation: finestra già chiusa).
             }
         });
+    }
+
+    /// <summary>Aggiorna lo stato dei dati mostrato in fondo alla barra laterale.</summary>
+    private void RefreshRailStatus()
+    {
+        try
+        {
+            var health = _database.GetHealth();
+            var now = DateTime.UtcNow;
+            _railDataLabel.Text = health.IsTemporary ? "●  Database temporaneo" : "●  Database collegato";
+            _railDataLabel.ForeColor = health.IsTemporary ? Theme.WarningInk : Theme.SuccessInk;
+            _railBackupLabel.Text = health.DescribeBackupsShort(now);
+        }
+        catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            _railDataLabel.Text = "●  Database non leggibile";
+            _railDataLabel.ForeColor = Theme.DangerInk;
+            _railBackupLabel.Text = "controlla la cartella dei dati";
+        }
     }
 
     private void BackupDatabaseNow()
@@ -59,6 +83,7 @@ internal sealed partial class MainForm
         {
             var path = _database.CreateBackup("manuale");
             var health = _database.GetHealth().Describe(DateTime.UtcNow);
+            RefreshRailStatus();
             SetStatus($"●   Backup creato: {Path.GetFileName(path)}", false);
             ShowInformation(
                 "Backup dei dati",

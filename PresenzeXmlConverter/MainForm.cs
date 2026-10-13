@@ -128,10 +128,20 @@ internal sealed partial class MainForm : Form
         FitToScreen();
     }
 
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        ApplyNavWidth();
+    }
+
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
         FitToScreen();
+        // Da qui la finestra ha la scala DPI definitiva: la larghezza della barra
+        // laterale può seguire la dimensione della finestra.
+        _navWidthReady = true;
+        ApplyNavWidth();
         // Dopo che la finestra è disegnata si riempiono i dati che non servono a
         // vederla: lo storico delle esportazioni e lo stato del motore AI locale.
         // Così l'apertura non aspetta né il database né la rete.
@@ -662,6 +672,11 @@ internal sealed partial class MainForm : Form
             return;
         }
 
+        if (!ConfirmNotAlreadyDelivered())
+        {
+            return;
+        }
+
         var initialDirectory = _lastExportDirectory;
         if (string.IsNullOrEmpty(initialDirectory) || !Directory.Exists(initialDirectory))
         {
@@ -673,7 +688,7 @@ internal sealed partial class MainForm : Form
             Filter = "File XML (*.xml)|*.xml",
             AddExtension = true,
             DefaultExt = "xml",
-            FileName = $"{Path.GetFileNameWithoutExtension(_sourcePath ?? "presenze")}_TRRIPW.xml",
+            FileName = ExportHistory.SuggestFileName(_companyCode.Value, _sourcePath, _movements),
             OverwritePrompt = true
         };
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -711,6 +726,43 @@ internal sealed partial class MainForm : Form
         {
             ShowError("Salvataggio XML non riuscito", exception);
         }
+    }
+
+    /// <summary>
+    /// Se gli stessi movimenti sono già stati consegnati, lo dice prima di salvare:
+    /// mandare due volte lo stesso file a PAGHE duplica le assenze. L'utente può
+    /// comunque procedere (per esempio per rifare un file andato perso).
+    /// </summary>
+    private bool ConfirmNotAlreadyDelivered()
+    {
+        if (_movements.Count == 0)
+        {
+            return true;
+        }
+        ExportRecord? previous;
+        try
+        {
+            previous = _database.FindExportByFingerprint(
+                ExportHistory.Fingerprint(_companyCode.Value, _movements));
+        }
+        catch (SqliteException)
+        {
+            return true;
+        }
+        if (previous is null)
+        {
+            return true;
+        }
+        var answer = MessageBox.Show(
+            this,
+            $"Questi stessi movimenti sono già stati esportati {ExportHistory.DescribeDay(previous.LocalTime, DateTime.Now)} " +
+            $"nel file «{previous.FileName}».{Environment.NewLine}{Environment.NewLine}" +
+            "Mandare due volte lo stesso file a PAGHE duplica le assenze. Vuoi salvarlo di nuovo?",
+            "Consegna già esportata",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+        return answer == DialogResult.Yes;
     }
 
     private async Task ConfigureAiAsync()

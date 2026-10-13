@@ -404,24 +404,28 @@ internal sealed partial class MainForm
         var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 3,
+            ColumnCount = 4,
             RowCount = 1,
             BackColor = Theme.HeaderFill,
             Margin = Padding.Empty
         };
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
+        // Quattro colonne dichiarate, e ColumnCount lo dice: con ColumnCount = 3 la
+        // quarta colonna (pulsanti e stato) non esisteva e spariva dall'intestazione.
+        // Marchio | titolo | ricerca (elastica) | azioni.
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 292));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 296));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 270));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var mark = new PictureBox
         {
             Image = _applicationIcon.ToBitmap(),
-            Size = new Size(50, 50),
+            Size = new Size(44, 44),
             SizeMode = PictureBoxSizeMode.Zoom,
-            Anchor = AnchorStyles.Top | AnchorStyles.Left,
-            Margin = new Padding(16, 15, 0, 0)
+            // Senza ancoraggio la cella lo centra, in orizzontale e in verticale.
+            Anchor = AnchorStyles.None,
+            Margin = new Padding(14, 0, 0, 0)
         };
         body.Controls.Add(mark, 0, 0);
 
@@ -487,13 +491,13 @@ internal sealed partial class MainForm
             Margin = Padding.Empty,
             Padding = Padding.Empty
         };
-        var headerSettings = Theme.CreateButton("Impostazioni", Theme.ButtonTone.Neutral, compact: true);
-        headerSettings.Size = new Size(124, 28);
+        var headerSettings = Theme.CreateButton("Impostazioni", Theme.ButtonTone.OnDark, compact: true);
+        headerSettings.Size = new Size(122, 28);
         headerSettings.Margin = new Padding(6, 0, 0, 0);
         headerSettings.Click += (_, _) => OpenSettings();
         Describe(headerSettings, "Impostazioni", "Regole di conversione, modello AI locale e aggiornamenti (Ctrl+,).");
-        var headerUpdates = Theme.CreateButton("Aggiornamenti", Theme.ButtonTone.Neutral, compact: true);
-        headerUpdates.Size = new Size(124, 28);
+        var headerUpdates = Theme.CreateButton("Aggiornamenti", Theme.ButtonTone.OnDark, compact: true);
+        headerUpdates.Size = new Size(122, 28);
         headerUpdates.Margin = Padding.Empty;
         headerUpdates.Click += async (_, _) => await CheckForUpdatesAsync(userInitiated: true);
         Describe(headerUpdates, "Controlla aggiornamenti", "Verifica subito se è disponibile una nuova versione.");
