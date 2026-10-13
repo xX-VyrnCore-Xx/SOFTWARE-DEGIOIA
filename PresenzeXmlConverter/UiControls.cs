@@ -135,6 +135,7 @@ internal sealed class RoundedField : Panel
     private const int EmSetCueBanner = 0x1501;
     private readonly TextBox _input = new();
     private string _placeholder = string.Empty;
+    private bool _onDark;
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, string lParam);
@@ -194,6 +195,27 @@ internal sealed class RoundedField : Panel
         }
     }
 
+    /// <summary>
+    /// Variante per l'intestazione scura: fondo e bordo in tono con la fascia,
+    /// testo chiaro e lente di ricerca a sinistra. Un campo bianco su una fascia
+    /// blu notte è la prima cosa che fa sembrare l'interfaccia improvvisata.
+    /// </summary>
+    public bool OnDark
+    {
+        get => _onDark;
+        set
+        {
+            _onDark = value;
+            _input.BackColor = FillColor;
+            _input.ForeColor = value ? Theme.HeaderInk : Theme.Ink;
+            Padding = value ? new Padding(38, 2, 12, 2) : new Padding(12, 2, 12, 2);
+            PerformLayout();
+            Invalidate();
+        }
+    }
+
+    private Color FillColor => _onDark ? Color.FromArgb(27, 41, 66) : Theme.FieldFill;
+
     public int MaxLength
     {
         get => _input.MaxLength;
@@ -252,9 +274,14 @@ internal sealed class RoundedField : Panel
 
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.RoundedRectangle(bounds, Radius);
-        using (var fill = new SolidBrush(Theme.FieldFill))
+        using (var fill = new SolidBrush(FillColor))
         {
             e.Graphics.FillPath(fill, path);
+        }
+        if (_onDark)
+        {
+            var lens = new Rectangle(12, (ClientSize.Height - 16) / 2, 16, 16);
+            Glyphs.Draw(e.Graphics, lens, Glyph.Search, _input.Focused ? Theme.HeaderInk : Theme.HeaderMuted, 1.6f);
         }
         // Il bordo si accende quando il campo ha il focus, con un alone morbido:
         // l'utente vede subito dove finirà ciò che sta scrivendo.
@@ -264,11 +291,13 @@ internal sealed class RoundedField : Panel
             if (ringBounds.Width > 2 && ringBounds.Height > 2)
             {
                 using var ringPath = Theme.RoundedRectangle(ringBounds, Radius - 1);
-                using var ring = new Pen(Theme.BrandLite, 3f);
+                using var ring = new Pen(_onDark ? Color.FromArgb(60, Theme.Accent) : Theme.BrandLite, 3f);
                 e.Graphics.DrawPath(ring, ringPath);
             }
         }
-        using var pen = new Pen(_input.Focused ? Theme.Brand : Theme.DividerStrong, 1f);
+        var idleBorder = _onDark ? Color.FromArgb(52, 71, 105) : Theme.DividerStrong;
+        var activeBorder = _onDark ? Theme.Accent : Theme.Brand;
+        using var pen = new Pen(_input.Focused ? activeBorder : idleBorder, 1f);
         e.Graphics.DrawPath(pen, path);
     }
 }

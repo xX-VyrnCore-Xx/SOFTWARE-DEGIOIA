@@ -943,6 +943,7 @@ internal sealed partial class MainForm
         // su uno schermo largo non diventa una barra lunghissima, su uno stretto cede
         // spazio ma resta usabile.
         _headerSearch.Dock = DockStyle.None;
+        _headerSearch.OnDark = true;
         _headerSearch.Placeholder = "Cerca nei movimenti…  (Ctrl+F)";
         _headerSearch.Input.AccessibleName = "Cerca nei movimenti";
         _headerSearch.TextChanged += (_, _) => SearchFromHeader();
