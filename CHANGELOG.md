@@ -8,6 +8,7 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 ### 🐞 Correzioni
 - Finestra delle novità: il pulsante **Più tardi** accanto ad **Aggiorna ora** non viene più tagliato fuori dal bordo
+- Stesso difetto corretto nei piè di pagina di Aziende, Codici, Storico e della barra di revisione: i pulsanti più a sinistra non vengono più tagliati
 
 ## [1.22.0]
 
