@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.8] - Corrente
+## [1.22.9] - Corrente
+
+### 📄 TRRIPA: identificazione precisa
+- Il codice dipendente va nel campo «codice rilevazione presenze» (3-23); codice soggetto Paghe vuoto e numero rapporto `000`: niente codici indovinati, il collegamento avviene con la tabella di abbinamento dipendenti di Paghe
+- Il giustificativo è il codice Paghe a 2 caratteri (`1` diventa `01`); se è più lungo l'app lo rifiuta con un messaggio chiaro invece di scrivere un file sbagliato
+- Il controllo del file salvato verifica anche giustificativo e valore del teorico
+
+## [1.22.8]
 
 ### 📄 Esportazione in TRRIPA (testo a larghezza fissa)
 - Il PDF Zucchetti «Interfaccia rilevazione presenze – tracciati record» descrive il **TRRIPA** campo per campo (100 caratteri per riga, testata `00` per dipendente e movimenti `01`) e ne garantisce l'importazione; l'XML invece non riporta mai l'elemento radice richiesto dallo schema, quindi veniva respinto («cvc-elt.1»)
