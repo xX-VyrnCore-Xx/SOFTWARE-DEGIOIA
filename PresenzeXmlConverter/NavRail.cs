@@ -7,13 +7,14 @@ internal enum NavIcon
 {
     Dashboard,
     Convert,
+    Company,
     Codes,
     History
 }
 
 /// <summary>
-/// Barra di navigazione verticale disegnata con la palette dell'app: le quattro
-/// sezioni della finestra (Dashboard, Nuova conversione, Gestione codici,
+/// Barra di navigazione verticale disegnata con la palette dell'app: le cinque
+/// sezioni della finestra (Dashboard, Nuova conversione, Aziende, Gestione codici,
 /// Storico esportazioni). È il controllo che sostituisce la fila di schede in
 /// alto: le voci sono più alte, il bersaglio del clic è più grande e la voce
 /// attiva si legge a colpo d'occhio (fondo chiaro, testo e icona nel colore di
@@ -231,6 +232,20 @@ internal sealed class NavRail : Control
                 graphics.DrawLine(pen, box.Left + 5, box.Top + 6, box.Right - 6, box.Top + 6);
                 graphics.DrawLine(pen, box.Left + 5, box.Top + 10, box.Right - 6, box.Top + 10);
                 graphics.DrawLine(pen, box.Left + 5, box.Top + 14, box.Left + 9, box.Top + 14);
+                break;
+
+            case NavIcon.Company:
+                // Edificio: corpo, porta e due file di finestre.
+                graphics.DrawRectangle(pen, box.Left + 3, box.Top + 2, box.Width - 7, box.Height - 4);
+                graphics.DrawLine(pen, box.Left + box.Width / 2 - 1, box.Bottom - 2, box.Left + box.Width / 2 - 1, box.Bottom - 7);
+                using (var window = new SolidBrush(ink))
+                {
+                    for (var row = 0; row < 2; row++)
+                    {
+                        graphics.FillRectangle(window, box.Left + 6, box.Top + 5 + (row * 5), 2, 2);
+                        graphics.FillRectangle(window, box.Right - 8, box.Top + 5 + (row * 5), 2, 2);
+                    }
+                }
                 break;
 
             case NavIcon.Codes:

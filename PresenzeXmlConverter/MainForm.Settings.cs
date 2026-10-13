@@ -101,8 +101,9 @@ internal sealed partial class MainForm
             Ctrl+1   Scheda Movimenti
             Ctrl+2   Scheda Anteprima XML
             Ctrl+3   Scheda Controlli
-            Ctrl+4   Sezione Gestione codici
-            Ctrl+5   Sezione Storico esportazioni
+            Ctrl+4   Sezione Aziende
+            Ctrl+5   Sezione Gestione codici
+            Ctrl+6   Sezione Storico esportazioni
             Ctrl+,   Impostazioni
             F1       Questo elenco
             """;
@@ -146,9 +147,12 @@ internal sealed partial class MainForm
                 _previewTabs.SelectedIndex = ReviewTabIndex;
                 return true;
             case Keys.Control | Keys.D4:
-                ShowSection(SectionCodes);
+                ShowSection(SectionCompanies);
                 return true;
             case Keys.Control | Keys.D5:
+                ShowSection(SectionCodes);
+                return true;
+            case Keys.Control | Keys.D6:
                 ShowSection(SectionHistory);
                 return true;
             case Keys.Control | Keys.Oemcomma:

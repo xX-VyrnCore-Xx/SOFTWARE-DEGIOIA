@@ -27,8 +27,9 @@ internal sealed partial class MainForm
 
     private const int SectionDashboard = 0;
     private const int SectionConversion = 1;
-    private const int SectionCodes = 2;
-    private const int SectionHistory = 3;
+    private const int SectionCompanies = 2;
+    private const int SectionCodes = 3;
+    private const int SectionHistory = 4;
 
     private readonly NavRail _navRail = new();
     private readonly Panel _sectionHost = new();
@@ -78,6 +79,7 @@ internal sealed partial class MainForm
 
         _navRail.AddItem("Dashboard", NavIcon.Dashboard);
         _navRail.AddItem("Nuova conversione", NavIcon.Convert, "Conversione");
+        _navRail.AddItem("Aziende", NavIcon.Company);
         _navRail.AddItem("Gestione codici", NavIcon.Codes, "Codici");
         _navRail.AddItem("Storico esportazioni", NavIcon.History, "Storico");
         _navRail.Dock = DockStyle.Top;
@@ -99,6 +101,7 @@ internal sealed partial class MainForm
         _sectionHost.BackColor = Theme.Canvas;
         _sectionHost.Margin = Padding.Empty;
         _sectionHost.Controls.Add(BuildDashboardSection());
+        _sectionHost.Controls.Add(BuildCompaniesSection());
         _sectionHost.Controls.Add(BuildCodesSection());
         _sectionHost.Controls.Add(BuildHistorySection());
         _sectionHost.Controls.Add(conversionSection);
@@ -230,6 +233,7 @@ internal sealed partial class MainForm
         }
         _dashboardSection.Visible = index == SectionDashboard;
         _conversionSection.Visible = index == SectionConversion;
+        _companiesSection.Visible = index == SectionCompanies;
         _codesSection.Visible = index == SectionCodes;
         _historySection.Visible = index == SectionHistory;
 
@@ -237,6 +241,9 @@ internal sealed partial class MainForm
         {
             case SectionDashboard:
                 RefreshDashboard();
+                break;
+            case SectionCompanies:
+                RefreshCompanies();
                 break;
             case SectionCodes:
                 EnsureCodesLoaded();
@@ -325,7 +332,7 @@ internal sealed partial class MainForm
 
         page.Controls.Add(BuildSectionHeading(
             "Gestione codici",
-            "Abinamenti fra i valori del foglio e i codici ufficiali PAGHE."), 0, 0);
+            "Abbinamenti fra i valori del foglio e i codici ufficiali PAGHE."), 0, 0);
 
         var card = new SurfacePanel
         {

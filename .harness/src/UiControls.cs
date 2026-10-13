@@ -1,0 +1,803 @@
+using System.Drawing.Drawing2D;
+
+namespace PresenzeXmlConverter;
+
+/// <summary>
+/// Griglia con doppio buffering e stile di tema già applicato: senza
+/// buffering la griglia sfarfalla durante il ridimensionamento e ogni
+/// finestra doveva ricordarsi di ridipingere intestazioni e selezioni.
+/// </summary>
+internal sealed class ThemedGrid : DataGridView
+{
+    public ThemedGrid()
+    {
+        DoubleBuffered = true;
+        Dock = DockStyle.Fill;
+        AllowUserToAddRows = false;
+        AllowUserToDeleteRows = false;
+        AllowUserToOrderColumns = false;
+        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        BackgroundColor = Theme.Surface;
+        BackColor = Theme.Surface;
+        BorderStyle = BorderStyle.None;
+        GridColor = Theme.Divider;
+        CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+        RowHeadersVisible = false;
+        SelectionMode = DataGridViewSelectionMode.CellSelect;
+        MultiSelect = false;
+        EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
+        EnableHeadersVisualStyles = false;
+        ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableAlwaysIncludeHeaderText;
+        ColumnHeadersDefaultCellStyle.BackColor = Theme.Sunken;
+        ColumnHeadersDefaultCellStyle.ForeColor = Theme.InkSecondary;
+        ColumnHeadersDefaultCellStyle.Font = Theme.Fonts.GridHeader;
+        ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 4, 0);
+        ColumnHeadersDefaultCellStyle.SelectionBackColor = Theme.Sunken;
+        ColumnHeadersDefaultCellStyle.SelectionForeColor = Theme.InkSecondary;
+        ColumnHeadersHeight = 42;
+        RowTemplate.Height = 38;
+        DefaultCellStyle.Font = Theme.Fonts.Grid;
+        DefaultCellStyle.ForeColor = Theme.Ink;
+        DefaultCellStyle.BackColor = Theme.Surface;
+        DefaultCellStyle.SelectionBackColor = Theme.BrandLite;
+        DefaultCellStyle.SelectionForeColor = Theme.Ink;
+        DefaultCellStyle.Padding = new Padding(9, 0, 5, 0);
+        AlternatingRowsDefaultCellStyle.BackColor = Theme.AltRow;
+    }
+
+    /// <summary>
+    /// Testo mostrato al centro quando non c'e' nessuna riga visibile (griglia
+    /// ancora vuota, oppure filtro che non trova nulla): senza, l'area di
+    /// revisione resta un rettangolo bianco e sembra che il programma non abbia
+    /// caricato niente. Non e' un'etichetta ma testo dipinto, quindi non entra
+    /// nei controlli del layout.
+    /// </summary>
+    public string EmptyStateText { get; set; } = string.Empty;
+
+    /// <summary>Icona sopra il testo dello stato vuoto: la pagina vuota ha un volto, non solo una riga grigia.</summary>
+    public Glyph EmptyGlyph { get; set; } = Glyph.File;
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        if (EmptyStateText.Length == 0 || HasVisibleRows || ClientSize.Width < 80)
+        {
+            return;
+        }
+        var top = ColumnHeadersVisible ? ColumnHeadersHeight : 0;
+        var bounds = new Rectangle(0, top, ClientSize.Width, Math.Max(1, ClientSize.Height - top));
+        var chip = 48;
+        var showIcon = bounds.Height >= chip + 70;
+        if (showIcon)
+        {
+            var chipBox = new Rectangle(
+                bounds.Left + ((bounds.Width - chip) / 2),
+                bounds.Top + ((bounds.Height - (chip + 14 + (Theme.Fonts.Small.Height * 2))) / 2),
+                chip,
+                chip);
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (var chipPath = Theme.RoundedRectangle(chipBox, 14))
+            using (var chipBrush = new SolidBrush(Theme.BrandSoft))
+            {
+                e.Graphics.FillPath(chipBrush, chipPath);
+            }
+            Glyphs.Draw(e.Graphics, Rectangle.Inflate(chipBox, -13, -13), EmptyGlyph, Theme.BrandInk, 1.7f);
+            bounds = new Rectangle(bounds.Left + 20, chipBox.Bottom + 8, bounds.Width - 40, Theme.Fonts.Small.Height * 2 + 6);
+            TextRenderer.DrawText(
+                e.Graphics,
+                EmptyStateText,
+                Theme.Fonts.Small,
+                bounds,
+                Theme.MutedInk,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.WordBreak);
+            return;
+        }
+        TextRenderer.DrawText(
+            e.Graphics,
+            EmptyStateText,
+            Theme.Fonts.Small,
+            bounds,
+            Theme.FaintInk,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+    }
+
+    /// <summary>Almeno una riga visibile: quando il filtro non trova nulla si mostra lo stato vuoto.</summary>
+    private bool HasVisibleRows
+    {
+        get
+        {
+            foreach (DataGridViewRow row in Rows)
+            {
+                if (row.Visible)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+}
+
+/// <summary>
+/// Campo di testo con bordo arrotondato disegnato a mano: il TextBox
+/// nativo ha un bordo rettangolare fisso e grigio che stona con le card
+/// arrotondate. Il testo resta un TextBox reale (selezione, incolla,
+/// IME, tastiera) e il placeholder sparisce appena si scrive o si entra.
+/// </summary>
+internal sealed class RoundedField : Panel
+{
+    private const int Radius = 8;
+    private readonly TextBox _input = new();
+    private readonly Label _placeholder = new();
+
+    public RoundedField()
+    {
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw |
+            ControlStyles.SupportsTransparentBackColor,
+            true);
+        BackColor = Color.Transparent;
+        Height = 36;
+        Padding = new Padding(12, 2, 12, 2);
+
+        _input.BorderStyle = BorderStyle.None;
+        _input.Font = Theme.Fonts.Ui;
+        _input.BackColor = Theme.FieldFill;
+        _input.ForeColor = Theme.Ink;
+        _input.Margin = Padding.Empty;
+        _input.TextChanged += (_, _) => UpdatePlaceholder();
+        _input.GotFocus += (_, _) => Invalidate();
+        _input.LostFocus += (_, _) => Invalidate();
+        Controls.Add(_input);
+
+        _placeholder.TextAlign = ContentAlignment.MiddleLeft;
+        _placeholder.ForeColor = Theme.FaintInk;
+        _placeholder.Font = _input.Font;
+        _placeholder.BackColor = Theme.FieldFill;
+        _placeholder.AutoEllipsis = true;
+        // Un clic sul testo guida deve mettere il cursore nel campo.
+        _placeholder.MouseDown += (_, _) => _input.Focus();
+        Controls.Add(_placeholder);
+        // Il testo guida va SOPRA il TextBox: aggiunto dopo, finiva dietro e il campo
+        // restava vuoto (il TextBox ha lo stesso fondo e lo copriva).
+        _placeholder.BringToFront();
+
+        UpdatePlaceholder();
+    }
+
+    /// <summary>Il TextBox sottostante, per gli attributi non replicati qui.</summary>
+    public TextBox Input => _input;
+
+    public string Value
+    {
+        get => _input.Text;
+        set => _input.Text = value;
+    }
+
+    public string Placeholder
+    {
+        get => _placeholder.Text;
+        set => _placeholder.Text = value;
+    }
+
+    public int MaxLength
+    {
+        get => _input.MaxLength;
+        set => _input.MaxLength = value;
+    }
+
+    public CharacterCasing CharacterCasing
+    {
+        get => _input.CharacterCasing;
+        set => _input.CharacterCasing = value;
+    }
+
+    public Font InputFont
+    {
+        get => _input.Font;
+        set
+        {
+            _input.Font = value;
+            _placeholder.Font = value;
+        }
+    }
+
+    /// <summary>Riassegna il focus al campo di testo interno.</summary>
+    public void FocusInput() => _input.Focus();
+
+    public void Clear() => _input.Clear();
+
+    public new event EventHandler TextChanged
+    {
+        add => _input.TextChanged += value;
+        remove => _input.TextChanged -= value;
+    }
+
+    protected override void OnLayout(LayoutEventArgs levent)
+    {
+        base.OnLayout(levent);
+        // Un TextBox monoriga ha un'altezza naturale minore della scatola:
+        // allineando a mano testo e placeholder sulla stessa riga non c'è lo
+        // scarto di qualche pixel quando il campo passa da vuoto a compilato.
+        var innerHeight = _input.PreferredHeight;
+        var top = Math.Max(0, (ClientSize.Height - innerHeight) / 2);
+        var width = Math.Max(0, ClientSize.Width - Padding.Horizontal);
+        _input.SetBounds(Padding.Left, top, width, innerHeight);
+        // Il testo guida occupa l'altezza intera del campo (un pixel di margine
+        // per non coprire il bordo disegnato a mano): così non viene tagliato
+        // quando la riga di testo è più alta del TextBox monoriga.
+        _placeholder.SetBounds(
+            Padding.Left,
+            1,
+            width,
+            Math.Max(innerHeight, ClientSize.Height - 2));
+    }
+
+    private void UpdatePlaceholder()
+    {
+        _placeholder.Visible = _input.Text.Length == 0 && !_input.Focused;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var bounds = new Rectangle(0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
+        if (bounds.Width < 2 || bounds.Height < 2)
+        {
+            return;
+        }
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = Theme.RoundedRectangle(bounds, Radius);
+        using (var fill = new SolidBrush(Theme.FieldFill))
+        {
+            e.Graphics.FillPath(fill, path);
+        }
+        // Il bordo si accende quando il campo ha il focus: l'utente vede
+        // subito dove finirà ciò che sta scrivendo.
+        using var pen = new Pen(_input.Focused ? Theme.Brand : Theme.DividerStrong, 1f);
+        e.Graphics.DrawPath(pen, path);
+    }
+}
+
+/// <summary>
+/// Striscia decorativa con gradiente orizzontale: usata come accento in cima
+/// all'header per dare profondità senza ricorrere a immagini esterne.
+/// </summary>
+internal sealed class AccentBar : Control
+{
+    public AccentBar()
+    {
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+        BackColor = Theme.Brand;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        if (ClientSize.Width < 2 || ClientSize.Height < 2)
+        {
+            base.OnPaint(e);
+            return;
+        }
+        using var brush = new LinearGradientBrush(
+            ClientRectangle,
+            Theme.Brand,
+            Theme.Accent,
+            LinearGradientMode.Horizontal);
+        e.Graphics.FillRectangle(brush, ClientRectangle);
+    }
+}
+
+/// <summary>
+/// Barra di avanzamento temizzata (sostituisce il ProgressBar nativo, che
+/// ignora il tema e mostra sempre la grigia di sistema). Traccia chiara e
+/// riempimento sfumato brand → accento, con angoli arrotondati.
+/// </summary>
+internal sealed class ProgressStrip : Control
+{
+    private int _percent;
+
+    public ProgressStrip()
+    {
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+        Height = 16;
+        BackColor = Theme.Sunken;
+    }
+
+    public int Value
+    {
+        get => _percent;
+        set
+        {
+            _percent = Math.Clamp(value, 0, 100);
+            Invalidate();
+        }
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var bounds = new Rectangle(0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
+        if (bounds.Width < 4 || bounds.Height < 4)
+        {
+            return;
+        }
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        var radius = Math.Max(4, bounds.Height / 2);
+        using (var track = Theme.RoundedRectangle(bounds, radius))
+        using (var trackBrush = new SolidBrush(Theme.Sunken))
+        {
+            e.Graphics.FillPath(trackBrush, track);
+        }
+
+        var filledWidth = (int)Math.Round(bounds.Width * (_percent / 100.0));
+        if (filledWidth < 4)
+        {
+            return;
+        }
+        var fillBounds = new Rectangle(0, 0, filledWidth, bounds.Height);
+        using var fillPath = Theme.RoundedRectangle(fillBounds, radius);
+        using var brush = new LinearGradientBrush(
+            bounds,
+            Theme.Brand,
+            Theme.Accent,
+            LinearGradientMode.Horizontal);
+        e.Graphics.FillPath(brush, fillPath);
+    }
+}
+
+/// <summary>
+/// Schede a pagina singola con barra disegnata in casa.
+/// La striscia del TabControl nativo viene dipinta dal controllo di Windows
+/// con il grigio di sistema ed ignora BackColor: qui barra, testo e
+/// sottolineatura di selezione usano la palette del tema.
+/// </summary>
+internal sealed class ThemedTabControl : Control
+{
+    private readonly Panel _strip = new() { Dock = DockStyle.Top, Height = 40 };
+    private readonly FlowLayoutPanel _flow = new()
+    {
+        Dock = DockStyle.Fill,
+        FlowDirection = FlowDirection.LeftToRight,
+        WrapContents = false,
+        Padding = new Padding(12, 0, 0, 0)
+    };
+    private readonly Panel _content = new() { Dock = DockStyle.Fill };
+    private readonly List<TabButton> _tabs = new();
+    private readonly List<Control> _pages = new();
+    private int _selectedIndex = -1;
+
+    public ThemedTabControl()
+    {
+        BackColor = Theme.Surface;
+        AccessibleRole = AccessibleRole.PageTabList;
+        SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
+        _strip.BackColor = Theme.Surface;
+        _flow.BackColor = Theme.Surface;
+        _content.BackColor = Theme.Surface;
+        _strip.Controls.Add(_flow);
+        _strip.Controls.Add(new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 1,
+            BackColor = Theme.Divider
+        });
+        Controls.Add(_content);
+        Controls.Add(_strip);
+    }
+
+    public int SelectedIndex
+    {
+        get => _selectedIndex;
+        set => SelectTab(value);
+    }
+
+    /// <summary>Numero di schede aggiunte: il test grafico le disegna tutte.</summary>
+    public int PageCount => _pages.Count;
+
+    public void AddPage(string title, Control page)
+    {
+        page.Dock = DockStyle.Fill;
+        page.Visible = false;
+        _content.Controls.Add(page);
+        _pages.Add(page);
+
+        var tab = new TabButton(title, _tabs.Count);
+        tab.Click += (_, _) => SelectTab(tab.Index);
+        // Il nome accessibile della voce resta allineato alla sua scritta: la
+        // barra è disegnata a mano e senza questo un lettore di schermo
+        // annuncerebbe solo "pulsante".
+        tab.AccessibleName = title;
+        tab.AccessibleRole = AccessibleRole.PageTab;
+        tab.AccessibleDescription = $"Mostra la scheda \u201c{title}\u201d.";
+        _tabs.Add(tab);
+        _flow.Controls.Add(tab);
+    }
+
+    public void SetPageText(int index, string text)
+    {
+        if (index >= 0 && index < _tabs.Count)
+        {
+            _tabs[index].Text = text;
+            _tabs[index].AccessibleName = text;
+            _tabs[index].AccessibleDescription = $"Mostra la scheda \u201c{text}\u201d.";
+        }
+    }
+
+    private void SelectTab(int index)
+    {
+        if (_pages.Count == 0)
+        {
+            return;
+        }
+        _selectedIndex = Math.Clamp(index, 0, _pages.Count - 1);
+        for (var position = 0; position < _tabs.Count; position++)
+        {
+            var active = position == _selectedIndex;
+            _tabs[position].Active = active;
+            _tabs[position].ForeColor = active ? Theme.BrandInk : Theme.MutedInk;
+            _tabs[position].Font = active ? Theme.Fonts.TabBold : Theme.Fonts.Tab;
+            _tabs[position].Invalidate();
+        }
+        for (var position = 0; position < _pages.Count; position++)
+        {
+            _pages[position].Visible = position == _selectedIndex;
+        }
+    }
+
+    /// <summary>Voce di barra: testo centrato verticalmente e sottolineatura attiva.</summary>
+    private sealed class TabButton : Button
+    {
+        public int Index { get; }
+        public bool Active { get; set; }
+
+        public TabButton(string text, int index)
+        {
+            Text = text;
+            Index = index;
+            AutoSize = true;
+            Height = 39;
+            Padding = new Padding(16, 0, 16, 0);
+            Margin = Padding.Empty;
+            TextAlign = ContentAlignment.MiddleCenter;
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            FlatAppearance.MouseOverBackColor = Theme.Sunken;
+            FlatAppearance.MouseDownBackColor = Theme.BrandLite;
+            BackColor = Theme.Surface;
+            ForeColor = Theme.MutedInk;
+            Font = Theme.Fonts.Tab;
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            if (Active)
+            {
+                using var underline = new SolidBrush(Theme.Brand);
+                e.Graphics.FillRectangle(underline, 12, Height - 3, Width - 24, 3);
+            }
+        }
+    }
+}
+
+/// <summary>Cerchino numerato del flusso di lavoro (1 · 2).</summary>
+internal sealed class StepBadge : Control
+{
+    private readonly string _caption;
+    private readonly bool _active;
+
+    public StepBadge(string caption, bool active)
+    {
+        _caption = caption;
+        _active = active;
+        Size = new Size(22, 22);
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
+        using var fill = new SolidBrush(_active ? Theme.Brand : Theme.BrandLite);
+        e.Graphics.FillEllipse(fill, bounds);
+        TextRenderer.DrawText(
+            e.Graphics,
+            _caption,
+            Theme.Fonts.Step,
+            bounds,
+            _active ? Color.White : Theme.BrandInk,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+    }
+}
+
+/// <summary>
+/// Badge di stato nell'header: rettangolo arrotondato con testo centrato,
+/// aggiornabile senza toccare BackColor e colori del testo a mano.
+/// </summary>
+internal sealed class StatusPill : Control
+{
+    private string _caption = string.Empty;
+    private Color _fill = Theme.PillIdleFill;
+    private Color _ink = Theme.PillIdleInk;
+
+    public StatusPill()
+    {
+        Height = 34;
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    public void SetStatus(string caption, Color fill, Color ink)
+    {
+        _caption = caption;
+        _fill = fill;
+        _ink = ink;
+        // La larghezza segue il testo (anche con un DPI alto): la pillola non lo taglia.
+        if (AutoSize)
+        {
+            PerformLayout();
+        }
+        Invalidate();
+    }
+
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        var text = ModernPalette.Measure(_caption, Theme.Fonts.Pill).Width;
+        return new Size(text + 30, Math.Max(26, Height));
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
+        if (bounds.Width < 2 || bounds.Height < 2)
+        {
+            return;
+        }
+        using var path = Theme.RoundedRectangle(bounds, Math.Max(4, Height / 2 - 1));
+        using (var fill = new SolidBrush(_fill))
+        {
+            e.Graphics.FillPath(fill, path);
+        }
+        var textBounds = new Rectangle(0, 0, Width, Height);
+        TextRenderer.DrawText(
+            e.Graphics,
+            _caption,
+            Theme.Fonts.Pill,
+            textBounds,
+            _ink,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+    }
+}
+
+/// <summary>
+/// Testo lungo scorrevole disegnato con la palette dell'app: le novità di una
+/// Release possono essere lunghe e la barra di scorrimento nativa di Windows
+/// resta grigia anche dentro una finestra dipinta a mano. Il testo viene
+/// impaginato alla larghezza disponibile e si può scorrere con la rotellina,
+/// trascinando il pollice o cliccando sulla pista; il pollice ha i colori del
+/// tema. Il testo resta esposto all'accessibilità tramite <see cref="Control.Text"/>.
+/// </summary>
+internal sealed class NoteTextView : Control
+{
+    private const int TextPadding = 2;
+    private string _text = string.Empty;
+    private ScrollBarLayout _layout;
+    private int _requestedOffset;
+    private bool _dragging;
+    private bool _pointerOnThumb;
+    private int _grabOffset;
+
+    public NoteTextView()
+    {
+        SetStyle(
+            ControlStyles.UserPaint |
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
+        BackColor = Theme.FieldFill;
+        ForeColor = Theme.InkSecondary;
+        Font = Theme.Fonts.Small;
+        TabStop = false;
+        AccessibleRole = AccessibleRole.StaticText;
+    }
+
+    /// <summary>Testo da mostrare.</summary>
+    public string Value
+    {
+        get => _text;
+        set
+        {
+            _text = value ?? string.Empty;
+            Text = _text;
+            _requestedOffset = 0;
+            Recalculate();
+        }
+    }
+
+    /// <summary>Altezza che serve al testo impaginato alla larghezza attuale.</summary>
+    public int TextHeight { get; private set; }
+
+    /// <summary>Il testo non entra tutto: c'è la barra da disegnare.</summary>
+    public bool NeedsScroll => _layout.NeedsScroll;
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        Recalculate();
+    }
+
+    /// <summary>
+    /// Ricalcola l'impaginazione: prima lasciando la fascia alla barra, poi (se
+    /// il testo entrava) con tutta la larghezza. Il conto si ferma qui, così la
+    /// barra non compare e sparisce una volta per ogni ridimensionamento.
+    /// </summary>
+    public void Recalculate()
+    {
+        if (ClientSize.Width <= 0 || ClientSize.Height <= 0)
+        {
+            return;
+        }
+        var height = MeasureHeight(ClientSize.Width - ScrollBarLayout.TrackWidth);
+        _layout = ScrollBarLayout.Compute(ClientSize.Width, ClientSize.Height, height, _requestedOffset);
+        if (!_layout.NeedsScroll)
+        {
+            height = MeasureHeight(ClientSize.Width);
+            _layout = ScrollBarLayout.Compute(ClientSize.Width, ClientSize.Height, height, _requestedOffset);
+        }
+        _requestedOffset = _layout.Offset;
+        TextHeight = height;
+        Invalidate();
+    }
+
+    /// <summary>Porta il testo alla posizione indicata (viene riportata dentro i limiti).</summary>
+    public void ScrollTo(int offset)
+    {
+        _requestedOffset = offset;
+        _layout = ScrollBarLayout.Compute(ClientSize.Width, ClientSize.Height, TextHeight, offset);
+        _requestedOffset = _layout.Offset;
+        Invalidate();
+    }
+
+    private int MeasureHeight(int width) =>
+        string.IsNullOrEmpty(_text)
+            ? 0
+            : TextRenderer.MeasureText(
+                  _text,
+                  Font,
+                  new Size(Math.Max(1, width - (TextPadding * 2)), int.MaxValue),
+                  TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height + TextPadding;
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        using (var background = new SolidBrush(BackColor))
+        {
+            e.Graphics.FillRectangle(background, ClientRectangle);
+        }
+        if (_text.Length > 0)
+        {
+            var bounds = new Rectangle(
+                TextPadding,
+                TextPadding - _layout.Offset,
+                Math.Max(1, _layout.ContentWidth - (TextPadding * 2)),
+                Math.Max(1, TextHeight));
+            TextRenderer.DrawText(
+                e.Graphics,
+                _text,
+                Font,
+                bounds,
+                ForeColor,
+                TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+        }
+        DrawThumb(e.Graphics);
+    }
+
+    private void DrawThumb(Graphics graphics)
+    {
+        if (!_layout.NeedsScroll)
+        {
+            return;
+        }
+        var bounds = new Rectangle(
+            _layout.ThumbLeft,
+            _layout.ThumbTop + 1,
+            ScrollBarLayout.ThumbWidth,
+            Math.Max(4, _layout.ThumbHeight - 2));
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = Theme.RoundedRectangle(bounds, ScrollBarLayout.ThumbWidth / 2);
+        using var brush = new SolidBrush(_dragging || _pointerOnThumb ? Theme.MutedInk : Theme.DividerStrong);
+        graphics.FillPath(brush, path);
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        if (_layout.NeedsScroll)
+        {
+            ScrollTo(_layout.OffsetAfterWheel(e.Delta));
+        }
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left || !_layout.HitsTrack(e.X, ClientSize.Width))
+        {
+            return;
+        }
+        if (_layout.HitsThumb(e.Y))
+        {
+            _dragging = true;
+            _grabOffset = e.Y - _layout.ThumbTop;
+            Capture = true;
+        }
+        else
+        {
+            ScrollTo(_layout.OffsetAfterTrackClick(e.Y));
+        }
+        Invalidate();
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        if (_dragging)
+        {
+            ScrollTo(_layout.OffsetForThumbTop(e.Y - _grabOffset));
+            return;
+        }
+        var onThumb = _layout.HitsTrack(e.X, ClientSize.Width) && _layout.HitsThumb(e.Y);
+        if (onThumb == _pointerOnThumb)
+        {
+            return;
+        }
+        _pointerOnThumb = onThumb;
+        Cursor = onThumb ? Cursors.Hand : Cursors.Default;
+        Invalidate();
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        if (!_dragging)
+        {
+            return;
+        }
+        _dragging = false;
+        Capture = false;
+        Invalidate();
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (!_pointerOnThumb)
+        {
+            return;
+        }
+        _pointerOnThumb = false;
+        Cursor = Cursors.Default;
+        Invalidate();
+    }
+}

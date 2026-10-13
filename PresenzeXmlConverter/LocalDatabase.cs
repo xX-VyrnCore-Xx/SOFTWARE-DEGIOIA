@@ -61,10 +61,10 @@ internal sealed class LocalDatabase
     /// <summary>
     /// Versione dello schema: 1 = preferenze e abbinamenti, 2 = storico delle
     /// esportazioni, 3 = impronta e file sorgente di ogni esportazione e copia
-    /// dell'XML consegnato. Un database di versione superiore è stato scritto da
+    /// dell'XML consegnato, 4 = anagrafica delle aziende. Un database di versione superiore è stato scritto da
     /// una build più recente e non va aperto a metà.
     /// </summary>
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     /// <summary>Quanti backup restano: i più vecchi vengono eliminati.</summary>
     public const int MaximumBackups = 10;
@@ -234,6 +234,12 @@ internal sealed class LocalDatabase
                 Name TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
                 Code TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS Companies (
+                Code TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
+                Name TEXT NOT NULL DEFAULT '',
+                Notes TEXT NOT NULL DEFAULT '',
+                UpdatedUtc TEXT NOT NULL DEFAULT ''
+            );
             CREATE TABLE IF NOT EXISTS Exports (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ExportedAtUtc TEXT NOT NULL,
@@ -264,6 +270,19 @@ internal sealed class LocalDatabase
             fingerprintIndex.CommandText =
                 "CREATE INDEX IF NOT EXISTS Exports_Fingerprint ON Exports (Fingerprint);";
             fingerprintIndex.ExecuteNonQuery();
+        }
+
+        // L'azienda già usata nelle versioni precedenti (solo il codice, salvato fra le
+        // preferenze) entra nell'anagrafica: nessuno deve reinserirla.
+        using (var seedCompany = connection.CreateCommand())
+        {
+            seedCompany.CommandText = """
+                INSERT OR IGNORE INTO Companies (Code, Name, Notes, UpdatedUtc)
+                SELECT Value, '', '', $now FROM Settings
+                WHERE Key = 'company-code' AND length(trim(Value)) BETWEEN 1 AND 6;
+                """;
+            seedCompany.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+            seedCompany.ExecuteNonQuery();
         }
 
         using var updateVersion = connection.CreateCommand();
@@ -819,6 +838,66 @@ internal sealed class LocalDatabase
             out var parsed)
             ? parsed.ToUniversalTime()
             : DateTime.MinValue;
+
+    /// <summary>Aziende salvate, in ordine di codice.</summary>
+    public IReadOnlyList<CompanyRecord> GetCompanies()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Code, Name, Notes FROM Companies ORDER BY Code COLLATE NOCASE;";
+        using var reader = command.ExecuteReader();
+        var companies = new List<CompanyRecord>();
+        while (reader.Read())
+        {
+            companies.Add(new CompanyRecord(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+        }
+        return companies;
+    }
+
+    /// <summary>
+    /// Crea o aggiorna un'azienda. Il codice è quello ufficiale PAGHE (1-6 caratteri);
+    /// con <paramref name="keepExistingDetails"/> un'azienda già presente non perde
+    /// ragione sociale e note (serve quando il codice arriva solo dalla conversione).
+    /// </summary>
+    public void SaveCompany(string code, string name, string notes = "", bool keepExistingDetails = false)
+    {
+        code = (code ?? string.Empty).Trim();
+        name = (name ?? string.Empty).Trim();
+        notes = (notes ?? string.Empty).Trim();
+        if (code.Length is 0 or > 6)
+        {
+            throw new InvalidDataException("Il codice azienda deve contenere da 1 a 6 caratteri.");
+        }
+        if (name.Length > 120 || notes.Length > 500)
+        {
+            throw new InvalidDataException("La ragione sociale non può superare 120 caratteri e le note 500.");
+        }
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = keepExistingDetails
+            ? """
+              INSERT INTO Companies (Code, Name, Notes, UpdatedUtc) VALUES ($code, $name, $notes, $now)
+              ON CONFLICT(Code) DO NOTHING;
+              """
+            : """
+              INSERT INTO Companies (Code, Name, Notes, UpdatedUtc) VALUES ($code, $name, $notes, $now)
+              ON CONFLICT(Code) DO UPDATE SET Name = excluded.Name, Notes = excluded.Notes, UpdatedUtc = excluded.UpdatedUtc;
+              """;
+        command.Parameters.AddWithValue("$code", code);
+        command.Parameters.AddWithValue("$name", name);
+        command.Parameters.AddWithValue("$notes", notes);
+        command.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        command.ExecuteNonQuery();
+    }
+
+    public bool DeleteCompany(string code)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM Companies WHERE Code = $code;";
+        command.Parameters.AddWithValue("$code", (code ?? string.Empty).Trim());
+        return command.ExecuteNonQuery() > 0;
+    }
 
     private Dictionary<string, string> ReadMappings(string table)
     {

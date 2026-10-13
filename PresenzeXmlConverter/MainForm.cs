@@ -130,6 +130,7 @@ internal sealed partial class MainForm : Form
                 return;
             }
             LoadExportsNow();
+            LoadCompaniesQuietly();
             StartDatabaseMaintenance();
             Trace?.WriteTo(StartupLogPath);
         });
@@ -925,6 +926,20 @@ internal sealed partial class MainForm : Form
         if (value.Length is > 0 and <= 6)
         {
             _database.SaveSetting("company-code", value);
+            try
+            {
+                // Ogni codice usato entra nell'anagrafica (senza toccare ragione sociale e
+                // note di un'azienda già presente): le aziende si ritrovano da sole.
+                _database.SaveCompany(value, string.Empty, string.Empty, keepExistingDetails: true);
+                if (!_companies.Any(company => string.Equals(company.Code, value, StringComparison.OrdinalIgnoreCase)))
+                {
+                    RefreshCompanies();
+                }
+            }
+            catch (Exception exception) when (exception is SqliteException or InvalidDataException)
+            {
+                // Il codice resta salvato fra le preferenze: l'anagrafica si riallinea al prossimo avvio.
+            }
         }
     }
 

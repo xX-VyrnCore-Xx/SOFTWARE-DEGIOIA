@@ -168,7 +168,7 @@ public class ConversionAndDataTests
         Assert.Equal("vecchio.xml", old.FileName);
         Assert.Equal(string.Empty, old.Fingerprint);
         Assert.False(old.HasStoredXml);
-        Assert.Equal(3, database.GetHealth().SchemaVersion);
+        Assert.Equal(LocalDatabase.CurrentSchemaVersion, database.GetHealth().SchemaVersion);
         // Prima di cambiare lo schema è stata tenuta una copia di sicurezza.
         Assert.Contains(database.ListBackups(), backup => backup.Path.Contains("prima-di-aggiornare", StringComparison.Ordinal));
         // Il database aggiornato funziona per le consegne nuove.

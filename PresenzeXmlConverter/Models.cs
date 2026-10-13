@@ -33,6 +33,13 @@ internal sealed record DailyMovement(
     int Minutes,
     int SourceRow = 0);
 
+/// <summary>Un'azienda dell'anagrafica: il codice è quello ufficiale PAGHE (max 6 caratteri).</summary>
+internal sealed record CompanyRecord(string Code, string Name, string Notes)
+{
+    /// <summary>«AZ001 · Rossi Srl», oppure solo il codice se la ragione sociale manca.</summary>
+    public string Label => Name.Length == 0 ? Code : $"{Code} · {Name}";
+}
+
 internal sealed record GenerationResult(
     IReadOnlyList<DailyMovement> Movements,
     IReadOnlyList<string> Warnings);

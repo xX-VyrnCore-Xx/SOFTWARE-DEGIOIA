@@ -154,19 +154,21 @@ internal sealed partial class MainForm
             // senza che il campo perda il focus.
             _companyCodeSaveDebounce.Stop();
             _companyCodeSaveDebounce.Start();
+            UpdateCompanyHintLabel();
         };
         _companyCode.Leave += (_, _) => SaveCompanyCode();
         companyLayout.Controls.Add(_companyCode, 0, 1);
-        companyLayout.Controls.Add(new Label
+        _companyHintLabel = new Label
         {
-            Text = "Codice Zucchetti · max 6 caratteri",
+            Text = DefaultCompanyHint,
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Theme.MutedInk,
             Font = Theme.Fonts.Tiny,
             AutoEllipsis = true,
             Margin = Padding.Empty
-        }, 0, 2);
+        };
+        companyLayout.Controls.Add(_companyHintLabel, 0, 2);
         band.Controls.Add(company, 0, 0);
 
         // 02 File sorgente.

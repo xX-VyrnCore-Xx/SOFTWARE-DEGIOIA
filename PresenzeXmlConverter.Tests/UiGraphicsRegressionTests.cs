@@ -181,10 +181,10 @@ public class UiGraphicsRegressionTests
         }
         // Un test che non disegna nulla non verifica nulla: con la finestra vuota
         // (interfaccia mai costruita) il ciclo sulle sezioni non girava e il test
-        // risultava verde. Le sezioni devono esserci tutte e quattro.
+        // risultava verde. Le sezioni devono esserci tutte e cinque.
         Assert.True(
-            result.Value.sections >= 4,
-            $"La finestra ha {result.Value.sections} sezioni invece di 4: l'interfaccia non è stata costruita. " +
+            result.Value.sections >= 5,
+            $"La finestra ha {result.Value.sections} sezioni invece di 5: l'interfaccia non è stata costruita. " +
             result.Value.report);
         Assert.True(
             string.IsNullOrEmpty(result.Value.clipped),

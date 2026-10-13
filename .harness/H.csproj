@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PresenzeFlow</AssemblyName>
+    <RootNamespace>PresenzeXmlConverter</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CA1416;CS8618</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="/home/user/SOFTWARE-DEGIOIA/.harness/src/*.cs"  />
+    <Reference Include="/tmp/claude-0/-home-user-SOFTWARE-DEGIOIA/e1c7c656-63e1-5098-b010-612dd6aff0f4/scratchpad/wd/ref/net8.0/System.Windows.Forms.dll" /><Reference Include="/tmp/claude-0/-home-user-SOFTWARE-DEGIOIA/e1c7c656-63e1-5098-b010-612dd6aff0f4/scratchpad/wd/ref/net8.0/System.Drawing.dll" /><Reference Include="/tmp/claude-0/-home-user-SOFTWARE-DEGIOIA/e1c7c656-63e1-5098-b010-612dd6aff0f4/scratchpad/wd/ref/net8.0/System.Drawing.Common.dll" /><Reference Include="/tmp/claude-0/-home-user-SOFTWARE-DEGIOIA/e1c7c656-63e1-5098-b010-612dd6aff0f4/scratchpad/wd/ref/net8.0/System.Windows.Forms.Primitives.dll" /><Reference Include="/tmp/claude-0/-home-user-SOFTWARE-DEGIOIA/e1c7c656-63e1-5098-b010-612dd6aff0f4/scratchpad/wd/ref/net8.0/Microsoft.Win32.SystemEvents.dll" /><Reference Include="/tmp/claude-0/-home-user-SOFTWARE-DEGIOIA/e1c7c656-63e1-5098-b010-612dd6aff0f4/scratchpad/wd/ref/net8.0/System.Drawing.Primitives.dll" />
+    <Compile Include="/home/user/SOFTWARE-DEGIOIA/PresenzeXmlConverter.Tests/*.cs" /><PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" /><PackageReference Include="xunit" Version="2.5.3" /><PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" /><PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="System.Windows.Forms" /><Using Include="Xunit" />
+    <Using Include="System.Drawing" />
+  </ItemGroup>
+</Project>
