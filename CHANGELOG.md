@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.6] - Corrente
+## [1.22.7] - Corrente
+
+### 🧩 Formato XML configurabile (Zucchetti: «cvc-elt.1»)
+- Zucchetti valida il file contro uno schema che non è nel tracciato PDF: né `<TRRIPW>` né `<Dipendenti>` come radice sono stati accettati. Nuova scheda **Impostazioni → Formato XML**: nome dell'elemento radice, spazio dei nomi (xmlns) e disposizione dei movimenti (dentro un nodo «Movimenti» oppure un nodo «Movimenti» per giorno)
+- **Leggi da un XML di esempio…**: scegliendo un file XML che Zucchetti accetta (anche prodotto da un altro programma) l'app copia radice, spazio dei nomi e disposizione, senza indovinare
+- Il controllo del file salvato segue la forma scelta
+
+## [1.22.6]
 
 ### 🐞 Zucchetti respingeva il file: elemento radice
 - Il caricamento su Zucchetti falliva con «cvc-elt.1: impossibile trovare la dichiarazione dell'elemento "TRRIPW"»: «TRRIPW» è il nome del tracciato, non dell'elemento. La radice del file ora è `<Dipendenti>` (il contenitore dei nodi `Dipendente`)

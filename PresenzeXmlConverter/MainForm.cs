@@ -80,6 +80,7 @@ internal sealed partial class MainForm : Form
         _lastSourceDirectory = startup["last-source-dir"].Length == 0 ? null : startup["last-source-dir"];
         _globalOptions = GenerationSettings.Read(_database);
         _generationOptions = _globalOptions;
+        XmlFormat.Active = XmlFormat.Load(_database);
         MeasureStartup("aggiornamenti", InitializeUpdates);
         SetupTrayIcon();
         UpdateButtons();

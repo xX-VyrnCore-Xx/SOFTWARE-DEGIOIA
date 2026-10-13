@@ -59,8 +59,14 @@ internal static class SettingsPageLayout
         HintRow, CheckRow, FieldLabelRow, FieldRow, ActionRow, StatusRow, NoteRow, SignatureRow
     };
 
+    /// <summary>Scheda "Formato XML": radice, spazio dei nomi, disposizione dei movimenti.</summary>
+    public static readonly int[] XmlRows =
+    {
+        HintRow, FieldLabelRow, FieldRow, FieldLabelRow, FieldRow, CheckRow, ActionRow, NoteRow
+    };
+
     /// <summary>Tutte le schede, nell'ordine in cui compaiono.</summary>
-    public static IReadOnlyList<int[]> Pages => new[] { ConversionRows, UpdateRows };
+    public static IReadOnlyList<int[]> Pages => new[] { ConversionRows, UpdateRows, XmlRows };
 
     /// <summary>Spaziatura interna della pagina (sopra e sotto).</summary>
     public const int PagePadding = 16;
