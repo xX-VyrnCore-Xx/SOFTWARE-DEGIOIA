@@ -12,70 +12,70 @@ namespace PresenzeXmlConverter;
 internal static class Theme
 {
     /* ------------------------------ Testo ------------------------------ */
-    public static readonly Color Ink = Color.FromArgb(15, 26, 40);             // titoli, testo principale
-    public static readonly Color InkSecondary = Color.FromArgb(55, 75, 100);   // corpo del testo
-    public static readonly Color MutedInk = Color.FromArgb(103, 120, 142);     // testo di supporto
-    public static readonly Color FaintInk = Color.FromArgb(148, 163, 184);     // numerazioni, placeholder
+    public static readonly Color Ink = Color.FromArgb(29, 29, 31);             // titoli, testo principale
+    public static readonly Color InkSecondary = Color.FromArgb(60, 60, 67);   // corpo del testo
+    public static readonly Color MutedInk = Color.FromArgb(110, 110, 115);     // testo di supporto
+    public static readonly Color FaintInk = Color.FromArgb(174, 174, 178);     // numerazioni, placeholder
 
     /* --------------------------- Superfici ----------------------------- */
     public static readonly Color Surface = Color.White;                        // fondo delle card
-    public static readonly Color Canvas = Color.FromArgb(246, 248, 252);       // fondo della finestra
-    public static readonly Color Sunken = Color.FromArgb(240, 243, 249);       // fasce e intestazioni di griglia
-    public static readonly Color AltRow = Color.FromArgb(249, 250, 253);       // righe alternate della griglia
-    public static readonly Color FieldFill = Color.FromArgb(250, 251, 254);    // fondo dei campi di testo
+    public static readonly Color Canvas = Color.FromArgb(245, 245, 247);       // fondo della finestra
+    public static readonly Color Sunken = Color.FromArgb(236, 236, 241);       // fasce e intestazioni di griglia
+    public static readonly Color AltRow = Color.FromArgb(249, 249, 251);       // righe alternate della griglia
+    public static readonly Color FieldFill = Color.FromArgb(255, 255, 255);    // fondo dei campi di testo
 
     /* ---------------------------- Bordi -------------------------------- */
-    public static readonly Color Divider = Color.FromArgb(227, 232, 240);      // linee sottili
-    public static readonly Color DividerStrong = Color.FromArgb(203, 213, 225);// bordi dei campi
+    public static readonly Color Divider = Color.FromArgb(229, 229, 234);      // linee sottili
+    public static readonly Color DividerStrong = Color.FromArgb(209, 209, 214);// bordi dei campi
 
     /* ------------------------- Marca (primario) ------------------------ */
-    public static readonly Color Brand = Color.FromArgb(37, 99, 235);
-    public static readonly Color BrandHover = Color.FromArgb(29, 78, 216);
-    public static readonly Color BrandPressed = Color.FromArgb(23, 63, 180);
-    public static readonly Color BrandDeep = Color.FromArgb(30, 58, 138);      // fondo dei badge scuri
-    public static readonly Color BrandSoft = Color.FromArgb(239, 246, 255);    // fondo bottoni secondari
-    public static readonly Color BrandLite = Color.FromArgb(219, 234, 254);    // selezione in griglia
-    public static readonly Color BrandInk = Color.FromArgb(30, 64, 175);       // testo su fondo chiaro
-    public static readonly Color Accent = Color.FromArgb(8, 145, 178);         // accento secondario (ciano) dei gradienti
+    public static readonly Color Brand = Color.FromArgb(0, 122, 255);
+    public static readonly Color BrandHover = Color.FromArgb(0, 106, 230);
+    public static readonly Color BrandPressed = Color.FromArgb(0, 88, 200);
+    public static readonly Color BrandDeep = Color.FromArgb(0, 64, 148);      // fondo dei badge scuri
+    public static readonly Color BrandSoft = Color.FromArgb(232, 242, 255);    // fondo bottoni secondari
+    public static readonly Color BrandLite = Color.FromArgb(207, 228, 255);    // selezione in griglia
+    public static readonly Color BrandInk = Color.FromArgb(0, 98, 204);       // testo su fondo chiaro
+    public static readonly Color Accent = Color.FromArgb(90, 200, 250);         // accento secondario (ciano) dei gradienti
 
     /* --------------------------- Esito positivo ------------------------ */
-    public static readonly Color Success = Color.FromArgb(22, 163, 74);
-    public static readonly Color SuccessHover = Color.FromArgb(21, 128, 61);
-    public static readonly Color SuccessPressed = Color.FromArgb(18, 101, 51);
-    public static readonly Color SuccessSoft = Color.FromArgb(220, 252, 231);
-    public static readonly Color SuccessInk = Color.FromArgb(22, 101, 52);
+    public static readonly Color Success = Color.FromArgb(52, 199, 89);
+    public static readonly Color SuccessHover = Color.FromArgb(40, 176, 74);
+    public static readonly Color SuccessPressed = Color.FromArgb(30, 150, 62);
+    public static readonly Color SuccessSoft = Color.FromArgb(226, 247, 232);
+    public static readonly Color SuccessInk = Color.FromArgb(24, 110, 48);
 
     /* ---------------------------- Attenzione --------------------------- */
-    public static readonly Color Warning = Color.FromArgb(217, 119, 6);
-    public static readonly Color WarningInk = Color.FromArgb(146, 64, 14);
+    public static readonly Color Warning = Color.FromArgb(255, 149, 0);
+    public static readonly Color WarningInk = Color.FromArgb(158, 88, 0);
 
     /* ------------------------------ Errore ----------------------------- */
-    public static readonly Color Danger = Color.FromArgb(220, 38, 38);
-    public static readonly Color DangerInk = Color.FromArgb(153, 27, 27);
+    public static readonly Color Danger = Color.FromArgb(255, 59, 48);
+    public static readonly Color DangerInk = Color.FromArgb(176, 28, 20);
 
     /* ------------------------ Pulsanti neutri -------------------------- */
-    public static readonly Color NeutralFill = Color.FromArgb(238, 242, 247);
-    public static readonly Color NeutralHover = Color.FromArgb(226, 232, 240);
-    public static readonly Color NeutralPressed = Color.FromArgb(214, 222, 234);
-    public static readonly Color NeutralBorder = Color.FromArgb(214, 222, 234);
-    public static readonly Color NeutralInk = Color.FromArgb(51, 65, 85);
+    public static readonly Color NeutralFill = Color.FromArgb(255, 255, 255);
+    public static readonly Color NeutralHover = Color.FromArgb(245, 245, 247);
+    public static readonly Color NeutralPressed = Color.FromArgb(232, 232, 237);
+    public static readonly Color NeutralBorder = Color.FromArgb(209, 209, 214);
+    public static readonly Color NeutralInk = Color.FromArgb(29, 29, 31);
 
     /* ----------------------- Stato disabilitato ------------------------ */
-    public static readonly Color DisabledFill = Color.FromArgb(241, 244, 248);
-    public static readonly Color DisabledInk = Color.FromArgb(163, 177, 196);
+    public static readonly Color DisabledFill = Color.FromArgb(244, 244, 246);
+    public static readonly Color DisabledInk = Color.FromArgb(174, 174, 178);
 
     /* --------------------------- Header scuro -------------------------- */
-    public static readonly Color HeaderFill = Color.FromArgb(15, 26, 44);
-    public static readonly Color HeaderInk = Color.White;
-    public static readonly Color HeaderMuted = Color.FromArgb(163, 186, 219);
+    public static readonly Color HeaderFill = Color.FromArgb(255, 255, 255);
+    public static readonly Color HeaderInk = Color.FromArgb(29, 29, 31);
+    public static readonly Color HeaderMuted = Color.FromArgb(110, 110, 115);
 
     /* --------------------------- Badge in header ----------------------- */
-    public static readonly Color PillIdleFill = Color.FromArgb(30, 58, 138);
-    public static readonly Color PillIdleInk = Color.FromArgb(191, 219, 254);
-    public static readonly Color PillReadyFill = Color.FromArgb(20, 83, 45);
-    public static readonly Color PillReadyInk = Color.FromArgb(187, 247, 208);
-    public static readonly Color PillWarningFill = Color.FromArgb(120, 53, 15);
-    public static readonly Color PillWarningInk = Color.FromArgb(253, 230, 138);
+    public static readonly Color PillIdleFill = Color.FromArgb(232, 242, 255);
+    public static readonly Color PillIdleInk = Color.FromArgb(0, 98, 204);
+    public static readonly Color PillReadyFill = Color.FromArgb(226, 247, 232);
+    public static readonly Color PillReadyInk = Color.FromArgb(24, 110, 48);
+    public static readonly Color PillWarningFill = Color.FromArgb(255, 243, 224);
+    public static readonly Color PillWarningInk = Color.FromArgb(158, 88, 0);
 
     /* ------------------------ Editor XML scuro ------------------------- */
     public static readonly Color EditorFill = Color.FromArgb(15, 23, 42);
@@ -85,10 +85,10 @@ internal static class Theme
     public static readonly Color EditorValue = Color.FromArgb(167, 243, 208);
 
     /* ----------------------- Colori della griglia ---------------------- */
-    public static readonly Color CodeInk = Color.FromArgb(29, 78, 216);        // codici PAGHE
-    public static readonly Color NumberInk = Color.FromArgb(19, 88, 74);       // ore e minuti
-    public static readonly Color DateInk = Color.FromArgb(82, 102, 127);       // date
-    public static readonly Color RowNumberInk = Color.FromArgb(148, 163, 184);
+    public static readonly Color CodeInk = Color.FromArgb(0, 98, 204);        // codici PAGHE
+    public static readonly Color NumberInk = Color.FromArgb(24, 110, 48);       // ore e minuti
+    public static readonly Color DateInk = Color.FromArgb(110, 110, 115);       // date
+    public static readonly Color RowNumberInk = Color.FromArgb(174, 174, 178);
 
     /// <summary>
     /// Font condivisi: creati una volta sola e nominati per uso, così le
@@ -98,29 +98,30 @@ internal static class Theme
     /// </summary>
     public static class Fonts
     {
+        private const string Semibold = "Segoe UI Semibold";
         private static readonly string MonoFamily = ResolveMonoFamily();
 
         public static readonly Font Ui = new("Segoe UI", 10f);
-        public static readonly Font HeaderTitle = new("Segoe UI", 23f, FontStyle.Bold);
-        public static readonly Font CardTitle = new("Segoe UI", 17f, FontStyle.Bold);
-        public static readonly Font Section = new("Segoe UI", 8.2f, FontStyle.Bold);
+        public static readonly Font HeaderTitle = new(Semibold, 21f);
+        public static readonly Font CardTitle = new(Semibold, 17f);
+        public static readonly Font Section = new(Semibold, 8.2f);
         public static readonly Font Small = new("Segoe UI", 8.7f);
-        public static readonly Font SmallBold = new("Segoe UI", 8.7f, FontStyle.Bold);
+        public static readonly Font SmallBold = new(Semibold, 8.7f);
         public static readonly Font Tiny = new("Segoe UI", 8.4f);
-        public static readonly Font Step = new("Segoe UI", 8.6f, FontStyle.Bold);
-        public static readonly Font Button = new("Segoe UI", 9.5f, FontStyle.Bold);
-        public static readonly Font ButtonSmall = new("Segoe UI", 9f, FontStyle.Bold);
-        public static readonly Font Pill = new("Segoe UI", 8.2f, FontStyle.Bold);
-        public static readonly Font Metric = new("Segoe UI", 22f, FontStyle.Bold);
-        public static readonly Font Stat = new("Segoe UI", 15f, FontStyle.Bold);
-        public static readonly Font Kpi = new("Segoe UI", 19f, FontStyle.Bold);
-        public static readonly Font Field = new("Segoe UI", 13f, FontStyle.Bold);
-        public static readonly Font DialogTitle = new("Segoe UI", 13f, FontStyle.Bold);
+        public static readonly Font Step = new(Semibold, 8.6f);
+        public static readonly Font Button = new(Semibold, 9.5f);
+        public static readonly Font ButtonSmall = new(Semibold, 9f);
+        public static readonly Font Pill = new(Semibold, 8.2f);
+        public static readonly Font Metric = new(Semibold, 22f);
+        public static readonly Font Stat = new(Semibold, 15f);
+        public static readonly Font Kpi = new(Semibold, 19f);
+        public static readonly Font Field = new(Semibold, 13f);
+        public static readonly Font DialogTitle = new(Semibold, 13f);
         public static readonly Font Grid = new("Segoe UI", 8.9f);
-        public static readonly Font GridHeader = new("Segoe UI", 8.6f, FontStyle.Bold);
+        public static readonly Font GridHeader = new(Semibold, 8.6f);
         public static readonly Font Tab = new("Segoe UI", 9f);
-        public static readonly Font TabBold = new("Segoe UI", 9f, FontStyle.Bold);
-        public static readonly Font Number = new("Segoe UI", 9f, FontStyle.Bold);
+        public static readonly Font TabBold = new(Semibold, 9f);
+        public static readonly Font Number = new(Semibold, 9f);
         public static readonly Font Code = new(MonoFamily, 8.4f);
         public static readonly Font Mono = new(MonoFamily, 9.3f);
         public static readonly Font MonoSmall = new(MonoFamily, 8.2f);
@@ -277,10 +278,10 @@ internal static class Theme
     {
         ButtonTone.Primary => new ButtonPalette(Brand, BrandHover, BrandPressed, Brand, Color.White, 0),
         ButtonTone.Positive => new ButtonPalette(Success, SuccessHover, SuccessPressed, Success, Color.White, 0),
-        ButtonTone.Danger => new ButtonPalette(Danger, Color.FromArgb(185, 28, 28), Color.FromArgb(153, 27, 27), Danger, Color.White, 0),
+        ButtonTone.Danger => new ButtonPalette(Danger, Color.FromArgb(230, 50, 40), Color.FromArgb(200, 40, 32), Danger, Color.White, 0),
         ButtonTone.OnDark => new ButtonPalette(
-            Color.FromArgb(28, 44, 72), Color.FromArgb(42, 64, 102), Color.FromArgb(22, 35, 58),
-            Color.FromArgb(70, 96, 140), Color.White, 1),
+            Color.FromArgb(242, 242, 247), Color.FromArgb(229, 229, 234), Color.FromArgb(216, 216, 222),
+            Color.FromArgb(222, 222, 228), Ink, 1),
         _ => new ButtonPalette(NeutralFill, NeutralHover, NeutralPressed, NeutralBorder, NeutralInk, 1)
     };
 

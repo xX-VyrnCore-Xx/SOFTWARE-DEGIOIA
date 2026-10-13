@@ -259,7 +259,7 @@ internal sealed class RoundedField : Panel
         }
     }
 
-    private Color FillColor => _onDark ? Color.FromArgb(27, 41, 66) : Theme.FieldFill;
+    private Color FillColor => _onDark ? Color.FromArgb(238, 238, 243) : Theme.FieldFill;
 
     public int MaxLength
     {
@@ -336,12 +336,12 @@ internal sealed class RoundedField : Panel
             if (ringBounds.Width > 2 && ringBounds.Height > 2)
             {
                 using var ringPath = Theme.RoundedRectangle(ringBounds, Radius - 1);
-                using var ring = new Pen(_onDark ? Color.FromArgb(60, Theme.Accent) : Theme.BrandLite, 3f);
+                using var ring = new Pen(_onDark ? Color.FromArgb(70, Theme.Brand) : Theme.BrandLite, 3f);
                 e.Graphics.DrawPath(ring, ringPath);
             }
         }
-        var idleBorder = _onDark ? Color.FromArgb(52, 71, 105) : Theme.DividerStrong;
-        var activeBorder = _onDark ? Theme.Accent : Theme.Brand;
+        var idleBorder = _onDark ? Color.FromArgb(226, 226, 232) : Theme.DividerStrong;
+        var activeBorder = Theme.Brand;
         using var pen = new Pen(_input.Focused ? activeBorder : idleBorder, 1f);
         e.Graphics.DrawPath(pen, path);
     }
@@ -602,39 +602,74 @@ internal sealed class ThemedTabControl : Control
         }
     }
 
-    /// <summary>Voce di barra: testo centrato verticalmente e sottolineatura attiva.</summary>
+    /// <summary>
+    /// Voce di barra in stile macOS: pillola arrotondata azzurra per la scheda attiva, velo
+    /// grigio al passaggio del mouse, niente sottolineatura. È dipinta per intero, così il
+    /// pulsante di sistema non disegna nulla sotto.
+    /// </summary>
     private sealed class TabButton : Button
     {
+        private bool _hover;
+
         public int Index { get; }
         public bool Active { get; set; }
 
         public TabButton(string text, int index)
         {
+            SetStyle(
+                ControlStyles.UserPaint |
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.ResizeRedraw,
+                true);
             Text = text;
             Index = index;
             AutoSize = true;
-            Height = 39;
+            Height = 40;
             Padding = new Padding(16, 0, 16, 0);
             Margin = Padding.Empty;
             TextAlign = ContentAlignment.MiddleCenter;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            FlatAppearance.MouseOverBackColor = Theme.Sunken;
-            FlatAppearance.MouseDownBackColor = Theme.BrandLite;
             BackColor = Theme.Surface;
             ForeColor = Theme.MutedInk;
             Font = Theme.Fonts.Tab;
             Cursor = Cursors.Hand;
         }
 
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            _hover = true;
+            Invalidate();
+            base.OnMouseEnter(e);
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            _hover = false;
+            Invalidate();
+            base.OnMouseLeave(e);
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);
-            if (Active)
+            e.Graphics.Clear(Theme.Surface);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var pill = new Rectangle(2, 6, Width - 5, Height - 13);
+            if ((Active || _hover) && pill.Width > 8 && pill.Height > 8)
             {
-                using var underline = new SolidBrush(Theme.Brand);
-                e.Graphics.FillRectangle(underline, 12, Height - 3, Width - 24, 3);
+                using var path = Theme.RoundedRectangle(pill, 8);
+                using var fill = new SolidBrush(Active ? Theme.BrandSoft : Theme.Sunken);
+                e.Graphics.FillPath(fill, path);
             }
+            TextRenderer.DrawText(
+                e.Graphics,
+                Text,
+                Font,
+                new Rectangle(0, 0, Width, Height),
+                Active ? Theme.BrandInk : Theme.MutedInk,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
         }
     }
 }

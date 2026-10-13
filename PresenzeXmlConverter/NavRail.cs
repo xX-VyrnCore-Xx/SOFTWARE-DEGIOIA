@@ -186,23 +186,18 @@ internal sealed class NavRail : Control
             var active = index == _selectedIndex;
             var hovered = index == _hoverIndex && !active;
 
+            // Stile barra laterale di macOS: la voce attiva è una pillola piena del colore di
+            // sistema con testo e icona bianchi, il passaggio del mouse un velo grigio.
             if (active || hovered)
             {
                 using var path = Theme.RoundedRectangle(
                     Rectangle.Round(box),
-                    9);
-                using var fill = new SolidBrush(active ? Theme.BrandSoft : Theme.Sunken);
+                    8);
+                using var fill = new SolidBrush(active ? Theme.Brand : Theme.Sunken);
                 e.Graphics.FillPath(fill, path);
             }
-            if (active)
-            {
-                var accent = new Rectangle((int)box.Left, (int)box.Top + 10, AccentWidth, (int)box.Height - 20);
-                using var path = Theme.RoundedRectangle(accent, AccentWidth / 2);
-                using var brush = new SolidBrush(Theme.Brand);
-                e.Graphics.FillPath(brush, path);
-            }
 
-            var ink = active ? Theme.BrandInk : Theme.MutedInk;
+            var ink = active ? Color.White : Theme.InkSecondary;
             var iconBox = new Rectangle(
                 (int)box.Left + 14,
                 (int)(box.Top + (box.Height - 18) / 2),
@@ -228,7 +223,7 @@ internal sealed class NavRail : Control
                     badgeWidth,
                     20);
                 using var pillPath = Theme.RoundedRectangle(pill, 10);
-                using var pillFill = new SolidBrush(active ? Theme.Surface : Theme.Sunken);
+                using var pillFill = new SolidBrush(active ? Color.FromArgb(70, Color.White) : Theme.Sunken);
                 e.Graphics.FillPath(pillFill, pillPath);
                 TextRenderer.DrawText(
                     e.Graphics,

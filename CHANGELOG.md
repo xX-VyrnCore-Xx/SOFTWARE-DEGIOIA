@@ -6,11 +6,12 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 ## [1.22.13] - Corrente
 
-### 🎨 Grafica più curata (la conversione non cambia)
-- Nuovo marchio nell'intestazione: quadrato con sfumatura di marca e spunta, al posto dell'icona generica
-- Pulsanti con transizione morbida al passaggio del mouse e un filo di luce sul bordo alto dei pulsanti pieni
-- Card con un filo d'ombra sul bordo inferiore, e barra colorata in cima alle metriche della dashboard
-- Nelle griglie la riga sotto il mouse si evidenzia con un azzurro leggero
+### 🎨 Nuovo aspetto in stile macOS (la conversione non cambia)
+- Tavolozza chiara alla Apple: sfondo grigio perla, blu di sistema, verde/arancio/rosso di sistema, testi grigio antracite; titoli in «Segoe UI Semibold» al posto del grassetto
+- Intestazione chiara (bianca, con bordo sottile) con il nuovo marchio e il campo di ricerca grigio; sparito il fondo blu notte
+- Barra laterale: la sezione attiva è una pillola blu piena con testo e icona bianchi, al passaggio del mouse un velo grigio
+- Schede dell'area di revisione a pillola (azzurra l'attiva) invece della sottolineatura
+- Pulsanti bianchi con bordo sottile, transizione morbida al passaggio del mouse; card con un filo d'ombra; barra colorata in cima alle metriche; righe delle griglie evidenziate al passaggio
 
 ## [1.22.12]
 
