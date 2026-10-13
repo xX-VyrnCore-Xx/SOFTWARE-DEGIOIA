@@ -50,7 +50,7 @@ public class UiGraphicsRegressionTests
                 {
                     clipped.Add($"{what}:{Environment.NewLine}{clippedHere}");
                 }
-                var snapshot = GrayReport(Render(form));
+                var snapshot = GrayReport(Render(form, $"{form.GetType().Name}-{what}"));
                 if (snapshot.Ratio > gray)
                 {
                     gray = snapshot.Ratio;
@@ -153,7 +153,7 @@ public class UiGraphicsRegressionTests
                     {
                         problems.Add($"sezione {section}, {what}:{Environment.NewLine}{clippedHere}");
                     }
-                    var snapshot = GrayReport(Render(form));
+                    var snapshot = GrayReport(Render(form, $"{form.GetType().Name}-{what}"));
                     if (snapshot.Ratio > gray)
                     {
                         gray = snapshot.Ratio;
@@ -255,7 +255,7 @@ public class UiGraphicsRegressionTests
                         {
                             problems.Add($"{dialog.GetType().Name}, {what}:{Environment.NewLine}{clippedHere}");
                         }
-                        var snapshot = GrayReport(Render(dialog));
+                        var snapshot = GrayReport(Render(dialog, $"{dialog.GetType().Name}-{what}"));
                         if (snapshot.Ratio > gray)
                         {
                             gray = snapshot.Ratio;
@@ -384,11 +384,28 @@ public class UiGraphicsRegressionTests
         return failure is null ? result : null;
     }
 
-    private static Bitmap Render(Form form)
+    private static Bitmap Render(Form form, string name)
     {
         var bitmap = new Bitmap(form.Width, form.Height, PixelFormat.Format24bppRgb);
         form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
+        SaveScreenshot(bitmap, name);
         return bitmap;
+    }
+
+    /// <summary>
+    /// Con PRESENZEFLOW_SCREENSHOT_DIR impostata ogni schermata resa dal test viene
+    /// salvata come PNG: la CI le pubblica e si può guardare l'app com'è davvero.
+    /// </summary>
+    private static void SaveScreenshot(Bitmap bitmap, string name)
+    {
+        var directory = Environment.GetEnvironmentVariable("PRESENZEFLOW_SCREENSHOT_DIR");
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return;
+        }
+        Directory.CreateDirectory(directory);
+        var safe = string.Concat(name.Select(c => char.IsLetterOrDigit(c) ? c : '-'));
+        bitmap.Save(Path.Combine(directory, $"{safe}.png"), ImageFormat.Png);
     }
 
     /// <summary>
