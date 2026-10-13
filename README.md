@@ -6,7 +6,7 @@ Vyrn Presence è un'applicazione Windows 11 x64 per convertire un foglio Excel d
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.21.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.22.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
 L'installer non scarica nulla oltre al programma. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
 
@@ -58,6 +58,10 @@ La sezione **Aziende** della barra laterale è l'anagrafica delle aziende per cu
 - Tutto è salvato nel database locale (schema 4) e quindi incluso nei backup automatici e nel ripristino.
 - Ogni codice digitato nel campo Azienda della conversione entra da solo nell'elenco, senza toccare ragione sociale e note di un'azienda già presente; il codice usato nelle versioni precedenti viene importato al primo avvio.
 - Nel campo Azienda compaiono i suggerimenti scrivendo le prime lettere; sotto al campo e nel piede della barra laterale si vede la ragione sociale dell'azienda in uso.
+
+### Regole per azienda
+
+Il pulsante **Regole…** della sezione Aziende imposta, per l'azienda selezionata, giornata standard, sabato lavorativo, rilevamento automatico e chiusure aziendali. Quando scegli quell'azienda in conversione le regole si applicano da sole; senza regole proprie valgono quelle generali delle Impostazioni.
 
 ## Sabato lavorativo e ore effettive
 
@@ -133,7 +137,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6.3 o successivo, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.21.0.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.22.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).

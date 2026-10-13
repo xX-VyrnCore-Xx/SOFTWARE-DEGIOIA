@@ -61,10 +61,10 @@ internal sealed class LocalDatabase
     /// <summary>
     /// Versione dello schema: 1 = preferenze e abbinamenti, 2 = storico delle
     /// esportazioni, 3 = impronta e file sorgente di ogni esportazione e copia
-    /// dell'XML consegnato, 4 = anagrafica delle aziende. Un database di versione superiore è stato scritto da
+    /// dell'XML consegnato, 4 = anagrafica delle aziende, 5 = regole di conversione per azienda. Un database di versione superiore è stato scritto da
     /// una build più recente e non va aperto a metà.
     /// </summary>
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 
     /// <summary>Quanti backup restano: i più vecchi vengono eliminati.</summary>
     public const int MaximumBackups = 10;
@@ -263,6 +263,7 @@ internal sealed class LocalDatabase
 
         // Database creato da una versione precedente: le colonne nuove si aggiungono
         // (mai si ricrea la tabella: lo storico esistente resta intatto).
+        EnsureColumn(connection, "Companies", "RulesJson", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(connection, "Exports", "Fingerprint", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(connection, "Exports", "SourceName", "TEXT NOT NULL DEFAULT ''");
         using (var fingerprintIndex = connection.CreateCommand())
@@ -844,14 +845,41 @@ internal sealed class LocalDatabase
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT Code, Name, Notes FROM Companies ORDER BY Code COLLATE NOCASE;";
+        command.CommandText = "SELECT Code, Name, Notes, RulesJson FROM Companies ORDER BY Code COLLATE NOCASE;";
         using var reader = command.ExecuteReader();
         var companies = new List<CompanyRecord>();
         while (reader.Read())
         {
-            companies.Add(new CompanyRecord(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+            companies.Add(new CompanyRecord(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                CompanyRules.TryParse(reader.GetString(3))));
         }
         return companies;
+    }
+
+    /// <summary>
+    /// Salva le regole di conversione proprie dell'azienda (null = torna a quelle generali).
+    /// L'azienda viene creata se non c'è ancora.
+    /// </summary>
+    public void SaveCompanyRules(string code, CompanyRules? rules)
+    {
+        code = (code ?? string.Empty).Trim();
+        if (code.Length is 0 or > 6)
+        {
+            throw new InvalidDataException("Il codice azienda deve contenere da 1 a 6 caratteri.");
+        }
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO Companies (Code, Name, Notes, UpdatedUtc, RulesJson) VALUES ($code, '', '', $now, $rules)
+            ON CONFLICT(Code) DO UPDATE SET RulesJson = excluded.RulesJson, UpdatedUtc = excluded.UpdatedUtc;
+            """;
+        command.Parameters.AddWithValue("$code", code);
+        command.Parameters.AddWithValue("$rules", rules?.ToJson() ?? string.Empty);
+        command.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        command.ExecuteNonQuery();
     }
 
     /// <summary>
