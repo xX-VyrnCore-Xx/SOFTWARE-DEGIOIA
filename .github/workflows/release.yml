@@ -385,6 +385,11 @@ jobs:
             # Inno usa questo comando per firmare l'installer e il disinstallatore.
             $signCommand = "signtool.exe sign /sha1 $env:SIGN_CERT_THUMBPRINT /s My /fd sha256 /td sha256 /tr http://timestamp.digicert.com `$f"
             $arguments = @('-dEnableSigning=1', "-sci=$signCommand") + $arguments
+            # L'installer propone di rendere attendibile il certificato (solo utente
+            # corrente) e lo toglie alla disinstallazione: servono il file .cer e l'impronta.
+            if (Test-Path 'dist\PresenzeFlow-codesign.cer') {
+              $arguments = @('-dTrustCertificate=1', "-dCertThumbprint=$env:SIGN_CERT_THUMBPRINT") + $arguments
+            }
             Write-Host 'L''installer verrà firmato.'
           } else {
             Write-Host 'L''installer verrà prodotto senza firma.'

@@ -1,5 +1,5 @@
 #define AppName "PresenzeFlow"
-#define AppVersion "1.17.0"
+#define AppVersion "1.18.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 
@@ -7,6 +7,19 @@
 ; aggiornamento di riconoscere l'esecuzione in corso e di chiudere il
 ; programma in modo ordinato, invece di fallire sui file in uso.
 #define AppMutex "DeGioia.PresenzeFlow.Setup"
+
+; Identificatore delle notifiche e della barra delle applicazioni: ripetuto in
+; AppIdentity.cs (AppUserModelId), il test lo tiene allineato.
+#define AppUserModelId "DeGioia.PresenzeFlow"
+
+; Attendibilita' del certificato: la CI passa -dTrustCertificate=1 e -dCertThumbprint=...
+; (il file dist\PresenzeFlow-codesign.cer deve esistere). Senza questi simboli la voce
+; non c'e', cosi' l'installer si compila anche in locale senza certificato.
+#ifdef TrustCertificate
+#ifndef CertThumbprint
+#error "TrustCertificate richiede anche -dCertThumbprint=<impronta del certificato>."
+#endif
+#endif
 
 ; Versione minima di Windows: .NET 8 non funziona su Windows 7/8.1. Meglio un
 ; messaggio chiaro in fase di installazione che un'app che non parte.
@@ -90,6 +103,13 @@ UsePreviousGroup=yes
 Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 
 [Tasks]
+#ifdef TrustCertificate
+; Certificato di firma dell'editore: con la firma autofirmata Windows mostra
+; "editore sconosciuto" e SmartScreen/Defender sono diffidenti finche' il PC non lo
+; riconosce. La voce lo aggiunge agli archivi dell'UTENTE CORRENTE (non del PC e
+; senza privilegi di amministratore); Windows chiede conferma una volta.
+Name: "trustcert"; Description: "Considera attendibile il certificato di firma di PresenzeFlow (solo per il tuo utente, evita gli avvisi di Windows)"; GroupDescription: "Sicurezza:"
+#endif
 Name: "desktopicon"; Description: "Crea un collegamento sul desktop"; GroupDescription: "Collegamenti aggiuntivi:"; Flags: unchecked
 Name: "ai"; Description: "Installa l'AI locale (Ollama se assente + il modello scelto nella pagina successiva)"; GroupDescription: "Funzionalità opzionali:"; Flags: unchecked
 
@@ -101,13 +121,19 @@ Source: "dist\app\PresenzeFlow.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Dipendenza nativa NON inclusa nel single-file publish: senza questo file l'app
 ; termina all'avvio con DllNotFoundException (SQLite illeggibile) e non mostra alcuna finestra.
 Source: "dist\app\e_sqlite3.dll"; DestDir: "{app}"; Flags: ignoreversion
+#ifdef TrustCertificate
+Source: "dist\PresenzeFlow-codesign.cer"; DestDir: "{app}"; Flags: ignoreversion
+#endif
 
 [InstallDelete]
 Type: files; Name: "{app}\PresenzeXmlConverter.exe"
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
+; AppUserModelID: lo stesso valore che l'app dichiara a Windows (AppIdentity.cs): senza
+; un collegamento con questo identificatore le notifiche del tray non vengono
+; attribuite al programma e Windows puo' sopprimerle.
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; AppUserModelID: "{#AppUserModelId}"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon; AppUserModelID: "{#AppUserModelId}"
 
 [Run]
 ; I passi di Ollama (download dell'installer, installazione e download del
@@ -317,6 +343,59 @@ begin
   else
     Log('Token GitHub non salvato: l''app lo chiederà al primo avvio.');
 end;
+
+#ifdef TrustCertificate
+{ Aggiunge il certificato di firma agli archivi dell'utente corrente: "TrustedPublisher"
+  (nessuna conferma) e "Root" (Windows mostra un avviso di sicurezza da confermare: e'
+  quello che fa riconoscere la firma autofirmata). Mai in installazione silenziosa, cioe'
+  durante un aggiornamento: il certificato e' gia' stato accettato la prima volta e un
+  avviso a sorpresa non deve mai comparire. Un errore non ferma l'installazione. }
+procedure TrustPublisherCertificate();
+var
+  CertificatePath: String;
+  ResultCode: Integer;
+begin
+  if WizardSilent or not WizardIsTaskSelected('trustcert') then
+    Exit;
+  CertificatePath := ExpandConstant('{app}\PresenzeFlow-codesign.cer');
+  if not FileExists(CertificatePath) then
+  begin
+    Log('Certificato di firma non trovato: ' + CertificatePath);
+    Exit;
+  end;
+  if Exec(ExpandConstant('{sys}\certutil.exe'), '-user -addstore -f TrustedPublisher "' + CertificatePath + '"',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
+    Log('Certificato aggiunto agli editori attendibili dell''utente.')
+  else
+    Log(Format('Certificato non aggiunto agli editori attendibili (codice %d).', [ResultCode]));
+  if Exec(ExpandConstant('{sys}\certutil.exe'), '-user -addstore -f Root "' + CertificatePath + '"',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
+    Log('Certificato aggiunto alle autorita'' attendibili dell''utente.')
+  else
+    Log(Format('Certificato non aggiunto alle autorita'' attendibili (codice %d): conferma rifiutata o non consentita.', [ResultCode]));
+end;
+
+{ Alla disinstallazione il certificato aggiunto non resta: se ne torna al punto di
+  partenza. In silenzioso si toglie solo quello degli editori (nessun avviso). }
+procedure UntrustPublisherCertificate();
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\certutil.exe'), '-user -delstore TrustedPublisher {#CertThumbprint}',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if not UninstallSilent then
+    Exec(ExpandConstant('{sys}\certutil.exe'), '-user -delstore Root {#CertThumbprint}',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+#else
+procedure TrustPublisherCertificate();
+begin
+end;
+
+procedure UntrustPublisherCertificate();
+begin
+end;
+#endif
 
 { Modello scelto in una installazione precedente (file scritto in [Code]). }
 function InstalledModelFromMarker(): String;
@@ -710,6 +789,7 @@ begin
   { Il token delle Release si salva anche in installazione silenziosa: così una
     distribuzione aziendale arriva con gli aggiornamenti già collegati. }
   ProvisionGithubToken();
+  TrustPublisherCertificate();
 
   { Aggiornamento silenzioso: le preferenze dell'utente (incluso il modello
     scelto) restano esattamente come sono, senza download imprevisti. }
@@ -870,6 +950,9 @@ begin
     if ExePath <> '' then
       Exec(ExePath, 'rm ' + ModelName, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
+
+  if CurUninstallStep = usUninstall then
+    UntrustPublisherCertificate();
 
   if CurUninstallStep <> usPostUninstall then
     Exit;

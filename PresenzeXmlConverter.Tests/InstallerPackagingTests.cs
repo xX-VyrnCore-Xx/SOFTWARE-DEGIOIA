@@ -245,7 +245,12 @@ public class InstallerPackagingTests
             .Select(match => match.Groups[1].Value)
             .Distinct(StringComparer.Ordinal);
 
-        Assert.Empty(used.Where(name => !defined.Contains(name)));
+        // Simboli che non si definiscono nello script ma si passano a ISCC dalla riga di
+        // comando (il rilascio e la CI): l'impronta del certificato è nota solo alla
+        // build. Lo script la esige insieme a TrustCertificate (#error).
+        var passedByTheBuild = new[] { "CertThumbprint" };
+
+        Assert.Empty(used.Where(name => !defined.Contains(name) && !passedByTheBuild.Contains(name)));
     }
 
     /// <summary>

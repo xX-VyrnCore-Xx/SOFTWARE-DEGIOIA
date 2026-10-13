@@ -203,7 +203,7 @@ internal sealed partial class MainForm
                 return;
             }
 
-            if (!userInitiated && !Visible)
+            if (!userInitiated && !IsWindowInUse)
             {
                 // Finestra nascosta in tray: niente dialoghi a sorpresa, solo una
                 // notifica. La proposta con le novità comparirà al controllo
@@ -245,14 +245,20 @@ internal sealed partial class MainForm
         }
     }
 
+    private Version? _notifiedUpdateVersion;
+
     private void NotifyUpdateAvailable(UpdateInfo update)
     {
-        _trayIcon.Visible = true;
-        _trayIcon.ShowBalloonTip(
-            6000,
+        // Una sola notifica per versione: il controllo gira ogni ora e ripeterla
+        // ogni volta diventerebbe fastidioso.
+        if (_notifiedUpdateVersion == update.Version)
+        {
+            return;
+        }
+        _notifiedUpdateVersion = update.Version;
+        ShowTrayNotification(
             "Aggiornamento disponibile",
-            $"È pronta la versione {update.Version.ToString(3)} di PresenzeFlow: apri il programma per installarla.",
-            ToolTipIcon.Info);
+            $"È pronta la versione {update.Version.ToString(3)} di PresenzeFlow: apri il programma per installarla.");
     }
 
     private async Task DownloadAndInstallAsync(UpdateInfo update)
