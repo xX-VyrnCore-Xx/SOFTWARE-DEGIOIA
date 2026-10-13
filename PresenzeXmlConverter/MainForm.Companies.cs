@@ -186,6 +186,17 @@ internal sealed partial class MainForm
 
         // Il flusso va da destra a sinistra: il primo aggiunto è il più a destra, e
         // lì sta «Salva azienda», l'azione principale, che non deve mai finire fuori.
+        // Larghezze dichiarate: la misura automatica del testo non bastava e le
+        // etichette lunghe («Usa in conversione») andavano a capo su due righe.
+        foreach (var (button, width) in new[]
+                 {
+                     (_companySaveButton, 134), (_companyUseButton, 170), (_companyNewButton, 100),
+                     (_companyRulesButton, 118), (_companyDeleteButton, 100)
+                 })
+        {
+            button.MinimumSize = new Size(width, button.MinimumSize.Height);
+            button.Size = new Size(width, button.Height);
+        }
         actions.Controls.Add(_companySaveButton);
         actions.Controls.Add(_companyUseButton);
         actions.Controls.Add(_companyNewButton);
