@@ -100,13 +100,15 @@ internal static class ExportHistory
     public static string SuggestFileName(
         string companyCode,
         string? sourceName,
-        IReadOnlyCollection<DailyMovement> movements)
+        IReadOnlyCollection<DailyMovement> movements,
+        bool trripa = false)
     {
+        var prefix = trripa ? "TRRIPA" : "TRRIPW";
         var parts = new List<string>();
         var company = (companyCode ?? string.Empty).Trim().ToUpperInvariant();
         if (movements.Count > 0)
         {
-            parts.Add("TRRIPW");
+            parts.Add(prefix);
             if (company.Length > 0)
             {
                 parts.Add(company);
@@ -121,12 +123,12 @@ internal static class ExportHistory
         {
             var source = Path.GetFileNameWithoutExtension(sourceName ?? string.Empty);
             parts.Add(string.IsNullOrWhiteSpace(source) ? "presenze" : source);
-            parts.Add("TRRIPW");
+            parts.Add(prefix);
         }
 
         var invalid = Path.GetInvalidFileNameChars();
         var name = string.Concat(string.Join('_', parts).Where(character => !invalid.Contains(character)));
-        return (name.Length == 0 ? "TRRIPW" : name) + ".xml";
+        return (name.Length == 0 ? prefix : name) + (trripa ? ".txt" : ".xml");
     }
 
     /// <summary>Descrive il contenuto di un'esportazione in una riga.</summary>
