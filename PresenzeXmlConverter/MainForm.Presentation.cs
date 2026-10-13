@@ -142,7 +142,7 @@ internal sealed partial class MainForm
         _companyCode.MaxLength = 6;
         _companyCode.InputFont = Theme.Fonts.Field;
         _companyCode.CharacterCasing = CharacterCasing.Upper;
-        _companyCode.Placeholder = "es. ABC123";
+        _companyCode.Placeholder = "ABC123";
         _companyCode.Input.AccessibleName = "Codice azienda ufficiale PAGHE";
         _companyCode.Dock = DockStyle.Fill;
         _companyCode.Margin = new Padding(0, 4, 0, 4);

@@ -10,18 +10,18 @@ public class ConversionTests
     [Fact]
     public void SampleWorkbookContainsExpectedAttendanceRequests()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "file presenze cliente.xlsx");
+        var path = SampleWorkbook.Path;
         var inspection = AttendanceWorkbookReader.Inspect(path);
 
-        Assert.Equal("Italy Payroll Attendence", inspection.SheetName);
+        Assert.Equal(SampleWorkbook.SheetName, inspection.SheetName);
         Assert.Equal(new DateTime(2026, 8, 1), inspection.PeriodStart);
         Assert.Equal(new DateTime(2026, 8, 31), inspection.PeriodEnd);
         Assert.NotNull(inspection.SuggestedColumns);
 
         var requests = inspection.ReadRequests(inspection.SuggestedColumns!);
-        Assert.Equal(72, requests.Count);
-        Assert.Equal(35, requests.Select(request => request.EmployeeName).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(9, requests.Select(request => request.Policy).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(SampleWorkbook.RequestCount, requests.Count);
+        Assert.Equal(SampleWorkbook.EmployeeCount, requests.Select(request => request.EmployeeName).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(SampleWorkbook.PolicyCount, requests.Select(request => request.Policy).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class ConversionTests
     [Fact]
     public void SampleWorkbookCanBeExpandedIntoDailyMovementsWithoutLosingRequestedMinutes()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "file presenze cliente.xlsx");
+        var path = SampleWorkbook.Path;
         var inspection = AttendanceWorkbookReader.Inspect(path);
         var requests = inspection.ReadRequests(inspection.SuggestedColumns!);
         var employees = requests.Select(request => request.EmployeeName)
@@ -66,7 +66,10 @@ public class ConversionTests
             employees,
             policies,
             inspection.PeriodStart,
-            inspection.PeriodEnd);
+            inspection.PeriodEnd,
+            // Questo test verifica la distribuzione sui soli feriali: il sabato
+            // automatico ha i suoi test in WorkCalendarTests.
+            new GenerationOptions(AutoDetect: false));
         var expectedMinutes = requests
             .Where(request => Enumerable.Range(0, (request.EndDate.Date - request.StartDate.Date).Days + 1)
                 .Select(offset => request.StartDate.Date.AddDays(offset))
@@ -300,7 +303,7 @@ public class ConversionTests
     [Fact]
     public void ColumnMappingRejectsReusingTheSameExcelColumn()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "file presenze cliente.xlsx");
+        var path = SampleWorkbook.Path;
         var inspection = AttendanceWorkbookReader.Inspect(path);
         var valid = inspection.SuggestedColumns!;
 
