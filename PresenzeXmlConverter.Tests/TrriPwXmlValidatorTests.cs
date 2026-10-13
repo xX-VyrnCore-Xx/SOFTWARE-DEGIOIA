@@ -54,10 +54,10 @@ public class TrriPwXmlValidatorTests
     public void TheAutomaticTheoreticalGenerationAttributeBelongsToTheMovementsNode()
     {
         const string wrongPlace = """
-            <Dipendenti><Dipendente GenerazioneAutomaticaDaTeorico="N">
+            <Fornitura><Dipendente GenerazioneAutomaticaDaTeorico="N">
             <CodAziendaUfficiale>AZ001</CodAziendaUfficiale><CodDipendenteUfficiale>1234567</CodDipendenteUfficiale>
             <Movimenti><Movimento><CodGiustificativoUfficiale>01</CodGiustificativoUfficiale><Data>2026-08-17</Data><NumOre>8</NumOre><NumMinuti>0</NumMinuti></Movimento></Movimenti>
-            </Dipendente></Dipendenti>
+            </Dipendente></Fornitura>
             """;
         const string teoretical = wrongPlace;
 
@@ -70,8 +70,8 @@ public class TrriPwXmlValidatorTests
     }
 
     [Theory]
-    [InlineData("<NumOre>8</NumOre>", "<NumOre>100</NumOre>")]
-    [InlineData("<NumMinuti>0</NumMinuti>", "<NumMinuti>60</NumMinuti>")]
+    [InlineData("<NumOre>08</NumOre>", "<NumOre>100</NumOre>")]
+    [InlineData("<NumMinuti>30</NumMinuti>", "<NumMinuti>60</NumMinuti>")]
     [InlineData("<Data>2026-08-17</Data>", "<Data>17/08/2026</Data>")]
     [InlineData("<CodGiustificativoUfficiale>01</CodGiustificativoUfficiale>", "<CodGiustificativoUfficiale>0123</CodGiustificativoUfficiale>")]
     public void FieldsOutsideTheLayoutAreReported(string original, string broken)

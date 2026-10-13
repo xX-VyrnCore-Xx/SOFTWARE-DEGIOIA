@@ -94,3 +94,74 @@ public class XmlFormatTests
         Assert.False(XmlFormat.IsValidNamespace("non un indirizzo"));
     }
 }
+
+/// <summary>
+/// Un XML che Zucchetti ha importato davvero (esportato dal programma del cliente): fissa
+/// radice, attributi di «Dipendente», «Movimenti» con un solo attributo e campi del movimento.
+/// </summary>
+public class ZucchettiAcceptedSampleTests
+{
+    private const string Accepted = """
+        <?xml version="1.0" encoding="utf-8" ?>
+        <Fornitura>
+        <Dipendente CodAziendaUfficiale="000023" CodDipendenteUfficiale="0000001">
+        <Movimenti GenerazioneAutomaticaDaTeorico="N">
+        <Movimento>
+        <CodGiustificativoRilPres>FE</CodGiustificativoRilPres>
+        <CodGiustificativoUfficiale>FE</CodGiustificativoUfficiale>
+        <Data>2026-06-01</Data>
+        <NumOre>08</NumOre>
+        </Movimento>
+        <Movimento>
+        <CodGiustificativoRilPres>334</CodGiustificativoRilPres>
+        <CodGiustificativoUfficiale>999</CodGiustificativoUfficiale>
+        <Data>2026-06-03</Data>
+        <NumOre>08</NumOre>
+        </Movimento>
+        </Movimenti>
+        </Dipendente>
+        </Fornitura>
+        """;
+
+    [Fact]
+    public void TheAcceptedSampleValidatesAndMatchesTheDefaultFormat()
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(Accepted);
+        Assert.Empty(TrriPwXmlValidator.Validate(bytes));
+        var path = Path.Combine(Path.GetTempPath(), $"accettato-{Guid.NewGuid():N}.xml");
+        try
+        {
+            File.WriteAllText(path, Accepted);
+            Assert.True(XmlFormat.TryDetect(path, out var format, out _));
+            Assert.Equal(XmlFormat.Default, format with { MovementPerNode = false });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void TheWriterProducesTheSameShapeAsTheAcceptedSample()
+    {
+        var movements = new[]
+        {
+            new DailyMovement("Rossi", "0000001", "Ferie", "FE", new DateTime(2026, 6, 1), 8, 0, 4),
+            new DailyMovement("Rossi", "0000001", "Ferie", "FE", new DateTime(2026, 6, 5), 4, 0, 5)
+        };
+        var accepted = System.Xml.Linq.XDocument.Parse(Accepted);
+        var written = System.Xml.Linq.XDocument.Parse(TrriPwXmlWriter.Create("000023", movements));
+
+        Assert.Equal(accepted.Root!.Name, written.Root!.Name);
+        var employee = written.Root.Element("Dipendente")!;
+        Assert.Equal(
+            accepted.Root.Element("Dipendente")!.Attributes().Select(attribute => attribute.Name.LocalName),
+            employee.Attributes().Select(attribute => attribute.Name.LocalName));
+        Assert.Empty(employee.Elements().Where(element => element.Name != "Movimenti"));
+        var movement = employee.Element("Movimenti")!.Elements("Movimento").First();
+        Assert.Equal(
+            accepted.Root.Descendants("Movimento").First().Elements().Select(element => element.Name.LocalName),
+            movement.Elements().Select(element => element.Name.LocalName));
+        Assert.Equal("08", (string?)movement.Element("NumOre"));
+    }
+}

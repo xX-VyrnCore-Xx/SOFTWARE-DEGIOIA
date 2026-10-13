@@ -15,13 +15,11 @@ internal static class TrriPwXmlWriter
      * usare valori diversi da quelli dichiarati nel tracciato. */
 
     /// <summary>
-    /// Elemento radice del documento. «TRRIPW» è il nome del tracciato e del file, NON
-    /// dell'elemento: Zucchetti lo respinge con «cvc-elt.1: impossibile trovare la
-    /// dichiarazione dell'elemento "TRRIPW"». Il tracciato descrive il nodo
-    /// «Dipendente» come testata di ogni serie di dati e chiama «Dipendenti» il nodo
-    /// che li raccoglie, come per «Commesse» e «Movimenti»: la radice è quel contenitore.
+    /// Elemento radice del documento. Confermato da un XML che Zucchetti importa:
+    /// <c>&lt;Fornitura&gt;</c> contiene i nodi «Dipendente». «TRRIPW» (nome del tracciato)
+    /// e «Dipendenti» sono invece respinti con «cvc-elt.1».
     /// </summary>
-    public const string RootElement = "Dipendenti";
+    public const string RootElement = "Fornitura";
 
     /// <summary>CodAziendaUfficiale: fino a 6 caratteri.</summary>
     public const int MaxCompanyCodeLength = 6;
@@ -132,7 +130,7 @@ internal static class TrriPwXmlWriter
         return Encoding.UTF8.GetString(output.ToArray());
     }
 
-    internal static (string Company, DailyMovement[] Movements) Validate(
+    private static (string Company, DailyMovement[] Movements) Validate(
         string companyCode,
         IReadOnlyList<DailyMovement> movements)
     {
@@ -245,9 +243,10 @@ internal static class TrriPwXmlWriter
                      .GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase)
                      .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
+            // Come nel file accettato da Zucchetti, i codici sono attributi del nodo, non figli.
             writer.WriteStartElement("Dipendente", ns);
-            WriteElement(writer, "CodAziendaUfficiale", companyCode, ns);
-            WriteElement(writer, "CodDipendenteUfficiale", employeeGroup.Key, ns);
+            writer.WriteAttributeString("CodAziendaUfficiale", companyCode);
+            writer.WriteAttributeString("CodDipendenteUfficiale", employeeGroup.Key);
             var ordered = employeeGroup
                 .OrderBy(movement => movement.Date.Date)
                 .ThenBy(movement => movement.ReasonCode, StringComparer.OrdinalIgnoreCase)
@@ -288,10 +287,16 @@ internal static class TrriPwXmlWriter
 
     private static void WriteMovementFields(XmlWriter writer, DailyMovement movement, string? ns)
     {
+        // Il file accettato da Zucchetti ripete il codice sia come «rilevazione presenze» sia
+        // come «ufficiale», ha le ore a 2 cifre (08) e omette i minuti quando sono zero.
+        WriteElement(writer, "CodGiustificativoRilPres", movement.ReasonCode, ns);
         WriteElement(writer, "CodGiustificativoUfficiale", movement.ReasonCode, ns);
         WriteElement(writer, "Data", movement.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ns);
-        WriteElement(writer, "NumOre", movement.Hours.ToString(CultureInfo.InvariantCulture), ns);
-        WriteElement(writer, "NumMinuti", movement.Minutes.ToString(CultureInfo.InvariantCulture), ns);
+        WriteElement(writer, "NumOre", movement.Hours.ToString("00", CultureInfo.InvariantCulture), ns);
+        if (movement.Minutes > 0)
+        {
+            WriteElement(writer, "NumMinuti", movement.Minutes.ToString("00", CultureInfo.InvariantCulture), ns);
+        }
     }
 
     /// <summary>
