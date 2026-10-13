@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.7] - Corrente
+## [1.22.8] - Corrente
+
+### 📄 Esportazione in TRRIPA (testo a larghezza fissa)
+- Il PDF Zucchetti «Interfaccia rilevazione presenze – tracciati record» descrive il **TRRIPA** campo per campo (100 caratteri per riga, testata `00` per dipendente e movimenti `01`) e ne garantisce l'importazione; l'XML invece non riporta mai l'elemento radice richiesto dallo schema, quindi veniva respinto («cvc-elt.1»)
+- Il formato predefinito è ora TRRIPA: anteprima, nome file (`TRRIPA_<azienda>_<anno-mese>.txt`) e salvataggio. L'XML resta disponibile scegliendo «File XML» nella finestra di salvataggio
+- Il file salvato viene riletto e controllato (lunghezza dei record, testata, data, ore) prima di darlo per consegnato
+
+## [1.22.7]
 
 ### 🧩 Formato XML configurabile (Zucchetti: «cvc-elt.1»)
 - Zucchetti valida il file contro uno schema che non è nel tracciato PDF: né `<TRRIPW>` né `<Dipendenti>` come radice sono stati accettati. Nuova scheda **Impostazioni → Formato XML**: nome dell'elemento radice, spazio dei nomi (xmlns) e disposizione dei movimenti (dentro un nodo «Movimenti» oppure un nodo «Movimenti» per giorno)

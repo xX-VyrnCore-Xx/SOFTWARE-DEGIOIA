@@ -132,7 +132,7 @@ internal static class TrriPwXmlWriter
         return Encoding.UTF8.GetString(output.ToArray());
     }
 
-    private static (string Company, DailyMovement[] Movements) Validate(
+    internal static (string Company, DailyMovement[] Movements) Validate(
         string companyCode,
         IReadOnlyList<DailyMovement> movements)
     {

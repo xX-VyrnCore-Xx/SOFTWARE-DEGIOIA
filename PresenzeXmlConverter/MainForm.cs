@@ -582,7 +582,7 @@ internal sealed partial class MainForm : Form
                         _generationOptions);
                     var document = generation.Movements.Count == 0
                         ? string.Empty
-                        : TrriPwXmlWriter.Create(companyCode, generation.Movements);
+                        : TrripaWriter.Create(companyCode, generation.Movements);
                     return (generation, document);
                 });
             }
@@ -779,11 +779,11 @@ internal sealed partial class MainForm : Form
         }
         using var picker = new SaveFileDialog
         {
-            Title = "Salva il file XML TRRIPW",
-            Filter = "File XML (*.xml)|*.xml",
+            Title = "Salva il file per Zucchetti",
+            Filter = "TRRIPA - testo a larghezza fissa (*.txt)|*.txt|File XML TRRIPW (*.xml)|*.xml",
             AddExtension = true,
-            DefaultExt = "xml",
-            FileName = ExportHistory.SuggestFileName(_companyCode.Value, _sourcePath, _movements),
+            DefaultExt = "txt",
+            FileName = ExportHistory.SuggestFileName(_companyCode.Value, _sourcePath, _movements, trripa: true),
             OverwritePrompt = true
         };
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
@@ -798,21 +798,23 @@ internal sealed partial class MainForm : Form
         try
         {
             var companyCode = _companyCode.Value.Trim();
-            if (_movements.Count > 0 && companyCode.Length is > 0 and <= 6)
+            var asXml = string.Equals(Path.GetExtension(picker.FileName), ".xml", StringComparison.OrdinalIgnoreCase);
+            if (asXml)
             {
-                // Scrittura in streaming: più veloce e senza duplicare il file in memoria.
                 TrriPwXmlWriter.SaveFile(picker.FileName, companyCode, _movements);
             }
             else
             {
-                TrriPwXmlWriter.SaveFile(picker.FileName, _xml!);
+                TrripaWriter.SaveFile(picker.FileName, companyCode, _movements);
             }
             // Il file si rilegge e si controlla contro il tracciato prima di darlo per consegnato.
-            var problems = TrriPwXmlValidator.ValidateFile(picker.FileName);
+            var problems = asXml
+                ? TrriPwXmlValidator.ValidateFile(picker.FileName)
+                : TrripaWriter.ValidateFile(picker.FileName);
             if (problems.Count > 0)
             {
                 throw new InvalidDataException(
-                    "Il file salvato non rispetta il tracciato TRRIPW e non va consegnato:" + Environment.NewLine +
+                    "Il file salvato non rispetta il tracciato e non va consegnato:" + Environment.NewLine +
                     string.Join(Environment.NewLine, problems.Take(6).Select(problem => "• " + problem)));
             }
             var directory = Path.GetDirectoryName(picker.FileName);
@@ -822,12 +824,12 @@ internal sealed partial class MainForm : Form
                 _database.SaveSetting("last-export-dir", directory);
             }
             RecordExport(picker.FileName, companyCode);
-            SetStatus($"XML salvato: {picker.FileName}", false);
+            SetStatus($"File salvato: {picker.FileName}", false);
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or AggregateException or InvalidDataException)
         {
-            ShowError("Salvataggio XML non riuscito", exception);
+            ShowError("Salvataggio non riuscito", exception);
         }
     }
 
@@ -956,7 +958,7 @@ internal sealed partial class MainForm : Form
             }
 
             _movements = movements;
-            _xml = TrriPwXmlWriter.Create(companyCode, movements);
+            _xml = TrripaWriter.Create(companyCode, movements);
             ShowXmlPreview(_xml);
             PersistMovementMappings();
             RunDeterministicChecks(movements);
