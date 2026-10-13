@@ -6,6 +6,10 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 ## [1.22.4] - Corrente
 
+### 🐞 Campi di testo
+- Il cursore lampeggiante ora si vede: il testo guida («ABC123», «Cerca nei movimenti») copriva il campo anche quando era attivo e nascondeva il cursore. Ora sparisce appena clicchi nel campo
+- Campo attivo con alone morbido attorno al bordo, così si capisce subito dove si sta scrivendo
+
 ### ✨ Note di aggiornamento più belle
 - Le novità di una versione non sono più testo grezzo: i titoli («What's Changed» diventa «Novità») hanno la barretta d'accento, le voci un punto colorato, e spariscono autore, link alla pull request e «Full Changelog»
 - Tolta la riga d'apertura che ripeteva il titolo («Vyrn Presence 1.22.2 — PresenzeFlow 1.22.2 (v1.22.2)»)

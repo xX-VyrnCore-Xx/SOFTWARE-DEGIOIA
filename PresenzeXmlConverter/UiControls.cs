@@ -149,8 +149,20 @@ internal sealed class RoundedField : Panel
         _input.ForeColor = Theme.Ink;
         _input.Margin = Padding.Empty;
         _input.TextChanged += (_, _) => UpdatePlaceholder();
-        _input.GotFocus += (_, _) => Invalidate();
-        _input.LostFocus += (_, _) => Invalidate();
+        // Con il campo vuoto il testo guida stava SOPRA il TextBox anche a campo
+        // attivo: copriva il cursore lampeggiante e non si vedeva dove si scriveva.
+        // Appena il campo prende il focus il testo guida sparisce, e torna quando
+        // si esce lasciandolo vuoto.
+        _input.GotFocus += (_, _) =>
+        {
+            UpdatePlaceholder();
+            Invalidate();
+        };
+        _input.LostFocus += (_, _) =>
+        {
+            UpdatePlaceholder();
+            Invalidate();
+        };
         Controls.Add(_input);
 
         _placeholder.TextAlign = ContentAlignment.MiddleLeft;
@@ -256,8 +268,18 @@ internal sealed class RoundedField : Panel
         {
             e.Graphics.FillPath(fill, path);
         }
-        // Il bordo si accende quando il campo ha il focus: l'utente vede
-        // subito dove finirà ciò che sta scrivendo.
+        // Il bordo si accende quando il campo ha il focus, con un alone morbido:
+        // l'utente vede subito dove finirà ciò che sta scrivendo.
+        if (_input.Focused)
+        {
+            var ringBounds = Rectangle.Inflate(bounds, -1, -1);
+            if (ringBounds.Width > 2 && ringBounds.Height > 2)
+            {
+                using var ringPath = Theme.RoundedRectangle(ringBounds, Radius - 1);
+                using var ring = new Pen(Theme.BrandLite, 3f);
+                e.Graphics.DrawPath(ring, ringPath);
+            }
+        }
         using var pen = new Pen(_input.Focused ? Theme.Brand : Theme.DividerStrong, 1f);
         e.Graphics.DrawPath(pen, path);
     }
