@@ -867,6 +867,45 @@ public class InstallerPackagingTests
         return File.Exists(path) ? NormalizeLineEndings(File.ReadAllText(path)) : null;
     }
 
+    /// <summary>
+    /// Un flag sconosciuto in [Icons] ferma la compilazione dell'installer e quindi
+    /// l'intera Release («Parameter "Flags" includes an unknown flag»): è successo con
+    /// «onlyifdoesntexist», che esiste per [Files] ma non per [Icons]. Qui ogni flag
+    /// delle righe [Icons] deve stare fra quelli documentati da Inno Setup 6.
+    /// </summary>
+    [Fact]
+    public void IconsSectionUsesOnlyFlagsThatInnoSetupAcceptsForIcons()
+    {
+        var script = ReadInstallerScript();
+        if (script is null)
+        {
+            return;
+        }
+
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "closeonexit", "createonlyiffileexists", "dontcloseonexit", "excludefromshowinnewinstall",
+            "foldershortcut", "runmaximized", "runminimized", "uninsneveruninstall",
+            "useapppaths", "preventpinning"
+        };
+        var start = script.IndexOf("\n[Icons]\n", StringComparison.Ordinal);
+        Assert.True(start >= 0, "sezione [Icons] non trovata");
+        var end = script.IndexOf("\n[", start + 1, StringComparison.Ordinal);
+        var section = script[start..(end < 0 ? script.Length : end)];
+        foreach (var line in section.Split('\n').Where(l => l.StartsWith("Name:", StringComparison.Ordinal)))
+        {
+            var match = Regex.Match(line, @"Flags:\s*([^;]+)");
+            if (!match.Success)
+            {
+                continue;
+            }
+            foreach (var flag in match.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                Assert.True(allowed.Contains(flag), $"Flag non valido per [Icons]: «{flag}» in: {line}");
+            }
+        }
+    }
+
     private static string? ReadInstallerScript()
     {
         var path = Path.Combine(FindRepositoryRoot() ?? string.Empty, "Installer.iss");

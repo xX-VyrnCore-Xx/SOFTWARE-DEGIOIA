@@ -8,7 +8,6 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 ### 💾 Finestra e aggiornamenti
 - La posizione e la dimensione della finestra (e lo stato «ingrandita») si salvano mentre si usa l'app, non solo alla chiusura: dopo un aggiornamento la finestra ricompare dov'era
-- L'aggiornamento non ricrea più l'icona sul desktop se esiste già: non si sposta
 - I dati salvati (aziende, codici, storico, impostazioni) non vengono toccati dall'aggiornamento
 
 ### 🎨 Aspetto più curato
