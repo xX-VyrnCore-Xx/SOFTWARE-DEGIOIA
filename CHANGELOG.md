@@ -6,6 +6,9 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 ## [1.22.6] - Corrente
 
+### 🐞 Zucchetti respingeva il file: elemento radice
+- Il caricamento su Zucchetti falliva con «cvc-elt.1: impossibile trovare la dichiarazione dell'elemento "TRRIPW"»: «TRRIPW» è il nome del tracciato, non dell'elemento. La radice del file ora è `<Dipendenti>` (il contenitore dei nodi `Dipendente`)
+
 ### 🐞 Conversione: «nessun movimento» con il file del cliente
 - Se il periodo scritto in cima al foglio («From Date / To Date») non contiene **nessuna** richiesta (il file del cliente diceva agosto, le richieste erano di settembre), l'app scartava tutto e mostrava «nessun movimento». Ora il periodo viene ignorato e un avviso lo dice: si usano le date delle richieste. Le richieste fuori dal periodo restano escluse solo quando altre richieste lo rispettano
 - Colonne: quando il foglio ha sia «Policy type» («Vacation (hours)») sia «Policy» («IT vacation (hours)») si sceglie «Policy», quella a cui è abbinato il giustificativo

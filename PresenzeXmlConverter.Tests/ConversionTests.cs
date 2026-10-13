@@ -410,7 +410,7 @@ public class ConversionTests
     [Fact]
     public void XmlWriterEnforcesTheDocumentedTracciatoLimits()
     {
-        Assert.Equal("TRRIPW", TrriPwXmlWriter.RootElement);
+        Assert.Equal("Dipendenti", TrriPwXmlWriter.RootElement);
         var company = new string('A', TrriPwXmlWriter.MaxCompanyCodeLength);
         var movement = new DailyMovement(
             "Rossi Mario",
@@ -422,7 +422,7 @@ public class ConversionTests
             TrriPwXmlWriter.MaxMinutesPerMovement);
 
         // Al limite: il documento viene prodotto.
-        Assert.Contains("TRRIPW", TrriPwXmlWriter.Create(company, [movement]));
+        Assert.Contains("<Dipendenti>", TrriPwXmlWriter.Create(company, [movement]));
 
         // Un carattere oltre il limite: rifiutato.
         Assert.Throws<InvalidDataException>(() =>
@@ -500,7 +500,7 @@ public class ConversionTests
             var bytes = File.ReadAllBytes(path);
             Assert.False(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF);
             Assert.Equal(xml, Encoding.UTF8.GetString(bytes));
-            Assert.Equal("TRRIPW", XDocument.Load(path).Root!.Name.LocalName);
+            Assert.Equal("Dipendenti", XDocument.Load(path).Root!.Name.LocalName);
         }
         finally
         {

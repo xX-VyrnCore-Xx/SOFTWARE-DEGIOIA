@@ -14,8 +14,14 @@ internal static class TrriPwXmlWriter
      * unico posto, perché la generazione e la scrittura dell'XML non possano
      * usare valori diversi da quelli dichiarati nel tracciato. */
 
-    /// <summary>Elemento radice del documento.</summary>
-    public const string RootElement = "TRRIPW";
+    /// <summary>
+    /// Elemento radice del documento. «TRRIPW» è il nome del tracciato e del file, NON
+    /// dell'elemento: Zucchetti lo respinge con «cvc-elt.1: impossibile trovare la
+    /// dichiarazione dell'elemento "TRRIPW"». Il tracciato descrive il nodo
+    /// «Dipendente» come testata di ogni serie di dati e chiama «Dipendenti» il nodo
+    /// che li raccoglie, come per «Commesse» e «Movimenti»: la radice è quel contenitore.
+    /// </summary>
+    public const string RootElement = "Dipendenti";
 
     /// <summary>CodAziendaUfficiale: fino a 6 caratteri.</summary>
     public const int MaxCompanyCodeLength = 6;
