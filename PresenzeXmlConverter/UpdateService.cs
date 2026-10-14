@@ -463,7 +463,8 @@ internal static class UpdateService
         UpdateInfo update,
         string destinationPath,
         IProgress<int>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<(long Received, long Total)>? transfer = null)
     {
         // Una rete instabile può interrompere il trasferimento a metà: si riprova
         // da capo (al massimo tre volte) prima di arrendersi.
@@ -471,7 +472,7 @@ internal static class UpdateService
         {
             try
             {
-                await DownloadOnceAsync(update, destinationPath, progress, cancellationToken);
+                await DownloadOnceAsync(update, destinationPath, progress, cancellationToken, transfer);
                 return;
             }
             catch (Exception exception) when (
@@ -480,6 +481,7 @@ internal static class UpdateService
                 exception is HttpRequestException or IOException)
             {
                 progress?.Report(0);
+                transfer?.Report((0, 0));
                 await Task.Delay(TimeSpan.FromSeconds(2 * attempt), cancellationToken);
             }
         }
@@ -489,7 +491,8 @@ internal static class UpdateService
         UpdateInfo update,
         string destinationPath,
         IProgress<int>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<(long Received, long Total)>? transfer = null)
     {
         using var response = await SendWithFallbackAsync(
             () =>
@@ -521,6 +524,7 @@ internal static class UpdateService
             {
                 progress?.Report((int)Math.Min(100, received * 100 / total));
             }
+            transfer?.Report((received, total));
         }
         await destination.FlushAsync(cancellationToken);
     }

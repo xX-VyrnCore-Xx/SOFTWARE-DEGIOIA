@@ -63,23 +63,27 @@ internal sealed class MonthCalendarView : Panel
         Margin = Padding.Empty;
         AccessibleName = "Calendario del mese";
 
-        var top = new Panel { Dock = DockStyle.Top, Height = 44, BackColor = Theme.Surface, Padding = new Padding(12, 6, 12, 4) };
-        _previous.Size = new Size(38, 32);
-        _previous.Location = new Point(12, 6);
-        _previous.AccessibleName = "Mese precedente";
+        // Barra in alto con due gruppi che si dispongono da soli (a sinistra mese e filtri, a destra le
+        // azioni): con le coordinate fisse i pulsanti, che hanno una larghezza minima, si sovrapponevano
+        // all'etichetta del mese e alla ricerca.
+        var top = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Theme.Surface, Padding = new Padding(12, 6, 12, 6) };
+        var left = CreateBarGroup(DockStyle.Left);
+        var right = CreateBarGroup(DockStyle.Right);
+
+        ConfigureNavigationButton(_previous, "Mese precedente", new Padding(0, 2, 4, 0));
         _previous.Click += (_, _) => Step(-1);
-        _monthLabel.AutoSize = false;
-        _monthLabel.Size = new Size(190, 32);
-        _monthLabel.Location = new Point(56, 6);
+        // Larghezza minima fissa ma l'etichetta cresce col testo: «Settembre 2026» a schermo ingrandito non si taglia.
+        _monthLabel.AutoSize = true;
+        _monthLabel.MinimumSize = new Size(176, 32);
+        _monthLabel.Margin = new Padding(0, 2, 4, 0);
         _monthLabel.TextAlign = ContentAlignment.MiddleCenter;
         _monthLabel.Font = Theme.Fonts.DialogTitle;
         _monthLabel.ForeColor = Theme.Ink;
-        _next.Size = new Size(38, 32);
-        _next.Location = new Point(252, 6);
-        _next.AccessibleName = "Mese successivo";
+        ConfigureNavigationButton(_next, "Mese successivo", new Padding(0, 2, 18, 0));
         _next.Click += (_, _) => Step(1);
+
         _search.Size = new Size(200, 34);
-        _search.Location = new Point(312, 5);
+        _search.Margin = new Padding(0, 1, 16, 0);
         _search.Placeholder = "Cerca dipendente";
         _search.Input.AccessibleName = "Cerca dipendente nel calendario";
         _gapsOnly.Text = "Solo giorni scoperti";
@@ -87,19 +91,20 @@ internal sealed class MonthCalendarView : Panel
         _gapsOnly.Font = Theme.Fonts.Small;
         _gapsOnly.ForeColor = Theme.MutedInk;
         _gapsOnly.BackColor = Theme.Surface;
-        _gapsOnly.Location = new Point(528, 12);
+        _gapsOnly.Margin = new Padding(0, 8, 0, 0);
         _gapsOnly.AccessibleName = "Mostra solo i dipendenti con giorni lavorativi senza movimenti";
-        _save.Size = new Size(140, 32);
-        _save.Dock = DockStyle.Right;
+        left.Controls.AddRange([_previous, _monthLabel, _next, _search, _gapsOnly]);
+
+        _save.Margin = new Padding(0, 2, 8, 0);
         _save.AccessibleName = "Salva l'immagine del calendario";
         _save.Click += (_, _) => SaveImage();
-        top.Controls.AddRange([_previous, _monthLabel, _next, _search, _gapsOnly]);
-        _summary.Size = new Size(130, 32);
-        _summary.Dock = DockStyle.Right;
+        _summary.Margin = new Padding(0, 2, 0, 0);
         _summary.AccessibleName = "Esporta il riepilogo delle ore in un file CSV";
         _summary.Click += (_, _) => SaveSummary();
-        top.Controls.Add(_save);
-        top.Controls.Add(_summary);
+        right.Controls.AddRange([_save, _summary]);
+
+        top.Controls.Add(left);
+        top.Controls.Add(right);
 
         _legend.Dock = DockStyle.Bottom;
         _legend.Height = 34;
@@ -113,6 +118,29 @@ internal sealed class MonthCalendarView : Panel
         Clear();
         _search.TextChanged += (_, _) => ApplyFilter();
         _gapsOnly.CheckedChanged += (_, _) => ApplyFilter();
+    }
+
+    private static FlowLayoutPanel CreateBarGroup(DockStyle dock) => new()
+    {
+        Dock = dock,
+        AutoSize = true,
+        AutoSizeMode = AutoSizeMode.GrowAndShrink,
+        WrapContents = false,
+        FlowDirection = FlowDirection.LeftToRight,
+        BackColor = Theme.Surface,
+        Margin = Padding.Empty,
+        Padding = Padding.Empty
+    };
+
+    /// <summary>Freccia del mese: i pulsanti compatti hanno una larghezza minima, qui va abbassata prima della misura.</summary>
+    private static void ConfigureNavigationButton(Button button, string accessibleName, Padding margin)
+    {
+        button.MinimumSize = new Size(36, 30);
+        button.Size = new Size(38, 32);
+        button.Padding = Padding.Empty;
+        button.Font = Theme.Fonts.DialogTitle;
+        button.Margin = margin;
+        button.AccessibleName = accessibleName;
     }
 
     /// <summary>Svuota il calendario (nessuna anteprima generata).</summary>

@@ -137,7 +137,8 @@ internal sealed class ThemedButton : Button
         {
             graphics.FillRectangle(backdrop, ClientRectangle);
         }
-        var bounds = new Rectangle(0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
+        // Una riga in basso resta libera per l'ombra: i pulsanti poggiano sulla pagina come in macOS.
+        var bounds = new Rectangle(0, 0, ClientSize.Width - 1, ClientSize.Height - 2);
         if (bounds.Width < 4 || bounds.Height < 4)
         {
             return;
@@ -157,6 +158,14 @@ internal sealed class ThemedButton : Button
         var radius = Math.Min(Radius, Math.Max(2, bounds.Height / 2));
         using (var path = Theme.RoundedRectangle(bounds, radius))
         {
+            if (Enabled && !_pressed)
+            {
+                var shadowBounds = bounds;
+                shadowBounds.Offset(0, 1);
+                using var shadowPath = Theme.RoundedRectangle(shadowBounds, radius);
+                using var shadow = new SolidBrush(Color.FromArgb(fill.GetBrightness() < 0.5f ? 46 : 22, 0, 0, 0));
+                graphics.FillPath(shadow, shadowPath);
+            }
             using (var brush = new SolidBrush(fill))
             {
                 graphics.FillPath(brush, path);
@@ -181,9 +190,15 @@ internal sealed class ThemedButton : Button
             if (ringBounds.Width > 4 && ringBounds.Height > 4)
             {
                 using var ringPath = Theme.RoundedRectangle(ringBounds, Math.Max(2, radius - 2));
-                using var ring = new Pen(Color.FromArgb(150, Color.White), 1.5f);
+                using var halo = new Pen(Color.FromArgb(70, Theme.Brand), 3.5f);
+                using var ring = new Pen(Color.FromArgb(170, Color.White), 1.5f);
                 using var outer = new Pen(Theme.Brand, 1.5f);
-                graphics.DrawPath(Enabled && BackColor.GetBrightness() > 0.8f ? outer : ring, ringPath);
+                var light = BackColor.GetBrightness() > 0.8f;
+                if (light)
+                {
+                    graphics.DrawPath(halo, ringPath);
+                }
+                graphics.DrawPath(light ? outer : ring, ringPath);
             }
         }
 

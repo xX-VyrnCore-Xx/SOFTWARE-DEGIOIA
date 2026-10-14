@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.Data.Sqlite;
 
 namespace PresenzeXmlConverter;
 
@@ -49,11 +50,13 @@ internal sealed partial class MainForm
         // Primo avvio: se la repo è privata e il token non c'è, conviene chiederlo
         // subito una volta sola, invece di lasciare gli aggiornamenti spenti.
         _isFirstRun = _database.GetSetting(LastRunVersionSetting) is null;
+        // Le Release sono pubbliche: senza token gli aggiornamenti funzionano lo stesso, quindi
+        // non è un avviso. Il token serve solo se la repository tornasse privata.
         RefreshUpdateStatus(
             UpdateService.ResolveToken() is null
-                ? "Aggiornamenti · token GitHub da configurare"
+                ? "Aggiornamenti · attivi"
                 : $"Aggiornamenti · collegato ({UpdateService.DescribeTokenSource()})",
-            UpdateService.ResolveToken() is null);
+            false);
 
         // Controllo all'avvio volutamente ritardato: non rallenta l'apertura della
         // finestra e non tocca nulla se l'utente sta già lavorando.
@@ -225,6 +228,12 @@ internal sealed partial class MainForm
                 return;
             }
 
+            if (!ConfirmUpdateWithUnsavedPreview())
+            {
+                SetStatus("●   Aggiornamento rimandato: salva prima il file XML, poi riprendilo dal menu.", false);
+                return;
+            }
+
             await DownloadAndInstallAsync(update);
         }
         catch (Exception exception) when (
@@ -261,12 +270,45 @@ internal sealed partial class MainForm
             $"È pronta la versione {update.Version.ToString(3)} di Vyrn Presence: apri il programma per installarla.");
     }
 
+    /// <summary>
+    /// L'installazione chiude il programma: se c'è un'anteprima non ancora esportata si chiede
+    /// conferma, così non si perde il lavoro (rifarlo costa un'importazione e un abbinamento).
+    /// </summary>
+    private bool ConfirmUpdateWithUnsavedPreview()
+    {
+        if (_movements.Count == 0)
+        {
+            return true;
+        }
+        try
+        {
+            if (_database.FindExportByFingerprint(ExportHistory.Fingerprint(_companyCode.Value, _movements)) is not null)
+            {
+                return true;
+            }
+        }
+        catch (SqliteException)
+        {
+            return true;
+        }
+        return MessageBox.Show(
+            this,
+            "Hai un'anteprima che non è ancora stata esportata in XML. L'aggiornamento chiude il programma e " +
+            "dovresti rifare l'importazione." + Environment.NewLine + Environment.NewLine +
+            "Vuoi aggiornare lo stesso? Scegli «No» per salvare prima il file: l'aggiornamento resta disponibile dal menu.",
+            "Aggiornamento",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question,
+            MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+    }
+
     private async Task DownloadAndInstallAsync(UpdateInfo update)
     {
         var destination = Path.Combine(
             Path.GetTempPath(),
             $"PresenzeFlow-Setup-{update.Version.ToString(3)}.exe");
         using var progress = new UpdateProgressDialog(update.Version.ToString(3));
+        var clock = Stopwatch.StartNew();
         progress.Show(this);
         try
         {
@@ -274,7 +316,20 @@ internal sealed partial class MainForm
                 update,
                 destination,
                 new Progress<int>(percent => progress.SetProgress(percent, $"Scaricamento in corso… {percent}%")),
-                progress.Token);
+                progress.Token,
+                new Progress<(long Received, long Total)>(transfer =>
+                {
+                    if (transfer.Total <= 0 || transfer.Received <= 0)
+                    {
+                        return;
+                    }
+                    var seconds = Math.Max(0.5, clock.Elapsed.TotalSeconds);
+                    progress.SetProgress(
+                        (int)Math.Min(100, transfer.Received * 100 / transfer.Total),
+                        $"Scaricamento in corso… {transfer.Received * 100 / transfer.Total}% · " +
+                        $"{FormatMegabytes(transfer.Received)} di {FormatMegabytes(transfer.Total)} · " +
+                        $"{FormatMegabytes((long)(transfer.Received / seconds))}/s");
+                }));
             progress.SetProgress(100);
 
             progress.SetStatus("Verifica del file scaricato…");
@@ -308,7 +363,7 @@ internal sealed partial class MainForm
             _database.SaveSetting(PendingUpdateVersionSetting, update.Version.ToString());
             _database.SaveSetting(PendingUpdateNotesSetting, update.Notes);
 
-            progress.SetStatus("Avvio dell'installer…");
+            progress.SetStatus("Installazione in corso: il programma si chiude e si riapre da solo…");
             StartInstaller(destination);
             progress.Close();
             SetStatus("●   Aggiornamento avviato: Vyrn Presence si chiude per completarlo.", false);
@@ -446,6 +501,9 @@ internal sealed partial class MainForm
             true);
         OpenSettings();
     }
+
+    private static string FormatMegabytes(long bytes) =>
+        (bytes / 1048576.0).ToString("0.0", System.Globalization.CultureInfo.GetCultureInfo("it-IT")) + " MB";
 
     private static void StartInstaller(string installerPath)
     {
