@@ -265,9 +265,12 @@ internal sealed partial class MainForm
             return;
         }
         _notifiedUpdateVersion = update.Version;
-        ShowTrayNotification(
+        Notify(
+            ToastKind.Info,
             "Aggiornamento disponibile",
-            $"È pronta la versione {update.Version.ToString(3)} di Vyrn Presence: apri il programma per installarla.");
+            $"È pronta la versione {update.Version.ToString(3)} di Vyrn Presence: apri il programma per installarla.",
+            () => _ = CheckForUpdatesAsync(userInitiated: true),
+            systemNotification: true);
     }
 
     /// <summary>

@@ -33,7 +33,10 @@ internal sealed partial class MainForm
                 _globalOptions,
                 _inspection?.PeriodStart?.Year ?? DateTime.Today.Year,
                 AutoUpdateEnabled(),
-                XmlFormat.Active);
+                XmlFormat.Active,
+                InAppNotificationsEnabled(),
+                NativeNotificationsEnabled());
+            dialog.NotificationTestRequested += (_, choice) => SendTestNotification(choice.InApp, choice.System);
             var result = dialog.ShowDialog(this);
             if (result == DialogResult.OK)
             {
@@ -65,6 +68,8 @@ internal sealed partial class MainForm
             // Le regole in uso sono quelle dell'azienda scelta, se ne ha di proprie.
             ApplyCompanyRules(announce: false);
             _database.SaveSetting(AutoUpdateSetting, dialog.AutoUpdateCheck ? "true" : "false");
+            _database.SaveSetting(InAppNotificationsSetting, dialog.InAppNotifications ? "true" : "false");
+            _database.SaveSetting(NativeNotificationsSetting, dialog.SystemNotifications ? "true" : "false");
             var xmlChanged = dialog.Format != XmlFormat.Active;
             XmlFormat.Active = dialog.Format;
             dialog.Format.Save(_database);

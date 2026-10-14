@@ -308,6 +308,7 @@ internal sealed partial class MainForm
         {
             Clipboard.SetText(text);
             SetStatus("●   Elenco dei controlli copiato negli appunti", false);
+            Notify(ToastKind.Info, "Copiato", "L'elenco dei controlli è negli appunti.");
         }
         catch (System.Runtime.InteropServices.ExternalException exception)
         {

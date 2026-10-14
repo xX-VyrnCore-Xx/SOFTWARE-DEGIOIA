@@ -64,6 +64,28 @@ public class ShutdownTrustAndNotificationTests
     }
 
     [Fact]
+    public void NotificationsHaveAnInWindowChannelAndTheSettingsCanTestThem()
+    {
+        var notifications = ReadSource("MainForm.Notifications.cs");
+        var dialog = ReadSource("SettingsDialog.cs");
+        if (notifications is null || dialog is null)
+        {
+            return;
+        }
+
+        // Chi sta lavorando nella finestra non riceveva mai nulla: il cartellino interno compare comunque,
+        // il fumetto di Windows e il lampeggio nella barra solo a finestra non in uso.
+        Assert.Contains("private void Notify(", notifications, StringComparison.Ordinal);
+        Assert.Contains("TaskbarFlash.Flash(this)", notifications, StringComparison.Ordinal);
+        Assert.Contains("if (!systemNotification || IsWindowInUse)", notifications, StringComparison.Ordinal);
+        // La prova mostra i canali anche con le notifiche spente e le Impostazioni la espongono.
+        Assert.Contains("force: true", notifications, StringComparison.Ordinal);
+        Assert.Contains("NotificationTestRequested", dialog, StringComparison.Ordinal);
+        Assert.Contains("CreatePage(SettingsPageLayout.NotificationRows)", dialog, StringComparison.Ordinal);
+        Assert.Contains("ms-settings:notifications", dialog, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheStartMenuShortcutCarriesTheSameAppUserModelIdTheAppDeclares()
     {
         var script = ReadInstaller();

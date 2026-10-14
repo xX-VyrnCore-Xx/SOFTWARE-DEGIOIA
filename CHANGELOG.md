@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.23.1] - Corrente
+## [1.23.2] - Corrente
+
+### 🔔 Notifiche che si vedono davvero
+- **Avvisi dentro la finestra**: un cartellino in basso a destra per conversione completata, file XML salvato (un clic lo mostra nella cartella), copia negli appunti e aggiornamento disponibile. Si ritira da solo; col mouse sopra resta, un clic lo chiude
+- Prima la notifica di Windows partiva solo a finestra non in primo piano: chi lavorava nel programma non vedeva nulla e le notifiche sembravano ferme
+- Con il programma in background, oltre al fumetto di Windows il pulsante nella barra delle applicazioni **lampeggia** finché non torna davanti (funziona anche con le notifiche di Windows spente); il fumetto ora usa l'icona giusta (info, attenzione, errore)
+- **Impostazioni → Notifiche**: si scelgono i due canali, c'è «Prova le notifiche» e il collegamento alle impostazioni di Windows (Assistente focus, notifiche dell'app)
+
+## [1.23.1]
 
 ### 🗓️ Calendario: barra in alto corretta
 - Le frecce del mese, il nome del mese e la ricerca non si sovrappongono più (l'etichetta era tagliata: «ettembre 2026»). La barra ora si dispone da sola e regge anche gli schermi ingranditi; «Salva immagine» e «Riepilogo CSV» hanno il giusto spazio fra loro
