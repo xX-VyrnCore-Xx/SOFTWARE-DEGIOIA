@@ -119,7 +119,7 @@ internal static class SettingsPageLayout
     /// intera, quindi non serve nessuna barra di scorrimento (quelle di Windows
     /// sono grigie e fuori tema).
     /// </summary>
-    public const int MinimumWindowHeight = 620;
+    public const int MinimumWindowHeight = 640;
 
     public const int DefaultClientWidth = 760;
 
