@@ -447,6 +447,7 @@ internal sealed partial class MainForm
                 null,
                 _database.GetEmployeeProfiles());
             _codesLoaded = true;
+            WireCodesAutosave();
         }
         catch (SqliteException exception)
         {
@@ -456,11 +457,25 @@ internal sealed partial class MainForm
 
     private void SaveCodesPage()
     {
-        if (!_mappingPanel.TrySave(out var error))
+        // «Salva abbinamenti» salva anche a metà: i codici mancanti non bloccano.
+        SaveCodesDraft(announce: true);
+    }
+
+    private readonly System.Windows.Forms.Timer _codesAutosave = new() { Interval = 1200 };
+    private bool _codesAutosaveWired;
+
+    /// <summary>
+    /// Salva ciò che è scritto nelle griglie dei codici anche se incompleto. Con <paramref name="announce"/> è il
+    /// pulsante «Salva abbinamenti» (messaggio completo e anteprima da rigenerare); senza è il salvataggio
+    /// automatico o quello alla chiusura (silenzioso, non tocca l'anteprima).
+    /// </summary>
+    private void SaveCodesDraft(bool announce)
+    {
+        if (!_codesLoaded || (!announce && !_mappingPanel.HasUnsavedChanges))
         {
-            SetStatus($"✗   {error}", true);
             return;
         }
+        _mappingPanel.TrySave(out var note, allowIncomplete: true);
         try
         {
             foreach (var mapping in _mappingPanel.EmployeeMappings)
@@ -475,13 +490,65 @@ internal sealed partial class MainForm
             {
                 _database.SaveEmployeeProfile(profile.Key, profile.Value);
             }
-            InvalidatePreview();
-            SetStatus("●   Abbinamenti salvati nel database locale.", false);
         }
         catch (SqliteException exception)
         {
-            ShowError("Impossibile salvare gli abbinamenti", exception);
+            if (announce)
+            {
+                ShowError("Impossibile salvare gli abbinamenti", exception);
+            }
+            return;
         }
+
+        var missing = _mappingPanel.MissingRequiredCount;
+        if (announce)
+        {
+            InvalidatePreview();
+            SetStatus(
+                note is not null
+                    ? $"●   Abbinamenti salvati in parte. {note}"
+                    : missing > 0
+                        ? $"●   Abbinamenti salvati: mancano ancora {missing:N0} codici richiesti per creare l'anteprima."
+                        : "●   Abbinamenti salvati nel database locale.",
+                note is not null || missing > 0);
+            Notify(
+                missing > 0 || note is not null ? ToastKind.Info : ToastKind.Success,
+                missing > 0 ? "Bozza salvata" : "Abbinamenti salvati",
+                missing > 0
+                    ? $"I codici inseriti restano. Mancano ancora {missing:N0} codici richiesti."
+                    : "I codici sono nel database locale.");
+        }
+        else
+        {
+            SetStatus(
+                missing > 0
+                    ? $"●   Bozza degli abbinamenti salvata automaticamente · mancano {missing:N0} codici richiesti."
+                    : "●   Abbinamenti salvati automaticamente.",
+                false);
+        }
+    }
+
+    /// <summary>Salvataggio automatico: poco dopo l'ultima modifica, senza che l'utente debba ricordarsene.</summary>
+    private void WireCodesAutosave()
+    {
+        if (_codesAutosaveWired)
+        {
+            return;
+        }
+        _codesAutosaveWired = true;
+        _codesAutosave.Tick += (_, _) =>
+        {
+            _codesAutosave.Stop();
+            if (!IsDisposed)
+            {
+                SaveCodesDraft(announce: false);
+            }
+        };
+        _mappingPanel.Changed += (_, _) =>
+        {
+            _codesAutosave.Stop();
+            _codesAutosave.Start();
+        };
     }
 
     /* ----------------------- Sezione Storico esportazioni ---------------- */

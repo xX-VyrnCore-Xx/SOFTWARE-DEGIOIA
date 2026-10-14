@@ -52,6 +52,43 @@ internal sealed partial class MainForm
             });
     }
 
+    /// <summary>Riempie il calendario con i movimenti correnti e il loro periodo.</summary>
+    private void RefreshCalendar(IReadOnlyList<DailyMovement> movements) =>
+        _calendarView.SetData(
+            movements,
+            _generationOptions,
+            SafeProfiles(() => _database.GetEmployeeProfiles()),
+            _inspection?.PeriodStart,
+            _inspection?.PeriodEnd);
+
+    /// <summary>
+    /// Dopo la conversione ricorda che il calendario ha giorni da controllare: la barra in alto lo dice
+    /// finché l'anteprima è aperta, il cartellino lo dice subito e porta alla scheda.
+    /// </summary>
+    private void NotifyCalendarAlerts()
+    {
+        var checks = _calendarView.CheckDayCount;
+        var notices = _calendarView.NoticeDayCount;
+        if (checks + notices == 0)
+        {
+            return;
+        }
+        var parts = new List<string>();
+        if (checks > 0)
+        {
+            parts.Add(checks == 1 ? "1 giorno con ore oltre la giornata" : $"{checks} giorni con ore oltre la giornata");
+        }
+        if (notices > 0)
+        {
+            parts.Add(notices == 1 ? "1 giorno insolito" : $"{notices} giorni insoliti");
+        }
+        Notify(
+            checks > 0 ? ToastKind.Warning : ToastKind.Info,
+            "Da controllare nel calendario",
+            string.Join(" e ", parts) + ". Clic per aprire il calendario.",
+            () => _previewTabs.SelectedIndex = ReviewTabIndex + 1);
+    }
+
     /// <summary>
     /// «Prova le notifiche» delle Impostazioni: mostra tutto subito, senza badare a dov'è la finestra,
     /// così l'utente vede quali canali funzionano sul suo computer.

@@ -10,6 +10,10 @@ namespace PresenzeXmlConverter;
 /// sovrapposizioni. Si sfoglia mese per mese quando i movimenti ne toccano più d'uno, si filtra per
 /// nome o per «giorni scoperti», ogni riga riporta il totale delle ore e l'ultima riga conta i presenti
 /// di ogni giorno. L'immagine del mese si salva in PNG.
+///
+/// Le anomalie insolite (ore oltre la giornata, più giustificativi nello stesso giorno, movimenti in giorni
+/// non lavorativi, totale del mese diverso dalle ore teoriche) hanno un segno sul giorno e una barra in alto
+/// che le conta, con «Vai al prossimo» per scorrerle una a una: restano lì finché l'anteprima è aperta.
 /// </summary>
 internal sealed class MonthCalendarView : Panel
 {
@@ -39,6 +43,18 @@ internal sealed class MonthCalendarView : Panel
     private readonly Button _summary = Theme.CreateButton("Riepilogo CSV", Theme.ButtonTone.Neutral, compact: true);
     private readonly RoundedField _search = new();
     private readonly CheckBox _gapsOnly = new();
+    private readonly Panel _alertBar = new();
+    private readonly Label _alertText = new();
+    private readonly Button _alertNext = Theme.CreateButton("Vai al primo", Theme.ButtonTone.Neutral, compact: true);
+    private readonly Button _alertChecks = Theme.CreateButton("Apri i controlli", Theme.ButtonTone.Neutral, compact: true);
+    private readonly Dictionary<string, Dictionary<DateTime, List<CalendarAlert>>> _alertsByEmployee = new(StringComparer.CurrentCultureIgnoreCase);
+    private readonly List<(string Name, DateTime Date, AlertSeverity Severity)> _alertDays = [];
+    private readonly Dictionary<(string Name, int Year, int Month), int> _monthDifference = new();
+    private (string Name, DateTime Date)? _focus;
+    private int _alertCursor = -1;
+    private int _reviewErrors;
+    private int _reviewWarnings;
+    private Action? _openChecks;
     private readonly Legend _legend = new();
     private readonly ToolTip _tip = new();
 
@@ -86,13 +102,13 @@ internal sealed class MonthCalendarView : Panel
         _search.Margin = new Padding(0, 1, 16, 0);
         _search.Placeholder = "Cerca dipendente";
         _search.Input.AccessibleName = "Cerca dipendente nel calendario";
-        _gapsOnly.Text = "Solo giorni scoperti";
+        _gapsOnly.Text = "Solo da controllare";
         _gapsOnly.AutoSize = true;
         _gapsOnly.Font = Theme.Fonts.Small;
         _gapsOnly.ForeColor = Theme.MutedInk;
         _gapsOnly.BackColor = Theme.Surface;
         _gapsOnly.Margin = new Padding(0, 8, 0, 0);
-        _gapsOnly.AccessibleName = "Mostra solo i dipendenti con giorni lavorativi senza movimenti";
+        _gapsOnly.AccessibleName = "Mostra solo i dipendenti con giorni scoperti, anomalie o ore del mese che non tornano";
         left.Controls.AddRange([_previous, _monthLabel, _next, _search, _gapsOnly]);
 
         _save.Margin = new Padding(0, 2, 8, 0);
@@ -112,12 +128,127 @@ internal sealed class MonthCalendarView : Panel
         _canvas = new Canvas(this) { Dock = DockStyle.Fill };
 
         // Prima il corpo, poi barra in alto e legenda in basso: l'ordine decide chi prende lo spazio.
+        BuildAlertBar();
         Controls.Add(_canvas);
         Controls.Add(_legend);
+        Controls.Add(_alertBar);
         Controls.Add(top);
         Clear();
         _search.TextChanged += (_, _) => ApplyFilter();
         _gapsOnly.CheckedChanged += (_, _) => ApplyFilter();
+    }
+
+    private void BuildAlertBar()
+    {
+        _alertBar.Dock = DockStyle.Top;
+        _alertBar.Height = 46;
+        _alertBar.Padding = new Padding(14, 6, 12, 6);
+        _alertBar.Visible = false;
+        _alertBar.AccessibleName = "Anomalie da controllare nel calendario";
+        _alertBar.AccessibleRole = AccessibleRole.Alert;
+
+        var actions = CreateBarGroup(DockStyle.Right);
+        actions.BackColor = Color.Transparent;
+        _alertNext.Margin = new Padding(8, 2, 0, 0);
+        _alertNext.AccessibleName = "Vai alla prossima anomalia del calendario";
+        _alertNext.Click += (_, _) => GoToNextAlert();
+        _alertChecks.Margin = new Padding(8, 2, 0, 0);
+        _alertChecks.AccessibleName = "Apri la scheda dei controlli";
+        _alertChecks.Click += (_, _) => _openChecks?.Invoke();
+        actions.Controls.AddRange([_alertNext, _alertChecks]);
+
+        _alertText.Dock = DockStyle.Fill;
+        _alertText.AutoEllipsis = true;
+        _alertText.TextAlign = ContentAlignment.MiddleLeft;
+        _alertText.Font = Theme.Fonts.SmallBold;
+        _alertBar.Controls.Add(_alertText);
+        _alertBar.Controls.Add(actions);
+    }
+
+    /// <summary>
+    /// Conteggio dei controlli della finestra principale (errori e attenzioni) con il comando per aprirli:
+    /// il calendario li ricorda in alto finché ci sono.
+    /// </summary>
+    public void SetReviewSummary(int errors, int warnings, Action? openChecks)
+    {
+        _reviewErrors = errors;
+        _reviewWarnings = warnings;
+        _openChecks = openChecks;
+        UpdateAlertBar();
+    }
+
+    /// <summary>Giorni con ore oltre la giornata: sono quelli da controllare davvero.</summary>
+    public int CheckDayCount => _alertDays.Count(day => day.Severity == AlertSeverity.Check);
+
+    /// <summary>Giorni insoliti ma spesso legittimi (sabato lavorato, più giustificativi).</summary>
+    public int NoticeDayCount => _alertDays.Count(day => day.Severity == AlertSeverity.Notice);
+
+    private void UpdateAlertBar()
+    {
+        var checks = CheckDayCount;
+        var notices = NoticeDayCount;
+        var differences = _monthDifference.Count;
+        var hasReview = _reviewErrors + _reviewWarnings > 0;
+        if (checks + notices + differences == 0 && !hasReview)
+        {
+            _alertBar.Visible = false;
+            return;
+        }
+
+        var parts = new List<string>();
+        if (checks > 0)
+        {
+            parts.Add(checks == 1 ? "1 giorno con ore oltre la giornata" : $"{checks} giorni con ore oltre la giornata");
+        }
+        if (notices > 0)
+        {
+            parts.Add(notices == 1 ? "1 giorno insolito" : $"{notices} giorni insoliti");
+        }
+        if (differences > 0)
+        {
+            parts.Add(differences == 1 ? "1 totale del mese diverso dal teorico" : $"{differences} totali del mese diversi dal teorico");
+        }
+        if (hasReview)
+        {
+            parts.Add($"controlli: {_reviewErrors:N0} errori e {_reviewWarnings:N0} attenzioni");
+        }
+        var severe = checks > 0 || _reviewErrors > 0;
+        _alertText.Text = "⚠  Da controllare prima di esportare: " + string.Join("  ·  ", parts) + ".";
+        _alertText.ForeColor = severe ? Theme.DangerInk : Theme.WarningInk;
+        _alertBar.BackColor = severe ? Color.FromArgb(255, 238, 236) : Color.FromArgb(255, 245, 225);
+        _alertNext.Visible = _alertDays.Count > 0;
+        _alertNext.Text = _alertCursor < 0 ? "Vai al primo" : "Vai al prossimo";
+        _alertChecks.Visible = hasReview && _openChecks is not null;
+        _alertBar.Visible = true;
+    }
+
+    /// <summary>Porta in vista il prossimo giorno segnalato: cambia mese, toglie i filtri se lo nascondono, lo cerchia.</summary>
+    private void GoToNextAlert()
+    {
+        if (_alertDays.Count == 0)
+        {
+            return;
+        }
+        _alertCursor = (_alertCursor + 1) % _alertDays.Count;
+        var (name, date, _) = _alertDays[_alertCursor];
+        var monthIndex = _months.IndexOf((date.Year, date.Month));
+        if (monthIndex >= 0)
+        {
+            _monthIndex = monthIndex;
+            UpdateNavigation();
+        }
+        ApplyFilter();
+        if (!_visible.Contains(name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            // Il filtro nasconde proprio quel dipendente: si tolgono i filtri (ognuno riapplica l'elenco).
+            _gapsOnly.Checked = false;
+            _search.Value = string.Empty;
+            ApplyFilter();
+        }
+        _focus = (name, date);
+        var row = _visible.FindIndex(visible => string.Equals(visible, name, StringComparison.CurrentCultureIgnoreCase));
+        _canvas.ScrollToCell(row, date.Day);
+        UpdateAlertBar();
     }
 
     private static FlowLayoutPanel CreateBarGroup(DockStyle dock) => new()
@@ -153,8 +284,17 @@ internal sealed class MonthCalendarView : Panel
         _byEmployee.Clear();
         _codeColors.Clear();
         _codeNames.Clear();
+        _alertsByEmployee.Clear();
+        _alertDays.Clear();
+        _monthDifference.Clear();
+        _focus = null;
+        _alertCursor = -1;
+        _reviewErrors = 0;
+        _reviewWarnings = 0;
+        _openChecks = null;
         _monthIndex = 0;
         UpdateNavigation();
+        UpdateAlertBar();
         _legend.SetEntries([]);
         _canvas.RefreshLayout();
     }
@@ -203,6 +343,7 @@ internal sealed class MonthCalendarView : Panel
             .Distinct()
             .OrderBy(month => month));
         _monthIndex = 0;
+        ComputeAlerts();
 
         var entries = new List<(Color Fill, Color Ink, string Text, bool Dashed)>
         {
@@ -218,10 +359,56 @@ internal sealed class MonthCalendarView : Panel
         {
             entries.Add((Theme.Surface, Theme.Danger, "Giorno senza movimenti", true));
         }
+        entries.Add((Theme.Danger, Color.White, "Oltre la giornata", false));
+        entries.Add((Theme.Warning, Color.White, "Giorno insolito", false));
         _legend.SetEntries(entries);
         UpdateNavigation();
         ApplyFilter();
+        UpdateAlertBar();
     }
+
+    private void ComputeAlerts()
+    {
+        foreach (var alert in CalendarAlerts.Find(_movements, _options, _profiles))
+        {
+            if (!_alertsByEmployee.TryGetValue(alert.EmployeeName, out var days))
+            {
+                days = new Dictionary<DateTime, List<CalendarAlert>>();
+                _alertsByEmployee[alert.EmployeeName] = days;
+            }
+            if (!days.TryGetValue(alert.Date, out var list))
+            {
+                list = new List<CalendarAlert>();
+                days[alert.Date] = list;
+            }
+            list.Add(alert);
+        }
+        _alertDays.AddRange(_alertsByEmployee
+            .SelectMany(employee => employee.Value.Select(day => (
+                Name: employee.Key,
+                Date: day.Key,
+                Severity: day.Value.Max(alert => alert.Severity))))
+            .OrderByDescending(day => day.Severity)
+            .ThenBy(day => day.Date)
+            .ThenBy(day => day.Name, StringComparer.CurrentCultureIgnoreCase));
+
+        // Totale del mese diverso dalle ore teoriche (solo con le presenze automatiche accese).
+        foreach (var row in MonthlySummary.Build(_movements, _options, _profiles, _periodStart, _periodEnd))
+        {
+            if (row.ExpectedMinutes is { } expected && row.TotalMinutes != expected)
+            {
+                _monthDifference[(row.EmployeeName, row.Month.Year, row.Month.Month)] = row.TotalMinutes - expected;
+            }
+        }
+    }
+
+    private AlertSeverity? SeverityOf(string name, DateTime date) =>
+        _alertsByEmployee.TryGetValue(name, out var days) && days.TryGetValue(date, out var list)
+            ? list.Max(alert => alert.Severity)
+            : null;
+
+    private int DifferenceOf(string name, int year, int month) =>
+        _monthDifference.TryGetValue((name, year, month), out var difference) ? difference : 0;
 
     private void Step(int delta)
     {
@@ -231,6 +418,7 @@ internal sealed class MonthCalendarView : Panel
             return;
         }
         _monthIndex = target;
+        _focus = null;
         UpdateNavigation();
         ApplyFilter();
     }
@@ -243,14 +431,14 @@ internal sealed class MonthCalendarView : Panel
         {
             var (year, month) = _months[_monthIndex];
             var text = _search.Value.Trim();
-            var gapsOnly = _gapsOnly.Checked && _options.FillPresence;
+            var gapsOnly = _gapsOnly.Checked;
             foreach (var name in _employees)
             {
                 if (text.Length > 0 && name.IndexOf(text, StringComparison.CurrentCultureIgnoreCase) < 0)
                 {
                     continue;
                 }
-                if (gapsOnly && StatsOf(name, year, month).Gaps == 0)
+                if (gapsOnly && !NeedsChecking(name, year, month))
                 {
                     continue;
                 }
@@ -259,6 +447,13 @@ internal sealed class MonthCalendarView : Panel
         }
         _canvas.RefreshLayout();
     }
+
+    /// <summary>Giorni scoperti, anomalie o totale del mese che non torna: il dipendente va guardato.</summary>
+    private bool NeedsChecking(string name, int year, int month) =>
+        (_options.FillPresence && StatsOf(name, year, month).Gaps > 0) ||
+        DifferenceOf(name, year, month) != 0 ||
+        (_alertsByEmployee.TryGetValue(name, out var days) &&
+         days.Keys.Any(date => date.Year == year && date.Month == month));
 
     /// <summary>Minuti registrati e giorni lavorativi senza movimenti di un dipendente nel mese.</summary>
     private (int Minutes, int Gaps) StatsOf(string name, int year, int month)
@@ -299,7 +494,7 @@ internal sealed class MonthCalendarView : Panel
         }
         _save.Enabled = true;
         _summary.Enabled = true;
-        _gapsOnly.Enabled = _options.FillPresence;
+        _gapsOnly.Enabled = true;
         var (year, month) = _months[_monthIndex];
         var title = new DateTime(year, month, 1).ToString("MMMM yyyy", Italian);
         _monthLabel.Text = char.ToUpper(title[0], Italian) + title[1..];
@@ -331,7 +526,10 @@ internal sealed class MonthCalendarView : Panel
         var header = $"{name} · {day.ToString("dddd d MMMM", Italian)}";
         if (lines.Length > 0)
         {
-            return header + Environment.NewLine + string.Join(Environment.NewLine, lines);
+            var warnings = _alertsByEmployee.TryGetValue(name, out var alertDays) && alertDays.TryGetValue(day.Date, out var alerts)
+                ? alerts.Select(alert => (alert.Severity == AlertSeverity.Check ? "⚠ Da controllare: " : "● ") + alert.Text)
+                : [];
+            return header + Environment.NewLine + string.Join(Environment.NewLine, lines.Concat(warnings));
         }
         if (day.DayOfWeek == DayOfWeek.Sunday || day.DayOfWeek == DayOfWeek.Saturday ||
             ItalianHolidays.Contains(day, _options.ExtraHolidays ?? []))
@@ -346,6 +544,11 @@ internal sealed class MonthCalendarView : Panel
         var (year, month) = _months[_monthIndex];
         var (minutes, gaps) = StatsOf(name, year, month);
         var text = $"{name}{Environment.NewLine}{FormatTotal(minutes)} registrate nel mese";
+        var difference = DifferenceOf(name, year, month);
+        if (difference != 0)
+        {
+            text += Environment.NewLine + $"⚠ {(difference > 0 ? "+" : "−")}{FormatTotal(Math.Abs(difference))} rispetto alle ore teoriche";
+        }
         return gaps > 0
             ? text + Environment.NewLine + (gaps == 1 ? "1 giorno lavorativo senza movimenti" : $"{gaps} giorni lavorativi senza movimenti")
             : text;
@@ -467,6 +670,19 @@ internal sealed class MonthCalendarView : Panel
             NameColumn + (Days * cellWidth) + TotalColumn + 8,
             HeaderHeight + (RowCount * RowHeight) + 6);
 
+        /// <summary>Porta una cella in vista, più o meno al centro dell'area visibile.</summary>
+        public void ScrollToCell(int row, int day)
+        {
+            if (row < 0 || _owner._months.Count == 0)
+            {
+                return;
+            }
+            var x = Math.Max(0, ((day - 1) * CellWidth) - ((ClientSize.Width - NameColumn) / 2));
+            var y = Math.Max(0, (row * RowHeight) - (ClientSize.Height / 3));
+            AutoScrollPosition = new Point(x, y);
+            Invalidate();
+        }
+
         public void RefreshLayout()
         {
             AutoScrollPosition = Point.Empty;
@@ -481,6 +697,25 @@ internal sealed class MonthCalendarView : Panel
             if (_owner._months.Count > 0)
             {
                 AutoScrollMinSize = ContentSize(CellWidth);
+            }
+        }
+
+        private const int WmHScroll = 0x0114;
+        private const int WmVScroll = 0x0115;
+        private const int WmMouseWheel = 0x020A;
+        private const int WmMouseHWheel = 0x020E;
+
+        /// <summary>
+        /// Con lo scorrimento Windows sposta i pixel già dipinti invece di ridisegnare: l'intestazione e la
+        /// colonna dei nomi, che restano ferme, lasciavano copie fantasma ad ogni passo. Dopo ogni scorrimento
+        /// si ridipinge tutto.
+        /// </summary>
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg is WmHScroll or WmVScroll or WmMouseWheel or WmMouseHWheel)
+            {
+                Invalidate();
             }
         }
 
@@ -685,7 +920,14 @@ internal sealed class MonthCalendarView : Panel
                         }
                         continue;
                     }
-                    DrawDay(graphics, cell, items);
+                    DrawDay(graphics, cell, items, _owner.SeverityOf(name, date));
+                    if (interactive && _owner._focus is { } focus &&
+                        focus.Date == date && string.Equals(focus.Name, name, StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        using var ring = new Pen(Theme.Brand, 2.4f);
+                        using var ringPath = Theme.RoundedRectangle(Rectangle.Inflate(cell, 2, 2), 7);
+                        graphics.DrawPath(ring, ringPath);
+                    }
                 }
 
                 DrawTotal(graphics, name, year, month, NameColumn + (days * cellWidth) + scroll.X, top);
@@ -811,12 +1053,13 @@ internal sealed class MonthCalendarView : Panel
         private void DrawTotal(Graphics graphics, string name, int year, int month, int left, int top)
         {
             var (minutes, gaps) = _owner.StatsOf(name, year, month);
+            var differs = _owner.DifferenceOf(name, year, month) != 0;
             TextRenderer.DrawText(
                 graphics,
                 MonthCalendarView.FormatTotal(minutes),
                 Theme.Fonts.SmallBold,
                 new Rectangle(left, top, 52, RowHeight),
-                Theme.Ink,
+                differs ? Theme.WarningInk : Theme.Ink,
                 TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             if (gaps == 0)
             {
@@ -836,7 +1079,7 @@ internal sealed class MonthCalendarView : Panel
         }
 
         /// <summary>Un giorno con movimenti: assenza sopra e presenza sotto se ci sono entrambe.</summary>
-        private void DrawDay(Graphics graphics, Rectangle cell, List<DailyMovement> items)
+        private void DrawDay(Graphics graphics, Rectangle cell, List<DailyMovement> items, AlertSeverity? severity)
         {
             var absences = items.Where(movement => !AttendanceMovementGenerator.IsPresence(movement)).ToArray();
             var presence = items.Where(AttendanceMovementGenerator.IsPresence).ToArray();
@@ -864,6 +1107,23 @@ internal sealed class MonthCalendarView : Panel
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             }
             graphics.Restore(state);
+
+            // Segno dell'anomalia: contorno e pallino rossi (da controllare) o pallino ambra (insolito).
+            if (severity is { } level)
+            {
+                var color = level == AlertSeverity.Check ? Theme.Danger : Theme.Warning;
+                if (level == AlertSeverity.Check)
+                {
+                    using var outline = new Pen(color, 1.6f);
+                    using var outlinePath = Theme.RoundedRectangle(cell, 5);
+                    graphics.DrawPath(outline, outlinePath);
+                }
+                var dot = new Rectangle(cell.Right - 7, cell.Y - 2, 8, 8);
+                using var halo = new SolidBrush(Theme.Surface);
+                using var fill = new SolidBrush(color);
+                graphics.FillEllipse(halo, Rectangle.Inflate(dot, 1, 1));
+                graphics.FillEllipse(fill, dot);
+            }
         }
 
         private void FillCell(Graphics graphics, Rectangle area, DailyMovement movement)

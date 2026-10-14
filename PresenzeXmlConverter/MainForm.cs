@@ -238,6 +238,15 @@ internal sealed partial class MainForm : Form
         // Chiusura vera. Sono tutte operazioni "di cortesia" (posizione della finestra,
         // copia di sicurezza, icona del tray): se una fallisce, l'uscita non deve
         // fermarsi, altrimenti il programma sembra non rispondere al comando Esci.
+        // Codici scritti e non ancora salvati: si salvano a metà, così una chiusura per sbaglio non li butta.
+        try
+        {
+            SaveCodesDraft(announce: false);
+        }
+        catch (Exception)
+        {
+            // Salvataggio di cortesia: non deve impedire la chiusura.
+        }
         _boundsSaveTimer.Stop();
         try
         {
@@ -568,14 +577,37 @@ internal sealed partial class MainForm : Form
                     missingPolicies,
                     new Dictionary<string, string>(),
                     _database.GetEmployeeProfiles());
-                if (dialog.ShowDialog(this) != DialogResult.OK)
+                var accepted = dialog.ShowDialog(this) == DialogResult.OK;
+                if (accepted || dialog.Committed)
                 {
-                    SetStatus("Conversione annullata: gli abbinamenti richiesti non sono stati salvati.", true);
+                    // Anche un salvataggio a metà resta: i codici inseriti non si perdono.
+                    SaveMappings(dialog);
+                }
+                if (!accepted)
+                {
+                    InvalidatePreview();
+                    SetStatus(
+                        dialog.Committed
+                            ? "Conversione sospesa: i codici inseriti sono salvati, completa quelli mancanti."
+                            : "Conversione annullata: gli abbinamenti richiesti non sono stati salvati.",
+                        true);
                     return;
                 }
-                SaveMappings(dialog);
                 employees = _database.GetEmployeeMappings();
                 policies = _database.GetPolicyMappings();
+                var stillMissing = requiredEmployees.Count(name => !employees.ContainsKey(name)) +
+                                   requiredPolicies.Count(policy => !policies.ContainsKey(policy));
+                if (stillMissing > 0)
+                {
+                    SetStatus(
+                        $"●   Abbinamenti salvati, ma mancano ancora {stillMissing:N0} codici: completali per creare l'anteprima.",
+                        true);
+                    Notify(
+                        ToastKind.Info,
+                        "Abbinamenti salvati a metà",
+                        $"Mancano ancora {stillMissing:N0} codici. Ciò che hai inserito resta: riprendi quando vuoi.");
+                    return;
+                }
             }
 
             SetBusy(true, "Generazione dei movimenti e dell'XML in corso…");
@@ -622,6 +654,7 @@ internal sealed partial class MainForm : Form
             RunDeterministicChecks(result.Movements);
             UpdateButtons();
             NotifyConversionCompleted(result.Movements.Count);
+            NotifyCalendarAlerts();
             if (ErrorCount > 0)
             {
                 _previewTabs.SelectedIndex = ReviewTabIndex;
@@ -688,11 +721,15 @@ internal sealed partial class MainForm : Form
             var requiredPolicies = _requests.Select(request => request.Policy).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             using var dialog = new MappingEditorDialog(
                 employees, policies, requiredEmployees, requiredPolicies, null, _database.GetEmployeeProfiles());
-            if (dialog.ShowDialog(this) == DialogResult.OK)
+            if (dialog.ShowDialog(this) == DialogResult.OK || dialog.Committed)
             {
                 SaveMappings(dialog);
                 InvalidatePreview();
-                SetStatus("Abbinamenti aggiornati nel database locale.", false);
+                SetStatus(
+                    dialog.MissingRequiredCount > 0
+                        ? $"Abbinamenti salvati nel database locale (mancano ancora {dialog.MissingRequiredCount:N0} codici richiesti)."
+                        : "Abbinamenti aggiornati nel database locale.",
+                    dialog.MissingRequiredCount > 0);
             }
         }
         catch (SqliteException exception)
@@ -927,12 +964,7 @@ internal sealed partial class MainForm : Form
             {
                 _movementsGrid.ResumeLayout();
             }
-            _calendarView.SetData(
-                movements,
-                _generationOptions,
-                SafeProfiles(() => _database.GetEmployeeProfiles()),
-                _inspection?.PeriodStart,
-                _inspection?.PeriodEnd);
+            RefreshCalendar(movements);
         }
         finally
         {
@@ -991,6 +1023,8 @@ internal sealed partial class MainForm : Form
             _xml = TrriPwXmlWriter.Create(companyCode, movements);
             ShowXmlPreview(_xml);
             PersistMovementMappings();
+            // Il calendario segue le modifiche alla griglia, prima dei controlli che ne aggiornano il riepilogo.
+            RefreshCalendar(movements);
             RunDeterministicChecks(movements);
             UpdatePreviewSummary(movements);
             UpdateButtons();

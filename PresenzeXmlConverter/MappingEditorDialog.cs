@@ -70,17 +70,65 @@ internal sealed class MappingEditorDialog : Form
 
     public Dictionary<string, EmployeeProfile> EmployeeProfiles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Codici richiesti dal foglio che mancano ancora dopo il salvataggio.</summary>
+    public int MissingRequiredCount => _panel.MissingRequiredCount;
+
+    /// <summary>
+    /// Chiudere con «Annulla» o con la X dopo aver scritto dei codici non li butta via di colpo:
+    /// si chiede se salvare quelli inseriti.
+    /// </summary>
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (DialogResult != DialogResult.OK && _panel.HasUnsavedChanges && !_closingAfterAsk)
+        {
+            var answer = MessageBox.Show(
+                this,
+                "Hai inserito dei codici non ancora salvati. Vuoi salvare quelli inseriti? " +
+                "Puoi completare gli altri più tardi.",
+                "Abbinamenti non salvati",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button1);
+            if (answer == DialogResult.Cancel)
+            {
+                e.Cancel = true;
+                return;
+            }
+            _closingAfterAsk = true;
+            if (answer == DialogResult.Yes)
+            {
+                // Si salva senza chiudere dal dialogo «sì»: il risultato resta Annulla ma «Committed» dice al
+                // chiamante che i codici vanno comunque scritti nel database.
+                CommitMappings();
+            }
+        }
+        base.OnFormClosing(e);
+    }
+
+    private bool _closingAfterAsk;
+
+    /// <summary>True se i codici inseriti sono stati raccolti (anche chiudendo con «Annulla» e scegliendo di salvarli).</summary>
+    public bool Committed { get; private set; }
+
     private void SaveMappings()
     {
-        if (!_panel.TrySave(out var error))
+        CommitMappings();
+        DialogResult = DialogResult.OK;
+        Close();
+    }
+
+    private void CommitMappings()
+    {
+        // Salvataggio «a metà»: i codici mancanti non bloccano; solo le righe scritte male restano fuori.
+        _panel.TrySave(out var note, allowIncomplete: true);
+        if (note is not null)
         {
             MessageBox.Show(
                 this,
-                error,
-                "Abbinamenti da verificare",
+                note + Environment.NewLine + "Il resto è stato salvato.",
+                "Abbinamenti salvati in parte",
                 MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
+                MessageBoxIcon.Information);
         }
         foreach (var mapping in _panel.EmployeeMappings)
         {
@@ -94,7 +142,6 @@ internal sealed class MappingEditorDialog : Form
         {
             EmployeeProfiles[profile.Key] = profile.Value;
         }
-        DialogResult = DialogResult.OK;
-        Close();
+        Committed = true;
     }
 }
