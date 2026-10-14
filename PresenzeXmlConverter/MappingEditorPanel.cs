@@ -264,11 +264,14 @@ internal sealed class MappingEditorPanel : Panel
                 hours = parsed;
             }
 
-            if (!TryReadDate(row.Cells[3].Value, out var start, out var startText) ||
-                !TryReadDate(row.Cells[4].Value, out var end, out var endText))
+            if (!TryReadDate(row.Cells[3].Value, out var start, out var startText))
             {
-                var wrong = startText ?? endText;
-                error = $"La data “{wrong}” di “{name}” non è valida: scrivi giorno/mese/anno, per esempio 01/03/2026.";
+                error = $"La data “{startText}” di “{name}” non è valida: scrivi giorno/mese/anno, per esempio 01/03/2026.";
+                return false;
+            }
+            if (!TryReadDate(row.Cells[4].Value, out var end, out var endText))
+            {
+                error = $"La data “{endText}” di “{name}” non è valida: scrivi giorno/mese/anno, per esempio 01/03/2026.";
                 return false;
             }
             if (start is not null && end is not null && end < start)
