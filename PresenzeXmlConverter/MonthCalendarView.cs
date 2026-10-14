@@ -700,6 +700,25 @@ internal sealed class MonthCalendarView : Panel
             }
         }
 
+        private const int WmHScroll = 0x0114;
+        private const int WmVScroll = 0x0115;
+        private const int WmMouseWheel = 0x020A;
+        private const int WmMouseHWheel = 0x020E;
+
+        /// <summary>
+        /// Con lo scorrimento Windows sposta i pixel già dipinti invece di ridisegnare: l'intestazione e la
+        /// colonna dei nomi, che restano ferme, lasciavano copie fantasma ad ogni passo. Dopo ogni scorrimento
+        /// si ridipinge tutto.
+        /// </summary>
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg is WmHScroll or WmVScroll or WmMouseWheel or WmMouseHWheel)
+            {
+                Invalidate();
+            }
+        }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);

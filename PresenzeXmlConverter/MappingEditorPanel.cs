@@ -39,7 +39,7 @@ internal sealed class MappingEditorPanel : Panel
         Controls.Add(_tabs);
 
         _note.Text =
-            "I campi * sono obbligatori. Controlla i codici prima di salvare.";
+            "I campi * servono per creare l'anteprima, ma puoi salvare anche a metà: i codici inseriti restano.";
         _note.Dock = DockStyle.Bottom;
         _note.Height = 28;
         _note.Padding = new Padding(8, 4, 0, 0);
@@ -69,6 +69,36 @@ internal sealed class MappingEditorPanel : Panel
                 SortMode = DataGridViewColumnSortMode.NotSortable
             });
         }
+
+        _employeesGrid.CellValueChanged += (_, _) => MarkChanged();
+        _policiesGrid.CellValueChanged += (_, _) => MarkChanged();
+    }
+
+    private bool _loading;
+
+    private bool _unsaved;
+
+    /// <summary>True se nelle griglie c'è qualcosa di scritto e non ancora salvato (anche una cella ancora in modifica).</summary>
+    public bool HasUnsavedChanges
+    {
+        get => _unsaved || _employeesGrid.IsCurrentCellDirty || _policiesGrid.IsCurrentCellDirty;
+        private set => _unsaved = value;
+    }
+
+    /// <summary>Codici richiesti dal foglio che mancano ancora (aggiornato a ogni salvataggio).</summary>
+    public int MissingRequiredCount { get; private set; }
+
+    /// <summary>Scatta a ogni modifica delle griglie: chi ospita il pannello può salvare la bozza da solo.</summary>
+    public event EventHandler? Changed;
+
+    private void MarkChanged()
+    {
+        if (_loading)
+        {
+            return;
+        }
+        HasUnsavedChanges = true;
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>Profili validati dall'ultimo <see cref="TrySave"/> riuscito (uno per ogni riga; vuoto = regola generale).</summary>
@@ -92,23 +122,42 @@ internal sealed class MappingEditorPanel : Panel
         IReadOnlyDictionary<string, string>? policySuggestions = null,
         IReadOnlyDictionary<string, EmployeeProfile>? employeeProfiles = null)
     {
-        _requiredEmployees = new HashSet<string>(requiredEmployees, StringComparer.OrdinalIgnoreCase);
-        _requiredPolicies = new HashSet<string>(requiredPolicies, StringComparer.OrdinalIgnoreCase);
-        Fill(_employeesGrid, employeeMappings, _requiredEmployees);
-        Fill(_policiesGrid, policyMappings, _requiredPolicies, policySuggestions);
-        if (employeeProfiles is not null)
+        _loading = true;
+        try
         {
-            foreach (DataGridViewRow row in _employeesGrid.Rows)
+            _requiredEmployees = new HashSet<string>(requiredEmployees, StringComparer.OrdinalIgnoreCase);
+            _requiredPolicies = new HashSet<string>(requiredPolicies, StringComparer.OrdinalIgnoreCase);
+            Fill(_employeesGrid, employeeMappings, _requiredEmployees);
+            Fill(_policiesGrid, policyMappings, _requiredPolicies, policySuggestions);
+            if (employeeProfiles is not null)
             {
-                if (row.Tag is string name && employeeProfiles.TryGetValue(name, out var profile))
+                foreach (DataGridViewRow row in _employeesGrid.Rows)
                 {
-                    row.Cells[2].Value = profile.DailyHours?.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
-                    row.Cells[3].Value = profile.StartDate?.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
-                    row.Cells[4].Value = profile.EndDate?.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+                    if (row.Tag is string name && employeeProfiles.TryGetValue(name, out var profile))
+                    {
+                        row.Cells[2].Value = profile.DailyHours?.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
+                        row.Cells[3].Value = profile.StartDate?.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+                        row.Cells[4].Value = profile.EndDate?.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+                    }
                 }
             }
         }
+        finally
+        {
+            _loading = false;
+        }
+        HasUnsavedChanges = false;
+        MissingRequiredCount = CountMissing();
     }
+
+    private int CountMissing() =>
+        CountMissing(_employeesGrid, _requiredEmployees) + CountMissing(_policiesGrid, _requiredPolicies);
+
+    private static int CountMissing(ThemedGrid grid, IReadOnlySet<string> required) =>
+        grid.Rows.Cast<DataGridViewRow>().Count(row =>
+            row.Tag is string name &&
+            required.Contains(name) &&
+            string.IsNullOrWhiteSpace(Convert.ToString(row.Cells[1].Value)));
 
     /// <summary>
     /// Convalida le griglie e compila <see cref="EmployeeMappings"/> e
@@ -116,26 +165,53 @@ internal sealed class MappingEditorPanel : Panel
     /// spiegazione, senza aprire finestre: decide chi ospita il pannello come
     /// mostrarla (un messaggio nel dialogo, lo stato nella finestra principale).
     /// </summary>
-    public bool TrySave(out string? error)
+    public bool TrySave(out string? error, bool allowIncomplete = false)
     {
         error = null;
-        if (!TryReadMappings(_employeesGrid, _requiredEmployees, 7, "dipendente", EmployeeMappings, out error) ||
-            !TryReadMappings(_policiesGrid, _requiredPolicies, 3, "giustificativo", PolicyMappings, out error))
+        // Salvataggio «a metà»: i codici mancanti non bloccano e le righe scritte male si lasciano fuori
+        // (con una nota), così ciò che è valido resta salvato e non si rifà da capo.
+        var skipped = allowIncomplete ? new List<string>() : null;
+        if (!TryReadMappings(_employeesGrid, _requiredEmployees, 7, "dipendente", EmployeeMappings, skipped, out error) ||
+            !TryReadMappings(_policiesGrid, _requiredPolicies, 3, "giustificativo", PolicyMappings, skipped, out error))
         {
             return false;
         }
 
-        var duplicate = EmployeeMappings
+        var duplicates = EmployeeMappings
             .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Value))
             .GroupBy(mapping => mapping.Value.Trim(), StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault(group => group.Count() > 1);
-        if (duplicate is not null)
+            .Where(group => group.Count() > 1)
+            .ToArray();
+        if (duplicates.Length > 0)
         {
-            error = $"Il codice dipendente “{duplicate.Key}” è assegnato a più nomi. Verifica gli abbinamenti.";
-            return false;
+            if (skipped is null)
+            {
+                error = $"Il codice dipendente “{duplicates[0].Key}” è assegnato a più nomi. Verifica gli abbinamenti.";
+                return false;
+            }
+            foreach (var group in duplicates)
+            {
+                // Resta il primo (in ordine alfabetico), gli altri aspettano che l'utente li corregga.
+                foreach (var extra in group.OrderBy(mapping => mapping.Key, StringComparer.CurrentCultureIgnoreCase).Skip(1))
+                {
+                    EmployeeMappings.Remove(extra.Key);
+                    skipped.Add($"codice “{group.Key}” già usato: “{extra.Key}” non salvato");
+                }
+            }
         }
 
-        return TryReadProfiles(out error);
+        if (!TryReadProfiles(skipped, out error))
+        {
+            return false;
+        }
+        MissingRequiredCount = CountMissing();
+        HasUnsavedChanges = false;
+        if (skipped is { Count: > 0 })
+        {
+            error = (skipped.Count == 1 ? "Una riga non è stata salvata: " : $"{skipped.Count} righe non sono state salvate: ") +
+                    string.Join("; ", skipped.Take(3)) + (skipped.Count > 3 ? "…" : ".");
+        }
+        return true;
     }
 
     /// <summary>Sceglie la scheda da mostrare (0 = Dipendenti, 1 = Giustificativi).</summary>
@@ -208,6 +284,7 @@ internal sealed class MappingEditorPanel : Panel
         int maximumLength,
         string label,
         IDictionary<string, string> output,
+        List<string>? skipped,
         out string? error)
     {
         error = null;
@@ -219,7 +296,7 @@ internal sealed class MappingEditorPanel : Panel
             var code = Convert.ToString(row.Cells[1].Value)?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(code))
             {
-                if (required.Contains(name))
+                if (required.Contains(name) && skipped is null)
                 {
                     error = $"Inserisci il codice {label} richiesto per “{name}”.";
                     return false;
@@ -228,6 +305,11 @@ internal sealed class MappingEditorPanel : Panel
             }
             if (code.Length > maximumLength)
             {
+                if (skipped is not null)
+                {
+                    skipped.Add($"codice {label} “{code}” troppo lungo (max {maximumLength})");
+                    continue;
+                }
                 error =
                     $"Il codice {label} “{code}” supera il limite di {maximumLength} caratteri del tracciato.";
                 return false;
@@ -238,7 +320,7 @@ internal sealed class MappingEditorPanel : Panel
     }
 
     /// <summary>Legge ore e date di ogni dipendente: un valore scritto male blocca il salvataggio con un messaggio chiaro.</summary>
-    private bool TryReadProfiles(out string? error)
+    private bool TryReadProfiles(List<string>? skipped, out string? error)
     {
         error = null;
         EmployeeProfiles.Clear();
@@ -257,6 +339,11 @@ internal sealed class MappingEditorPanel : Panel
             {
                 if (!GenerationSettings.TryParseHoursPerDay(hoursText, out var parsed))
                 {
+                    if (skipped is not null)
+                    {
+                        skipped.Add($"ore di “{name}” (“{hoursText}”) non valide");
+                        continue;
+                    }
                     error = $"Le ore al giorno di “{name}” (“{hoursText}”) devono essere un numero fra " +
                             $"{GenerationSettings.MinimumHoursPerDay:0} e {GenerationSettings.MaximumHoursPerDay:0}, per esempio 4 oppure 6,5.";
                     return false;
@@ -266,16 +353,31 @@ internal sealed class MappingEditorPanel : Panel
 
             if (!TryReadDate(row.Cells[3].Value, out var start, out var startText))
             {
+                if (skipped is not null)
+                {
+                    skipped.Add($"data “{startText}” di “{name}” non valida");
+                    continue;
+                }
                 error = $"La data “{startText}” di “{name}” non è valida: scrivi giorno/mese/anno, per esempio 01/03/2026.";
                 return false;
             }
             if (!TryReadDate(row.Cells[4].Value, out var end, out var endText))
             {
+                if (skipped is not null)
+                {
+                    skipped.Add($"data “{endText}” di “{name}” non valida");
+                    continue;
+                }
                 error = $"La data “{endText}” di “{name}” non è valida: scrivi giorno/mese/anno, per esempio 01/03/2026.";
                 return false;
             }
             if (start is not null && end is not null && end < start)
             {
+                if (skipped is not null)
+                {
+                    skipped.Add($"rapporto di “{name}”: la fine precede l'inizio");
+                    continue;
+                }
                 error = $"Per “{name}” la data di fine rapporto precede quella di inizio.";
                 return false;
             }

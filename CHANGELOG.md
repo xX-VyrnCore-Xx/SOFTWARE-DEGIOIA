@@ -14,6 +14,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 - Il filtro è diventato **«Solo da controllare»**: dipendenti con giorni scoperti, anomalie o totale del mese che non torna
 - Il calendario ora si aggiorna anche quando si modifica la griglia dei movimenti
 
+### 💾 Abbinamenti salvabili a metà
+- **«Salva abbinamenti» non pretende più che sia tutto compilato**: i codici inseriti restano nel database anche se ne mancano altri (prima un solo codice mancante bloccava il salvataggio e, chiudendo, si perdeva tutto). Solo le righe scritte male (codice troppo lungo, doppio, data non valida) restano fuori, con una nota che le elenca
+- **Salvataggio automatico** nella sezione Gestione codici: poco dopo l'ultima modifica e alla chiusura del programma
+- Chiudendo la finestra degli abbinamenti con «Annulla» o con la X dopo aver scritto dei codici, il programma chiede se salvare quelli inseriti
+- Creando l'anteprima con codici ancora mancanti, quelli inseriti vengono salvati e il programma dice quanti ne restano
+
+### 🖼️ Calendario: difetto grafico
+- Scorrendo il calendario l'intestazione dei giorni e la colonna dei nomi lasciavano copie fantasma: ora si ridisegna a ogni scorrimento
+
 ## [1.23.2]
 
 ### 🔔 Notifiche che si vedono davvero
