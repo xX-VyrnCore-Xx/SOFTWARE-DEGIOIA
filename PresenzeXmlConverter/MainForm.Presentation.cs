@@ -696,6 +696,7 @@ internal sealed partial class MainForm
         _previewTabs.AddPage("Movimenti  ·  0", movementPage);
         _previewTabs.AddPage("Anteprima XML", xmlPage);
         _previewTabs.AddPage("Controlli", BuildReviewPanel());
+        _previewTabs.AddPage("Calendario", _calendarView);
         _previewTabs.SelectedIndex = 0;
         return _previewTabs;
     }

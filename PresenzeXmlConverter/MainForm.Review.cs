@@ -158,6 +158,12 @@ internal sealed partial class MainForm
                 // non va segnalato come anomalia.
                 _generationOptions.IncludeSaturdays || _generationOptions.AutoDetect));
             findings.AddRange(MovementChecks.CompareWithSource(movements, _requests));
+            findings.AddRange(MovementChecks.CheckMonthlyHours(
+                movements,
+                _generationOptions,
+                SafeProfiles(() => _database.GetEmployeeProfiles()),
+                _inspection?.PeriodStart,
+                _inspection?.PeriodEnd));
         }
 
         _findings = findings
@@ -331,6 +337,18 @@ internal sealed partial class MainForm
         catch (Microsoft.Data.Sqlite.SqliteException)
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static IReadOnlyDictionary<string, EmployeeProfile> SafeProfiles(Func<Dictionary<string, EmployeeProfile>> read)
+    {
+        try
+        {
+            return read();
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException)
+        {
+            return new Dictionary<string, EmployeeProfile>(StringComparer.OrdinalIgnoreCase);
         }
     }
 }

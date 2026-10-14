@@ -284,3 +284,76 @@ public class EmployeeProfileTests
         }
     }
 }
+
+/// <summary>I controlli dell'area di revisione non devono trattare le presenze aggiunte dall'app come richieste del foglio.</summary>
+public class PresenceChecksTests
+{
+    private static readonly Dictionary<string, string> Codes = new() { ["Rossi Mario"] = "0000001" };
+    private static readonly Dictionary<string, string> Policies = new() { ["Ferie"] = "FE" };
+    private static readonly AttendanceRequest[] Requests =
+    [
+        new("Rossi Mario", "Ferie", new DateTime(2026, 9, 16), new DateTime(2026, 9, 16), 4m, 4)
+    ];
+
+    private static GenerationResult Generate(GenerationOptions options) =>
+        AttendanceMovementGenerator.Generate(Requests, Codes, Policies, null, null, options);
+
+    [Fact]
+    public void PresenceRowsAreNotReportedAsUnconfiguredCodesOrExtraReasons()
+    {
+        var options = new GenerationOptions(FillPresence: true);
+        var movements = Generate(options).Movements;
+
+        var findings = MovementChecks.Review(
+            movements, Policies, ["Rossi Mario"], null, null, options.HoursPerDay, includeSaturdays: true);
+
+        Assert.DoesNotContain(findings, finding => finding.Severity == MovementSeverity.Error);
+        Assert.DoesNotContain(findings, finding => finding.Message.Contains("più giustificativi", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ComparisonWithTheSourceIgnoresThePresenceAddedByTheApp()
+    {
+        var movements = Generate(new GenerationOptions(FillPresence: true)).Movements;
+        Assert.Empty(MovementChecks.CompareWithSource(movements, Requests));
+    }
+
+    [Fact]
+    public void AFullMonthMatchesItsTheoreticalHours()
+    {
+        var options = new GenerationOptions(FillPresence: true);
+        var movements = Generate(options).Movements;
+        Assert.Empty(MovementChecks.CheckMonthlyHours(movements, options, null, null, null));
+    }
+
+    [Fact]
+    public void AMissingDayIsReportedWithTheHoursThatAreOff()
+    {
+        var options = new GenerationOptions(FillPresence: true);
+        var movements = Generate(options).Movements
+            .Where(movement => movement.Date != new DateTime(2026, 9, 21))
+            .ToList();
+
+        var finding = Assert.Single(MovementChecks.CheckMonthlyHours(movements, options, null, null, null));
+        Assert.Equal(MovementSeverity.Warning, finding.Severity);
+        Assert.Contains("Rossi Mario", finding.Message, StringComparison.Ordinal);
+        Assert.Contains("8h", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheMonthlyCheckIsSilentWhenPresenceIsOff()
+    {
+        var options = new GenerationOptions();
+        var movements = Generate(options).Movements;
+        Assert.Empty(MovementChecks.CheckMonthlyHours(movements, options, null, null, null));
+    }
+
+    [Fact]
+    public void APartTimerIsComparedWithHerOwnHours()
+    {
+        var options = new GenerationOptions(FillPresence: true);
+        var profiles = new Dictionary<string, EmployeeProfile> { ["Rossi Mario"] = new(DailyHours: 4m) };
+        var movements = AttendanceMovementGenerator.Generate(Requests, Codes, Policies, null, null, options, profiles).Movements;
+        Assert.Empty(MovementChecks.CheckMonthlyHours(movements, options, profiles, null, null));
+    }
+}

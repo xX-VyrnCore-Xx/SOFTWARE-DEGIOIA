@@ -70,7 +70,9 @@ internal static class MovementChecks
         foreach (var group in movements.GroupBy(movement => (movement.EmployeeCode, movement.Date)))
         {
             var minutes = group.Sum(movement => movement.Hours * 60 + movement.Minutes);
-            var codes = group.Select(movement => movement.ReasonCode).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            // Le presenze aggiunte dall'app non sono richieste del foglio: non contano come «più giustificativi».
+            var codes = group.Where(movement => !AttendanceMovementGenerator.IsPresence(movement))
+                .Select(movement => movement.ReasonCode).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             if (minutes > 24 * 60)
             {
                 findings.Add(new MovementFinding(
@@ -121,7 +123,8 @@ internal static class MovementChecks
                     $"{Label(movement)}: il {movement.Date:dd/MM/yyyy} è dopo la fine del periodo dichiarato."));
             }
 
-            if (allowedCodes.Count > 0 && !allowedCodes.Contains(movement.ReasonCode))
+            if (allowedCodes.Count > 0 && !AttendanceMovementGenerator.IsPresence(movement) &&
+                !allowedCodes.Contains(movement.ReasonCode))
             {
                 findings.Add(new MovementFinding(
                     MovementSeverity.Error,
@@ -190,7 +193,9 @@ internal static class MovementChecks
         }
 
         var findings = new List<MovementFinding>();
+        // Si confrontano solo le ore delle richieste: le presenze aggiunte dall'app non stanno nel foglio.
         var generated = movements
+            .Where(movement => !AttendanceMovementGenerator.IsPresence(movement))
             .GroupBy(movement => movement.EmployeeName, StringComparer.CurrentCultureIgnoreCase)
             .ToDictionary(
                 group => group.Key,
@@ -225,6 +230,90 @@ internal static class MovementChecks
         }
         return findings;
     }
+
+    /// <summary>
+    /// Ore del mese di ogni dipendente contro quelle teoriche (giorni lavorativi del mese × ore della sua
+    /// giornata, nel suo rapporto di lavoro). Ha senso solo con le presenze automatiche accese: senza, nel
+    /// file ci sono le sole assenze e il confronto non vuol dire nulla.
+    /// </summary>
+    public static IReadOnlyList<MovementFinding> CheckMonthlyHours(
+        IReadOnlyList<DailyMovement> movements,
+        GenerationOptions options,
+        IReadOnlyDictionary<string, EmployeeProfile>? profiles,
+        DateTime? periodStart,
+        DateTime? periodEnd)
+    {
+        var findings = new List<MovementFinding>();
+        if (!options.FillPresence || movements.Count == 0)
+        {
+            return findings;
+        }
+
+        // Il periodo del foglio vale solo se tocca davvero i movimenti (come fa la generazione).
+        var first = movements.Min(movement => movement.Date).Date;
+        var last = movements.Max(movement => movement.Date).Date;
+        var usePeriod = (periodStart.HasValue || periodEnd.HasValue) &&
+                        (!periodEnd.HasValue || first <= periodEnd.Value.Date) &&
+                        (!periodStart.HasValue || last >= periodStart.Value.Date);
+        var from = usePeriod && periodStart.HasValue ? periodStart.Value.Date : new DateTime(first.Year, first.Month, 1);
+        var to = usePeriod && periodEnd.HasValue
+            ? periodEnd.Value.Date
+            : new DateTime(last.Year, last.Month, DateTime.DaysInMonth(last.Year, last.Month));
+        var extraHolidays = options.ExtraHolidays ?? [];
+
+        foreach (var employee in movements
+                     .GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(group => group.First().EmployeeName, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var name = employee.First().EmployeeName;
+            var profile = profiles is not null && profiles.TryGetValue(name, out var found) ? found : null;
+            var hours = profile?.DailyHours ?? options.HoursPerDay;
+            if (hours <= 0m || hours > 24m)
+            {
+                hours = 8m;
+            }
+            var dayMinutes = decimal.ToInt32(decimal.Round(hours * 60m, 0, MidpointRounding.AwayFromZero));
+
+            foreach (var month in employee
+                         .GroupBy(movement => (movement.Date.Year, movement.Date.Month))
+                         .OrderBy(group => group.Key))
+            {
+                var monthStart = new DateTime(month.Key.Year, month.Key.Month, 1);
+                var monthEnd = new DateTime(month.Key.Year, month.Key.Month, DateTime.DaysInMonth(month.Key.Year, month.Key.Month));
+                var expected = 0;
+                for (var day = monthStart < from ? from : monthStart; day <= (monthEnd > to ? to : monthEnd); day = day.AddDays(1))
+                {
+                    if (day.DayOfWeek == DayOfWeek.Sunday ||
+                        (day.DayOfWeek == DayOfWeek.Saturday && !options.IncludeSaturdays) ||
+                        ItalianHolidays.Contains(day, extraHolidays) ||
+                        (profile is not null && !profile.Covers(day)))
+                    {
+                        continue;
+                    }
+                    expected += dayMinutes;
+                }
+                var actual = month.Sum(movement => movement.Hours * 60 + movement.Minutes);
+                if (actual == expected)
+                {
+                    continue;
+                }
+                var difference = actual - expected;
+                findings.Add(new MovementFinding(
+                    MovementSeverity.Warning,
+                    $"“{name}” · {monthStart:MMMM yyyy}: {Format(actual)} registrate su {Format(expected)} teoriche " +
+                    $"({(difference > 0 ? "+" : "−")}{Format(Math.Abs(difference))})."));
+                if (findings.Count == 30)
+                {
+                    return findings;
+                }
+            }
+        }
+        return findings;
+    }
+
+    private static string Format(int minutes) => minutes % 60 == 0
+        ? $"{minutes / 60}h"
+        : $"{minutes / 60}h {minutes % 60:D2}m";
 
     /// <summary>Totali dei movimenti: righe, dipendenti distinti, giorni distinti e minuti.</summary>
     public static MovementTotals Summarize(IReadOnlyList<DailyMovement> movements)

@@ -910,6 +910,7 @@ internal sealed partial class MainForm : Form
             {
                 _movementsGrid.ResumeLayout();
             }
+            _calendarView.SetData(movements, _generationOptions, SafeProfiles(() => _database.GetEmployeeProfiles()));
         }
         finally
         {
@@ -1029,6 +1030,7 @@ internal sealed partial class MainForm : Form
         _currentPreviewExported = false;
         _xmlPreview.Clear();
         _movementsGrid.Rows.Clear();
+        _calendarView.Clear();
         _previewTabs.SetPageText(0, "Movimenti  ·  0");
         _previewCountLabel.Text = _requests.Count == 0
             ? "In attesa di un file"
