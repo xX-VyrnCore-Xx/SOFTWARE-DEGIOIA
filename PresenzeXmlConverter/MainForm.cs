@@ -910,7 +910,12 @@ internal sealed partial class MainForm : Form
             {
                 _movementsGrid.ResumeLayout();
             }
-            _calendarView.SetData(movements, _generationOptions, SafeProfiles(() => _database.GetEmployeeProfiles()));
+            _calendarView.SetData(
+                movements,
+                _generationOptions,
+                SafeProfiles(() => _database.GetEmployeeProfiles()),
+                _inspection?.PeriodStart,
+                _inspection?.PeriodEnd);
         }
         finally
         {

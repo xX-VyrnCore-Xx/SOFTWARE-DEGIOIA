@@ -4,7 +4,20 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.16] - Corrente
+## [1.23.0] - Corrente
+
+### 🗓️ Calendario più completo
+- **Totale ore** di ogni dipendente a fine riga, con un contatore rosso dei giorni lavorativi senza movimenti
+- **Riga dei presenti** in fondo: quanti dipendenti hanno la presenza in ogni giorno
+- **Cerca dipendente** e filtro «Solo giorni scoperti» per trovare subito chi ha dei buchi
+- Il giorno corrente è evidenziato, riga e colonna sotto il mouse si illuminano, le festività infrasettimanali sono in rosso nell'intestazione; passando sul nome o sul totale si leggono ore e giorni scoperti
+- **Salva immagine**: esporta il mese in PNG (titolo, griglia e legenda)
+
+### 📊 Riepilogo ore in CSV
+- Nuovo pulsante **Riepilogo CSV** nel calendario: per ogni dipendente e mese ore di presenza, ore di assenza, totale, ore teoriche, differenza, giorni senza movimenti e dettaglio per giustificativo. Il file si apre direttamente in Excel (separatore «;», virgola decimale)
+- La conversione XML per Zucchetti non cambia
+
+## [1.22.16]
 
 ### 🗓️ Calendario del mese e controllo delle ore
 - Nuova scheda **Calendario** nell'area di revisione: una riga per dipendente e una colonna per giorno, colorata per giustificativo (presenza in verde, ogni assenza con il suo colore, giorno misto diviso a metà). I giorni lavorativi senza movimenti hanno il contorno rosso tratteggiato; passando il mouse su un giorno si vede il dettaglio. Si sfoglia mese per mese
