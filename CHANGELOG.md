@@ -4,7 +4,13 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.13] - Corrente
+## [1.22.14] - Corrente
+
+### ⚙️ Rifiniture
+- **Impostazioni → Conversione**: nuova casella «Registra la presenza (01) nei giorni lavorativi senza assenze». Prima l'opzione c'era ma non si poteva spegnere; se la cambi l'anteprima va rigenerata
+- Finestra di associazione delle colonne: il segnaposto non dice più «Colonna 0: Seleziona una colonna» ma solo «Seleziona una colonna», e il primo menu non parte più evidenziato di blu
+
+## [1.22.13]
 
 ### 🎨 Nuovo aspetto in stile macOS (la conversione non cambia)
 - Tavolozza chiara alla Apple: sfondo grigio perla, blu di sistema, verde/arancio/rosso di sistema, testi grigio antracite; titoli in «Segoe UI Semibold» al posto del grassetto

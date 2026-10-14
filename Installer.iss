@@ -1,5 +1,5 @@
 #define AppName "Vyrn Presence"
-#define AppVersion "1.22.13"
+#define AppVersion "1.22.14"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 

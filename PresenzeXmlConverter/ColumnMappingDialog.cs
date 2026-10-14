@@ -4,7 +4,7 @@ internal sealed class ColumnMappingDialog : Form
 {
     private sealed record ColumnOption(int Index, string Header)
     {
-        public override string ToString() => $"Colonna {Index + 1}: {Header}";
+        public override string ToString() => Index < 0 ? Header : $"Colonna {Index + 1}: {Header}";
     }
 
     private readonly ComboBox _employee = new();
@@ -158,6 +158,8 @@ internal sealed class ColumnMappingDialog : Form
         root.Controls.Add(actions, 0, 3);
         AcceptButton = confirm;
         CancelButton = cancel;
+        // Senza questo il primo menu parte con il testo evidenziato di blu di sistema.
+        Shown += (_, _) => ActiveControl = confirm;
     }
 
     public ColumnSelection? Selection { get; private set; }
