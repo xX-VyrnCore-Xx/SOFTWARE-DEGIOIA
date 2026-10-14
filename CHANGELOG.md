@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.23.2] - Corrente
+## [1.23.3] - Corrente
+
+### ⚠️ Il calendario segnala le anomalie
+- **Segno sul giorno**: contorno e pallino **rossi** quando le ore del giorno superano la giornata (es. 13h 20m su 8h), pallino **ambra** per i giorni insoliti (più giustificativi nello stesso giorno, movimento di sabato, domenica o festivo, fuori dal rapporto di lavoro). Il tooltip spiega il motivo
+- **Totale del mese in ambra** quando non torna con le ore teoriche (con il dettaglio «+17 h rispetto alle ore teoriche» al passaggio del mouse)
+- **Barra in alto** finché l'anteprima è aperta: conta i giorni da controllare e i controlli ancora aperti, con **«Vai al primo / prossimo»** (cambia mese, toglie i filtri se nascondono il dipendente e cerchia il giorno) e **«Apri i controlli»**
+- Dopo la conversione compare anche un cartellino «Da controllare nel calendario» che porta alla scheda
+- Il filtro è diventato **«Solo da controllare»**: dipendenti con giorni scoperti, anomalie o totale del mese che non torna
+- Il calendario ora si aggiorna anche quando si modifica la griglia dei movimenti
+
+## [1.23.2]
 
 ### 🔔 Notifiche che si vedono davvero
 - **Avvisi dentro la finestra**: un cartellino in basso a destra per conversione completata, file XML salvato (un clic lo mostra nella cartella), copia negli appunti e aggiornamento disponibile. Si ritira da solo; col mouse sopra resta, un clic lo chiude

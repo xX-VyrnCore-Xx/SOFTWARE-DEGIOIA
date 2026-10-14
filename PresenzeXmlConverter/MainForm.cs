@@ -622,6 +622,7 @@ internal sealed partial class MainForm : Form
             RunDeterministicChecks(result.Movements);
             UpdateButtons();
             NotifyConversionCompleted(result.Movements.Count);
+            NotifyCalendarAlerts();
             if (ErrorCount > 0)
             {
                 _previewTabs.SelectedIndex = ReviewTabIndex;
@@ -927,12 +928,7 @@ internal sealed partial class MainForm : Form
             {
                 _movementsGrid.ResumeLayout();
             }
-            _calendarView.SetData(
-                movements,
-                _generationOptions,
-                SafeProfiles(() => _database.GetEmployeeProfiles()),
-                _inspection?.PeriodStart,
-                _inspection?.PeriodEnd);
+            RefreshCalendar(movements);
         }
         finally
         {
@@ -991,6 +987,8 @@ internal sealed partial class MainForm : Form
             _xml = TrriPwXmlWriter.Create(companyCode, movements);
             ShowXmlPreview(_xml);
             PersistMovementMappings();
+            // Il calendario segue le modifiche alla griglia, prima dei controlli che ne aggiornano il riepilogo.
+            RefreshCalendar(movements);
             RunDeterministicChecks(movements);
             UpdatePreviewSummary(movements);
             UpdateButtons();

@@ -208,6 +208,8 @@ internal sealed partial class MainForm
             ReviewTabIndex,
             _findings.Count == 0 ? "Controlli" : $"Controlli  ·  {_findings.Count:N0}");
         SetReviewButtonsEnabled();
+        // Il calendario ricorda in alto quanti controlli restano aperti, con il comando per aprirli.
+        _calendarView.SetReviewSummary(errors, warnings, () => _previewTabs.SelectedIndex = ReviewTabIndex);
     }
 
     private void SetReviewButtonsEnabled()
@@ -325,6 +327,7 @@ internal sealed partial class MainForm
         _findingsSummaryLabel.Text = "Nessun movimento generato: importa un file e crea l’anteprima.";
         _findingsSummaryLabel.ForeColor = Theme.InkSecondary;
         _previewTabs.SetPageText(ReviewTabIndex, "Controlli");
+        _calendarView.SetReviewSummary(0, 0, null);
         SetReviewButtonsEnabled();
     }
 
