@@ -309,15 +309,15 @@ internal sealed partial class MainForm : Form
         AddUpdateCommands(menu);
         AddDataCommands(menu);
         menu.Items.Add(new ToolStripSeparator());
-        var notifications = new ToolStripMenuItem("Notifiche di fine conversione")
+        var notifications = new ToolStripMenuItem("Notifiche di Windows")
         {
             CheckOnClick = true,
-            Checked = !string.Equals(_database.GetSetting("notifications"), "false", StringComparison.OrdinalIgnoreCase)
+            Checked = NativeNotificationsEnabled()
         };
         notifications.CheckedChanged += (_, _) =>
         {
-            _database.SaveSetting("notifications", notifications.Checked ? "true" : "false");
-            SetStatus(notifications.Checked ? "●   Notifiche attivate." : "●   Notifiche disattivate.", false);
+            _database.SaveSetting(NativeNotificationsSetting, notifications.Checked ? "true" : "false");
+            SetStatus(notifications.Checked ? "●   Notifiche di Windows attivate." : "●   Notifiche di Windows disattivate.", false);
         };
         menu.Items.Add(notifications);
         menu.Items.Add("Alla chiusura chiedi di nuovo", null, (_, _) =>
@@ -356,9 +356,15 @@ internal sealed partial class MainForm : Form
     /// Windows prima di poter mostrare un fumetto: se è appena stata resa visibile la
     /// prima notifica andrebbe persa, quindi si attende un istante.
     /// </summary>
-    private void ShowTrayNotification(string title, string text, int milliseconds = 6000)
+    private void ShowTrayNotification(
+        string title,
+        string text,
+        int milliseconds = 6000,
+        ToolTipIcon icon = ToolTipIcon.Info,
+        bool force = false)
     {
-        if (IsDisposed || string.Equals(_database.GetSetting("notifications"), "false", StringComparison.OrdinalIgnoreCase))
+        // «force» è la prova delle Impostazioni: si vede anche con le notifiche spente.
+        if (IsDisposed || (!force && !NativeNotificationsEnabled()))
         {
             return;
         }
@@ -373,7 +379,7 @@ internal sealed partial class MainForm : Form
                 {
                     return;
                 }
-                _trayIcon.ShowBalloonTip(milliseconds, title, text, ToolTipIcon.Info);
+                _trayIcon.ShowBalloonTip(milliseconds, title, text, icon);
                 _trayCleanup.Stop();
                 _trayCleanup.Interval = milliseconds + 15_000;
                 _trayCleanup.Start();
@@ -423,13 +429,18 @@ internal sealed partial class MainForm : Form
 
     private void NotifyConversionCompleted(int movementCount)
     {
+        var message = $"{movementCount:N0} movimenti pronti. Controlla l'anteprima ed esporta l'XML.";
         if (IsWindowInUse)
         {
+            // Sta già guardando la finestra: basta il cartellino, niente fumetto di Windows.
+            Notify(ToastKind.Success, "Conversione completata", message);
             return;
         }
-        ShowTrayNotification(
+        Notify(
+            ToastKind.Success,
             "Conversione completata",
-            $"{movementCount:N0} movimenti pronti. Apri Vyrn Presence per revisionare ed esportare l'XML.");
+            $"{movementCount:N0} movimenti pronti. Apri Vyrn Presence per revisionare ed esportare l'XML.",
+            systemNotification: true);
     }
 
     private async Task ImportWorkbookAsync()
@@ -832,6 +843,12 @@ internal sealed partial class MainForm : Form
             }
             RecordExport(picker.FileName, companyCode);
             SetStatus($"XML salvato: {picker.FileName}", false);
+            var savedPath = picker.FileName;
+            Notify(
+                ToastKind.Success,
+                "XML salvato",
+                $"{Path.GetFileName(savedPath)} · clic per mostrarlo nella cartella.",
+                () => RevealInExplorer(savedPath));
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or AggregateException or InvalidDataException)

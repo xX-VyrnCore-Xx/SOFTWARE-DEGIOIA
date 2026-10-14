@@ -3,7 +3,7 @@ using System.Globalization;
 namespace PresenzeXmlConverter;
 
 /// <summary>
-/// Impostazioni dell'applicazione in un unico posto, divise in tre schede:
+/// Impostazioni dell'applicazione in un unico posto, divise in schede:
 /// Conversione (regole di calcolo) e Aggiornamenti (collegamento alle
 /// Release GitHub con il token di sola lettura). Il token viene verificato e
 /// attivato subito, senza riavviare il programma.
@@ -33,16 +33,22 @@ internal sealed class SettingsDialog : Form
     private readonly RoundedField _xmlNamespace = new();
     private readonly CheckBox _xmlPerNode = new();
     private readonly Label _xmlStatus = new();
+    private readonly CheckBox _inAppNotifications = new();
+    private readonly CheckBox _systemNotifications = new();
 
     public SettingsDialog(
         GenerationOptions options,
         int referenceYear,
         bool autoUpdateCheck,
-        XmlFormat? xmlFormat = null)
+        XmlFormat? xmlFormat = null,
+        bool inAppNotifications = true,
+        bool systemNotifications = true)
     {
         _referenceYear = referenceYear;
         Options = options;
         AutoUpdateCheck = autoUpdateCheck;
+        InAppNotifications = inAppNotifications;
+        SystemNotifications = systemNotifications;
         Format = xmlFormat ?? XmlFormat.Active;
 
         // I due pulsanti del token servono già mentre si costruisce la scheda
@@ -128,6 +134,7 @@ internal sealed class SettingsDialog : Form
         tabs.AddPage("Conversione", BuildConversionPage());
         tabs.AddPage("Aggiornamenti", BuildUpdatePage());
         tabs.AddPage("Formato XML", BuildXmlPage());
+        tabs.AddPage("Notifiche", BuildNotificationsPage());
         tabs.SelectedIndex = 0;
         shell.Controls.Add(tabs);
         root.Controls.Add(shell, 0, 1);
@@ -186,6 +193,15 @@ internal sealed class SettingsDialog : Form
     public GenerationOptions Options { get; private set; }
 
     public bool AutoUpdateCheck { get; private set; }
+
+    /// <summary>Cartellini dentro la finestra (valido solo dopo "Salva impostazioni").</summary>
+    public bool InAppNotifications { get; private set; }
+
+    /// <summary>Fumetti di Windows dal tray (valido solo dopo "Salva impostazioni").</summary>
+    public bool SystemNotifications { get; private set; }
+
+    /// <summary>Chiesta da «Prova le notifiche»: la finestra principale le mostra con le scelte correnti.</summary>
+    public event EventHandler<(bool InApp, bool System)>? NotificationTestRequested;
 
     /// <summary>Forma del file XML scelta (valida solo dopo "Salva impostazioni").</summary>
     public XmlFormat Format { get; private set; }
@@ -402,6 +418,73 @@ internal sealed class SettingsDialog : Form
     }
 
     /// <summary>Scheda "Aggiornamenti": ricerca automatica, token delle Release, firma.</summary>
+    /// <summary>Scheda "Notifiche": cartellini nella finestra, fumetti di Windows e prova.</summary>
+    private Control BuildNotificationsPage()
+    {
+        var (page, body) = CreatePage(SettingsPageLayout.NotificationRows);
+
+        body.Controls.Add(CreateHint(
+            "Avvisi per conversione completata, file salvato e aggiornamenti. Quelli di Windows arrivano solo quando la finestra non è in primo piano."), 0, 0);
+
+        ConfigureCheck(_inAppNotifications, "Mostra gli avvisi dentro la finestra", InAppNotifications, "Avvisi dentro la finestra");
+        body.Controls.Add(_inAppNotifications, 0, 1);
+        ConfigureCheck(_systemNotifications, "Mostra le notifiche di Windows quando il programma è in background", SystemNotifications, "Notifiche di Windows");
+        body.Controls.Add(_systemNotifications, 0, 2);
+
+        var actions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        var test = Theme.CreateButton("Prova le notifiche", Theme.ButtonTone.Primary, compact: true);
+        test.Size = new Size(170, 34);
+        test.Margin = new Padding(0, 0, 8, 0);
+        test.AccessibleName = "Prova le notifiche";
+        test.Click += (_, _) => NotificationTestRequested?.Invoke(
+            this,
+            (_inAppNotifications.Checked, _systemNotifications.Checked));
+        var windowsSettings = Theme.CreateButton("Impostazioni di Windows", Theme.ButtonTone.Neutral, compact: true);
+        windowsSettings.Size = new Size(200, 34);
+        windowsSettings.Margin = Padding.Empty;
+        windowsSettings.AccessibleName = "Apri le impostazioni delle notifiche di Windows";
+        windowsSettings.Click += (_, _) => OpenWindowsNotificationSettings();
+        actions.Controls.Add(test);
+        actions.Controls.Add(windowsSettings);
+        body.Controls.Add(actions, 0, 3);
+
+        body.Controls.Add(CreateNote(
+            "Se la prova di Windows non compare, controlla Assistente focus e le notifiche di «Vyrn Presence» nelle impostazioni di Windows."), 0, 4);
+        return page;
+    }
+
+    private static void ConfigureCheck(CheckBox box, string text, bool isChecked, string accessibleName)
+    {
+        box.Text = text;
+        box.Dock = DockStyle.Fill;
+        box.TextAlign = ContentAlignment.MiddleLeft;
+        box.ForeColor = Theme.InkSecondary;
+        box.Font = Theme.Fonts.Small;
+        box.Checked = isChecked;
+        box.AccessibleName = accessibleName;
+        box.Margin = Padding.Empty;
+    }
+
+    private static void OpenWindowsNotificationSettings()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo("ms-settings:notifications") { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // Pagina non disponibile: si apre a mano dalle impostazioni di Windows.
+        }
+    }
+
     private Control BuildUpdatePage()
     {
         var (page, body) = CreatePage(SettingsPageLayout.UpdateRows);
@@ -614,6 +697,8 @@ internal sealed class SettingsDialog : Form
             FillPresence = _fillPresence.Checked
         };
         AutoUpdateCheck = _autoCheck.Checked;
+        InAppNotifications = _inAppNotifications.Checked;
+        SystemNotifications = _systemNotifications.Checked;
         DialogResult = DialogResult.OK;
         Close();
     }

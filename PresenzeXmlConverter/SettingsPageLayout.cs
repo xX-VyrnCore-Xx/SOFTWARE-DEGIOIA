@@ -65,8 +65,14 @@ internal static class SettingsPageLayout
         HintRow, FieldLabelRow, FieldRow, FieldLabelRow, FieldRow, CheckRow, ActionRow, NoteRow
     };
 
+    /// <summary>Scheda "Notifiche": i due canali, la prova e il collegamento alle impostazioni di Windows.</summary>
+    public static readonly int[] NotificationRows =
+    {
+        HintRow, CheckRow, CheckRow, ActionRow, NoteRow
+    };
+
     /// <summary>Tutte le schede, nell'ordine in cui compaiono.</summary>
-    public static IReadOnlyList<int[]> Pages => new[] { ConversionRows, UpdateRows, XmlRows };
+    public static IReadOnlyList<int[]> Pages => new[] { ConversionRows, UpdateRows, XmlRows, NotificationRows };
 
     /// <summary>Spaziatura interna della pagina (sopra e sotto).</summary>
     public const int PagePadding = 16;

@@ -974,6 +974,7 @@ internal sealed partial class MainForm
         {
             Clipboard.SetText(_xml);
             SetStatus("●   XML copiato negli appunti", false);
+            Notify(ToastKind.Info, "Copiato", "L'XML è negli appunti.");
         }
         catch (System.Runtime.InteropServices.ExternalException exception)
         {
