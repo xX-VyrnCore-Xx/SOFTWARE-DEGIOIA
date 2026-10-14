@@ -204,3 +204,83 @@ public class PresenceFillTests
         Assert.Single(result.Movements);
     }
 }
+
+/// <summary>Part-time e rapporto di lavoro: le ore e i giorni propri del dipendente.</summary>
+public class EmployeeProfileTests
+{
+    private static readonly Dictionary<string, string> Codes = new() { ["Rossi Mario"] = "0000001", ["Verdi Anna"] = "0000002" };
+    private static readonly Dictionary<string, string> Policies = new() { ["Ferie"] = "FE" };
+
+    private static GenerationResult Run(
+        IReadOnlyList<AttendanceRequest> requests,
+        Dictionary<string, EmployeeProfile> profiles) =>
+        AttendanceMovementGenerator.Generate(
+            requests, Codes, Policies, null, null, new GenerationOptions(FillPresence: true), profiles);
+
+    [Fact]
+    public void APartTimerGetsHerOwnHoursAsPresence()
+    {
+        var result = Run(
+            [new AttendanceRequest("Verdi Anna", "Ferie", new DateTime(2026, 9, 15), new DateTime(2026, 9, 15), 4m, 4)],
+            new Dictionary<string, EmployeeProfile> { ["Verdi Anna"] = new(DailyHours: 4m) });
+
+        var presence = result.Movements.Where(movement => movement.ReasonCode == "01").ToArray();
+        Assert.All(presence, movement => Assert.Equal(4, movement.Hours));
+        // Il 15 la giornata da 4 ore è tutta di ferie: nessuna presenza.
+        Assert.DoesNotContain(presence, movement => movement.Date == new DateTime(2026, 9, 15));
+        Assert.Equal(21, presence.Length);
+    }
+
+    [Fact]
+    public void NoPresenceIsWrittenBeforeHiringOrAfterTheEndOfTheContract()
+    {
+        var result = Run(
+            [new AttendanceRequest("Rossi Mario", "Ferie", new DateTime(2026, 9, 16), new DateTime(2026, 9, 16), 8m, 4)],
+            new Dictionary<string, EmployeeProfile>
+            {
+                ["Rossi Mario"] = new(StartDate: new DateTime(2026, 9, 10), EndDate: new DateTime(2026, 9, 25))
+            });
+
+        var presence = result.Movements.Where(movement => movement.ReasonCode == "01").ToArray();
+        Assert.Equal(new DateTime(2026, 9, 10), presence.Min(movement => movement.Date));
+        Assert.Equal(new DateTime(2026, 9, 25), presence.Max(movement => movement.Date));
+        Assert.DoesNotContain(presence, movement => movement.Date == new DateTime(2026, 9, 16));
+    }
+
+    [Fact]
+    public void AnEmployeeWithoutAProfileKeepsTheStandardRules()
+    {
+        var result = Run(
+            [new AttendanceRequest("Rossi Mario", "Ferie", new DateTime(2026, 9, 16), new DateTime(2026, 9, 16), 8m, 4)],
+            []);
+        Assert.Equal(21, result.Movements.Count(movement => movement.ReasonCode == "01"));
+    }
+
+    [Fact]
+    public void ProfilesRoundTripThroughTheDatabaseAndAnEmptyOneIsDeleted()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"profili-{Guid.NewGuid():N}.db");
+        try
+        {
+            {
+                var database = new LocalDatabase(path);
+                database.SaveEmployeeProfile("Verdi Anna", new EmployeeProfile(4.5m, new DateTime(2026, 3, 1), null));
+                var read = database.GetEmployeeProfiles();
+                Assert.Equal(4.5m, read["verdi anna"].DailyHours);
+                Assert.Equal(new DateTime(2026, 3, 1), read["Verdi Anna"].StartDate);
+                Assert.Null(read["Verdi Anna"].EndDate);
+
+                database.SaveEmployeeProfile("Verdi Anna", new EmployeeProfile());
+                Assert.Empty(database.GetEmployeeProfiles());
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            foreach (var file in Directory.GetFiles(Path.GetTempPath(), Path.GetFileName(path) + "*"))
+            {
+                File.Delete(file);
+            }
+        }
+    }
+}

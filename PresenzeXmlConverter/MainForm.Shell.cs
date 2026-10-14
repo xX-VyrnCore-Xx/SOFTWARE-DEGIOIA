@@ -442,7 +442,9 @@ internal sealed partial class MainForm
                 _database.GetEmployeeMappings(),
                 _database.GetPolicyMappings(),
                 _requests.Select(request => request.EmployeeName).Distinct(StringComparer.OrdinalIgnoreCase),
-                _requests.Select(request => request.Policy).Distinct(StringComparer.OrdinalIgnoreCase));
+                _requests.Select(request => request.Policy).Distinct(StringComparer.OrdinalIgnoreCase),
+                null,
+                _database.GetEmployeeProfiles());
             _codesLoaded = true;
         }
         catch (SqliteException exception)
@@ -467,6 +469,10 @@ internal sealed partial class MainForm
             foreach (var mapping in _mappingPanel.PolicyMappings)
             {
                 _database.SavePolicyMapping(mapping.Key, mapping.Value);
+            }
+            foreach (var profile in _mappingPanel.EmployeeProfiles)
+            {
+                _database.SaveEmployeeProfile(profile.Key, profile.Value);
             }
             InvalidatePreview();
             SetStatus("●   Abbinamenti salvati nel database locale.", false);

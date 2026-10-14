@@ -50,7 +50,29 @@ internal sealed class MappingEditorPanel : Panel
         Controls.Add(_note);
 
         ((DataGridViewTextBoxColumn)_policiesGrid.Columns[1]).MaxInputLength = 3;
+
+        // Dati propri del dipendente (facoltativi): ore della sua giornata e periodo del rapporto.
+        _employeesGrid.Columns[0].FillWeight = 40;
+        _employeesGrid.Columns[1].FillWeight = 18;
+        foreach (var (header, weight, length) in new[]
+                 {
+                     ("Ore al giorno", 14f, 5),
+                     ("Assunto dal", 16f, 10),
+                     ("Fino al", 16f, 10)
+                 })
+        {
+            _employeesGrid.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                HeaderText = header,
+                FillWeight = weight,
+                MaxInputLength = length,
+                SortMode = DataGridViewColumnSortMode.NotSortable
+            });
+        }
     }
+
+    /// <summary>Profili validati dall'ultimo <see cref="TrySave"/> riuscito (uno per ogni riga; vuoto = regola generale).</summary>
+    public Dictionary<string, EmployeeProfile> EmployeeProfiles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Abinamenti validati dall'ultimo <see cref="TrySave"/> riuscito.</summary>
     public Dictionary<string, string> EmployeeMappings { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -67,12 +89,25 @@ internal sealed class MappingEditorPanel : Panel
         IReadOnlyDictionary<string, string> policyMappings,
         IEnumerable<string> requiredEmployees,
         IEnumerable<string> requiredPolicies,
-        IReadOnlyDictionary<string, string>? policySuggestions = null)
+        IReadOnlyDictionary<string, string>? policySuggestions = null,
+        IReadOnlyDictionary<string, EmployeeProfile>? employeeProfiles = null)
     {
         _requiredEmployees = new HashSet<string>(requiredEmployees, StringComparer.OrdinalIgnoreCase);
         _requiredPolicies = new HashSet<string>(requiredPolicies, StringComparer.OrdinalIgnoreCase);
         Fill(_employeesGrid, employeeMappings, _requiredEmployees);
         Fill(_policiesGrid, policyMappings, _requiredPolicies, policySuggestions);
+        if (employeeProfiles is not null)
+        {
+            foreach (DataGridViewRow row in _employeesGrid.Rows)
+            {
+                if (row.Tag is string name && employeeProfiles.TryGetValue(name, out var profile))
+                {
+                    row.Cells[2].Value = profile.DailyHours?.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
+                    row.Cells[3].Value = profile.StartDate?.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+                    row.Cells[4].Value = profile.EndDate?.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -100,7 +135,7 @@ internal sealed class MappingEditorPanel : Panel
             return false;
         }
 
-        return true;
+        return TryReadProfiles(out error);
     }
 
     /// <summary>Sceglie la scheda da mostrare (0 = Dipendenti, 1 = Giustificativi).</summary>
@@ -156,7 +191,7 @@ internal sealed class MappingEditorPanel : Panel
             {
                 code = suggestion;
             }
-            var rowIndex = grid.Columns.Count > 2
+            var rowIndex = grid.Columns.Count == 3
                 ? grid.Rows.Add(name, code, suggestion)
                 : grid.Rows.Add(name, code);
             if (requiredSet.Contains(name))
@@ -200,5 +235,73 @@ internal sealed class MappingEditorPanel : Panel
             output[name] = code;
         }
         return true;
+    }
+
+    /// <summary>Legge ore e date di ogni dipendente: un valore scritto male blocca il salvataggio con un messaggio chiaro.</summary>
+    private bool TryReadProfiles(out string? error)
+    {
+        error = null;
+        EmployeeProfiles.Clear();
+        _employeesGrid.EndEdit();
+        foreach (DataGridViewRow row in _employeesGrid.Rows)
+        {
+            var name = row.Tag as string ?? string.Empty;
+            if (name.Length == 0)
+            {
+                continue;
+            }
+
+            decimal? hours = null;
+            var hoursText = Convert.ToString(row.Cells[2].Value)?.Trim() ?? string.Empty;
+            if (hoursText.Length > 0)
+            {
+                if (!GenerationSettings.TryParseHoursPerDay(hoursText, out var parsed))
+                {
+                    error = $"Le ore al giorno di “{name}” (“{hoursText}”) devono essere un numero fra " +
+                            $"{GenerationSettings.MinimumHoursPerDay:0} e {GenerationSettings.MaximumHoursPerDay:0}, per esempio 4 oppure 6,5.";
+                    return false;
+                }
+                hours = parsed;
+            }
+
+            if (!TryReadDate(row.Cells[3].Value, out var start, out var startText))
+            {
+                error = $"La data “{startText}” di “{name}” non è valida: scrivi giorno/mese/anno, per esempio 01/03/2026.";
+                return false;
+            }
+            if (!TryReadDate(row.Cells[4].Value, out var end, out var endText))
+            {
+                error = $"La data “{endText}” di “{name}” non è valida: scrivi giorno/mese/anno, per esempio 01/03/2026.";
+                return false;
+            }
+            if (start is not null && end is not null && end < start)
+            {
+                error = $"Per “{name}” la data di fine rapporto precede quella di inizio.";
+                return false;
+            }
+            EmployeeProfiles[name] = new EmployeeProfile(hours, start, end);
+        }
+        return true;
+    }
+
+    private static bool TryReadDate(object? cell, out DateTime? date, out string? invalidText)
+    {
+        date = null;
+        invalidText = null;
+        var text = Convert.ToString(cell)?.Trim() ?? string.Empty;
+        if (text.Length == 0)
+        {
+            return true;
+        }
+        string[] formats = ["dd/MM/yyyy", "d/M/yyyy", "dd/MM/yy", "dd-MM-yyyy", "dd.MM.yyyy", "yyyy-MM-dd"];
+        if (DateTime.TryParseExact(
+                text, formats, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var parsed))
+        {
+            date = parsed.Date;
+            return true;
+        }
+        invalidText = text;
+        return false;
     }
 }

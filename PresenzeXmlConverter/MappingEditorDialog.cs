@@ -15,7 +15,8 @@ internal sealed class MappingEditorDialog : Form
         IReadOnlyDictionary<string, string> policyMappings,
         IEnumerable<string> requiredEmployees,
         IEnumerable<string> requiredPolicies,
-        IReadOnlyDictionary<string, string>? policySuggestions = null)
+        IReadOnlyDictionary<string, string>? policySuggestions = null,
+        IReadOnlyDictionary<string, EmployeeProfile>? employeeProfiles = null)
     {
         Text = "Codici dipendenti e giustificativi";
         StartPosition = FormStartPosition.CenterParent;
@@ -33,7 +34,8 @@ internal sealed class MappingEditorDialog : Form
             policyMappings,
             requiredEmployees,
             requiredPolicies,
-            policySuggestions);
+            policySuggestions,
+            employeeProfiles);
 
         var actions = new FlowLayoutPanel
         {
@@ -66,6 +68,8 @@ internal sealed class MappingEditorDialog : Form
 
     public Dictionary<string, string> PolicyMappings { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    public Dictionary<string, EmployeeProfile> EmployeeProfiles { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     private void SaveMappings()
     {
         if (!_panel.TrySave(out var error))
@@ -85,6 +89,10 @@ internal sealed class MappingEditorDialog : Form
         foreach (var mapping in _panel.PolicyMappings)
         {
             PolicyMappings[mapping.Key] = mapping.Value;
+        }
+        foreach (var profile in _panel.EmployeeProfiles)
+        {
+            EmployeeProfiles[profile.Key] = profile.Value;
         }
         DialogResult = DialogResult.OK;
         Close();

@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.14] - Corrente
+## [1.22.15] - Corrente
+
+### 👤 Ore e rapporto di lavoro per dipendente
+- **Gestione codici → Dipendenti**: tre colonne facoltative accanto al codice: **Ore al giorno** (part-time: 4, 6, 6,5…), **Assunto dal** e **Fino al**. Si salvano nel database locale insieme agli abbinamenti
+- Le presenze `01` dei giorni senza assenza usano le ore del dipendente (non più le 8 standard) e non vengono scritte prima dell'assunzione né dopo la cessazione
+- Anche la conversione delle richieste in giorni usa le ore del dipendente (4 ore di ferie per un part-time da 4 ore sono una giornata intera)
+- Un dipendente senza questi dati segue le regole generali, come prima. Un valore scritto male blocca il salvataggio con un messaggio chiaro
+
+## [1.22.14]
 
 ### ⚙️ Rifiniture
 - **Impostazioni → Conversione**: nuova casella «Registra la presenza (01) nei giorni lavorativi senza assenze». Prima l'opzione c'era ma non si poteva spegnere; se la cambi l'anteprima va rigenerata
