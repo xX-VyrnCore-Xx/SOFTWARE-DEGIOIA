@@ -33,6 +33,8 @@ internal static class AttendanceMovementGenerator
         IReadOnlyDictionary<string, EmployeeProfile>? profiles = null)
     {
         options ??= GenerationOptions.Default;
+        // Lo stesso dipendente scritto in due modi («Mario Rossi» / «Rossi Mario») è una persona sola.
+        requests = EmployeeNames.Canonicalize(requests, employeeCodes);
         var extraHolidays = options.ExtraHolidays ?? [];
         var movements = new List<DailyMovement>();
         var warnings = new List<string>();
@@ -74,7 +76,7 @@ internal static class AttendanceMovementGenerator
             // Calendario e ore ricavati dalle date: il sabato entra quando serve a non
             // superare la giornata, una durata espressa in giorni diventa ore.
             // Le ore della giornata di un dipendente part-time sostituiscono quelle standard.
-            var profile = profiles is not null && profiles.TryGetValue(request.EmployeeName, out var found) ? found : null;
+            var profile = profiles is not null && EmployeeNames.TryFind(profiles, request.EmployeeName, out var found) ? found : null;
             var rules = profile?.DailyHours is { } ownHours ? options with { HoursPerDay = ownHours } : options;
             var plan = WorkCalendar.Plan(start, end, request.Hours, rules);
             var workDays = plan.Days.ToArray();
@@ -109,7 +111,7 @@ internal static class AttendanceMovementGenerator
                     $"La durata della riga {request.SourceRow} supera la capienza del tracciato TRRIPW.");
             }
 
-            if (!employeeCodes.TryGetValue(request.EmployeeName, out var mappedEmployeeCode) ||
+            if (!EmployeeNames.TryFind(employeeCodes, request.EmployeeName, out var mappedEmployeeCode) ||
                 string.IsNullOrWhiteSpace(mappedEmployeeCode))
             {
                 throw new InvalidDataException($"Manca il codice PAGHE per “{request.EmployeeName}”.");
@@ -221,7 +223,7 @@ internal static class AttendanceMovementGenerator
         {
             var sample = employee.First();
             profiles ??= new Dictionary<string, EmployeeProfile>();
-            var profile = profiles.TryGetValue(sample.EmployeeName, out var own) ? own : null;
+            var profile = EmployeeNames.TryFind(profiles, sample.EmployeeName, out var own) ? own : null;
             var capacityMinutes = RuleCapacity(profile?.DailyHours is { } hours ? options with { HoursPerDay = hours } : options);
             var absentByDay = employee
                 .GroupBy(movement => movement.Date.Date)

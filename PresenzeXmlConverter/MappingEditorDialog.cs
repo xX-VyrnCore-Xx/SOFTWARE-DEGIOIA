@@ -121,12 +121,16 @@ internal sealed class MappingEditorDialog : Form
     {
         // Salvataggio «a metà»: i codici mancanti non bloccano; solo le righe scritte male restano fuori.
         _panel.TrySave(out var note, allowIncomplete: true);
-        if (note is not null)
+        if (note is not null || _panel.Warnings is not null)
         {
+            var message = note is not null
+                ? note + Environment.NewLine + "Il resto è stato salvato." +
+                  (_panel.Warnings is not null ? Environment.NewLine + _panel.Warnings : string.Empty)
+                : _panel.Warnings!;
             MessageBox.Show(
                 this,
-                note + Environment.NewLine + "Il resto è stato salvato.",
-                "Abbinamenti salvati in parte",
+                message,
+                note is not null ? "Abbinamenti salvati in parte" : "Abbinamenti salvati",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
         }
