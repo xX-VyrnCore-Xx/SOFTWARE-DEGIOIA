@@ -4,6 +4,11 @@ namespace PresenzeXmlConverter;
 
 internal static class AttendanceMovementGenerator
 {
+    /// <summary>Capienza di una giornata in minuti: serve solo per avvisare e per le presenze.</summary>
+    private static int RuleCapacity(GenerationOptions rules) => rules.HoursPerDay is > 0m and <= 24m
+        ? decimal.ToInt32(decimal.Round(rules.HoursPerDay * 60m, 0, MidpointRounding.AwayFromZero))
+        : 24 * 60;
+
     private static bool OverlapsPeriod(AttendanceRequest request, DateTime? periodStart, DateTime? periodEnd) =>
         (!periodEnd.HasValue || request.StartDate.Date <= periodEnd.Value.Date) &&
         (!periodStart.HasValue || request.EndDate.Date >= periodStart.Value.Date);
@@ -14,7 +19,8 @@ internal static class AttendanceMovementGenerator
         IReadOnlyDictionary<string, string> policyCodes,
         DateTime? periodStart,
         DateTime? periodEnd,
-        GenerationOptions? options = null)
+        GenerationOptions? options = null,
+        IReadOnlyDictionary<string, EmployeeProfile>? profiles = null)
     {
         options ??= GenerationOptions.Default;
         var extraHolidays = options.ExtraHolidays ?? [];
@@ -36,11 +42,6 @@ internal static class AttendanceMovementGenerator
             periodStart = null;
             periodEnd = null;
         }
-        // Capienza di una giornata: serve solo per avvisare, mai per scartare ore.
-        var capacityMinutes = options.HoursPerDay is > 0m and <= 24m
-            ? decimal.ToInt32(decimal.Round(options.HoursPerDay * 60m, 0, MidpointRounding.AwayFromZero))
-            : 24 * 60;
-
         foreach (var request in requests)
         {
             var start = request.StartDate.Date;
@@ -62,7 +63,10 @@ internal static class AttendanceMovementGenerator
 
             // Calendario e ore ricavati dalle date: il sabato entra quando serve a non
             // superare la giornata, una durata espressa in giorni diventa ore.
-            var plan = WorkCalendar.Plan(start, end, request.Hours, options);
+            // Le ore della giornata di un dipendente part-time sostituiscono quelle standard.
+            var profile = profiles is not null && profiles.TryGetValue(request.EmployeeName, out var found) ? found : null;
+            var rules = profile?.DailyHours is { } ownHours ? options with { HoursPerDay = ownHours } : options;
+            var plan = WorkCalendar.Plan(start, end, request.Hours, rules);
             var workDays = plan.Days.ToArray();
             if (workDays.Length == 0)
             {
@@ -121,7 +125,7 @@ internal static class AttendanceMovementGenerator
                 {
                     continue;
                 }
-                if (minutes > capacityMinutes)
+                if (minutes > RuleCapacity(rules))
                 {
                     overloadedDays++;
                 }
@@ -164,7 +168,7 @@ internal static class AttendanceMovementGenerator
         var merged = MergeSameReasonMovements(movements, warnings);
         if (options.FillPresence)
         {
-            AddPresenceDays(merged, periodStart, periodEnd, options, capacityMinutes);
+            AddPresenceDays(merged, periodStart, periodEnd, options, profiles);
         }
 
         return new GenerationResult(
@@ -186,7 +190,7 @@ internal static class AttendanceMovementGenerator
         DateTime? periodStart,
         DateTime? periodEnd,
         GenerationOptions options,
-        int capacityMinutes)
+        IReadOnlyDictionary<string, EmployeeProfile>? profiles)
     {
         if (movements.Count == 0 || string.IsNullOrWhiteSpace(options.PresenceCode))
         {
@@ -206,6 +210,9 @@ internal static class AttendanceMovementGenerator
         foreach (var employee in movements.GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase))
         {
             var sample = employee.First();
+            profiles ??= new Dictionary<string, EmployeeProfile>();
+            var profile = profiles.TryGetValue(sample.EmployeeName, out var own) ? own : null;
+            var capacityMinutes = RuleCapacity(profile?.DailyHours is { } hours ? options with { HoursPerDay = hours } : options);
             var absentByDay = employee
                 .GroupBy(movement => movement.Date.Date)
                 .ToDictionary(group => group.Key, group => group.Sum(movement => movement.Hours * 60 + movement.Minutes));
@@ -215,6 +222,11 @@ internal static class AttendanceMovementGenerator
                 if (weekday == DayOfWeek.Sunday ||
                     (weekday == DayOfWeek.Saturday && !options.IncludeSaturdays) ||
                     ItalianHolidays.Contains(day, extraHolidays))
+                {
+                    continue;
+                }
+                // Prima dell'assunzione o dopo la cessazione non c'è nessuna presenza da registrare.
+                if (profile is not null && !profile.Covers(day))
                 {
                     continue;
                 }

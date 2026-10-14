@@ -95,6 +95,21 @@ internal sealed record GenerationResult(
     IReadOnlyList<DailyMovement> Movements,
     IReadOnlyList<string> Warnings);
 
+/// <summary>
+/// Dati propri di un dipendente che cambiano come si calcolano le presenze: ore della sua
+/// giornata (part-time) e periodo del rapporto di lavoro. Tutto facoltativo: ciò che manca
+/// vale come per gli altri (giornata standard, rapporto sempre in corso).
+/// </summary>
+internal sealed record EmployeeProfile(decimal? DailyHours = null, DateTime? StartDate = null, DateTime? EndDate = null)
+{
+    public bool IsEmpty => DailyHours is null && StartDate is null && EndDate is null;
+
+    /// <summary>Il giorno cade nel rapporto di lavoro (estremi compresi)?</summary>
+    public bool Covers(DateTime day) =>
+        (StartDate is null || day.Date >= StartDate.Value.Date) &&
+        (EndDate is null || day.Date <= EndDate.Value.Date);
+}
+
 /// <summary>Impostazioni di generazione scelte dall'utente.</summary>
 internal sealed record GenerationOptions(
     decimal HoursPerDay = 8m,

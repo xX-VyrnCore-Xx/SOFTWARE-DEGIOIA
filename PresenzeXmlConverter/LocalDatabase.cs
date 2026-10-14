@@ -192,6 +192,65 @@ internal sealed class LocalDatabase
 
     public Dictionary<string, string> GetPolicyMappings() => ReadMappings("Policies");
 
+    /// <summary>Ore giornaliere e periodo del rapporto dei dipendenti che ne hanno di propri.</summary>
+    public Dictionary<string, EmployeeProfile> GetEmployeeProfiles()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Name, DailyHours, StartDate, EndDate FROM EmployeeProfiles;";
+        using var reader = command.ExecuteReader();
+        var profiles = new Dictionary<string, EmployeeProfile>(StringComparer.OrdinalIgnoreCase);
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        while (reader.Read())
+        {
+            decimal? hours = !reader.IsDBNull(1) &&
+                             decimal.TryParse(reader.GetString(1), System.Globalization.NumberStyles.Number, culture, out var parsedHours)
+                ? parsedHours
+                : null;
+            DateTime? Date(int column) => !reader.IsDBNull(column) &&
+                                          DateTime.TryParseExact(reader.GetString(column), "yyyy-MM-dd", culture,
+                                              System.Globalization.DateTimeStyles.None, out var day)
+                ? day
+                : null;
+            var profile = new EmployeeProfile(hours, Date(2), Date(3));
+            if (!profile.IsEmpty)
+            {
+                profiles[reader.GetString(0)] = profile;
+            }
+        }
+        return profiles;
+    }
+
+    /// <summary>Salva il profilo del dipendente; un profilo vuoto lo cancella (vale la regola generale).</summary>
+    public void SaveEmployeeProfile(string name, EmployeeProfile profile)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(profile);
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.Parameters.AddWithValue("$name", name.Trim());
+        if (profile.IsEmpty)
+        {
+            command.CommandText = "DELETE FROM EmployeeProfiles WHERE Name = $name;";
+        }
+        else
+        {
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            command.CommandText = """
+                INSERT INTO EmployeeProfiles (Name, DailyHours, StartDate, EndDate)
+                VALUES ($name, $hours, $start, $end)
+                ON CONFLICT(Name) DO UPDATE SET
+                    DailyHours = excluded.DailyHours,
+                    StartDate = excluded.StartDate,
+                    EndDate = excluded.EndDate;
+                """;
+            command.Parameters.AddWithValue("$hours", profile.DailyHours is { } hours ? hours.ToString(culture) : DBNull.Value);
+            command.Parameters.AddWithValue("$start", profile.StartDate is { } start ? start.ToString("yyyy-MM-dd", culture) : DBNull.Value);
+            command.Parameters.AddWithValue("$end", profile.EndDate is { } end ? end.ToString("yyyy-MM-dd", culture) : DBNull.Value);
+        }
+        command.ExecuteNonQuery();
+    }
+
     public void SaveEmployeeMapping(string name, string code) => SaveMapping("Employees", name, code);
 
     public void SavePolicyMapping(string policy, string code) => SaveMapping("Policies", policy, code);
@@ -233,6 +292,12 @@ internal sealed class LocalDatabase
             CREATE TABLE IF NOT EXISTS Policies (
                 Name TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
                 Code TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS EmployeeProfiles (
+                Name TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,
+                DailyHours TEXT,
+                StartDate TEXT,
+                EndDate TEXT
             );
             CREATE TABLE IF NOT EXISTS Companies (
                 Code TEXT PRIMARY KEY NOT NULL COLLATE NOCASE,

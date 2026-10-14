@@ -555,7 +555,8 @@ internal sealed partial class MainForm : Form
                     policies,
                     missingEmployees,
                     missingPolicies,
-                    new Dictionary<string, string>());
+                    new Dictionary<string, string>(),
+                    _database.GetEmployeeProfiles());
                 if (dialog.ShowDialog(this) != DialogResult.OK)
                 {
                     SetStatus("Conversione annullata: gli abbinamenti richiesti non sono stati salvati.", true);
@@ -569,6 +570,8 @@ internal sealed partial class MainForm : Form
             SetBusy(true, "Generazione dei movimenti e dell'XML in corso…");
             GenerationResult result;
             string xml;
+            // Ore e rapporto di lavoro dei singoli dipendenti si leggono prima, sul thread dell'interfaccia.
+            var profiles = _database.GetEmployeeProfiles();
             try
             {
                 (result, xml) = await Task.Run(() =>
@@ -579,7 +582,8 @@ internal sealed partial class MainForm : Form
                         policies,
                         _inspection.PeriodStart,
                         _inspection.PeriodEnd,
-                        _generationOptions);
+                        _generationOptions,
+                        profiles);
                     var document = generation.Movements.Count == 0
                         ? string.Empty
                         : TrriPwXmlWriter.Create(companyCode, generation.Movements);
@@ -671,7 +675,8 @@ internal sealed partial class MainForm : Form
             var policies = _database.GetPolicyMappings();
             var requiredEmployees = _requests.Select(request => request.EmployeeName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             var requiredPolicies = _requests.Select(request => request.Policy).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-            using var dialog = new MappingEditorDialog(employees, policies, requiredEmployees, requiredPolicies);
+            using var dialog = new MappingEditorDialog(
+                employees, policies, requiredEmployees, requiredPolicies, null, _database.GetEmployeeProfiles());
             if (dialog.ShowDialog(this) == DialogResult.OK)
             {
                 SaveMappings(dialog);
@@ -694,6 +699,10 @@ internal sealed partial class MainForm : Form
         foreach (var mapping in dialog.PolicyMappings)
         {
             _database.SavePolicyMapping(mapping.Key, mapping.Value);
+        }
+        foreach (var profile in dialog.EmployeeProfiles)
+        {
+            _database.SaveEmployeeProfile(profile.Key, profile.Value);
         }
     }
 
