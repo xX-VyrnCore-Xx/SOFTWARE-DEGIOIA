@@ -47,10 +47,10 @@ internal static class SettingsPageLayout
 
     /* ----------------------------- Schede ------------------------------ */
 
-    /// <summary>Scheda "Conversione": giornata standard, sabato, chiusure.</summary>
+    /// <summary>Scheda "Conversione": giornata standard, sabato, presenze, chiusure.</summary>
     public static readonly int[] ConversionRows =
     {
-        HintRow, FieldLabelRow, FieldRow, CheckRow, CheckRow, FieldLabelRow, HolidaysRow, NoteRow
+        HintRow, FieldLabelRow, FieldRow, CheckRow, CheckRow, CheckRow, FieldLabelRow, HolidaysRow, NoteRow
     };
 
     /// <summary>Scheda "Aggiornamenti": ricerca automatica, token e firma.</summary>
@@ -119,7 +119,7 @@ internal static class SettingsPageLayout
     /// intera, quindi non serve nessuna barra di scorrimento (quelle di Windows
     /// sono grigie e fuori tema).
     /// </summary>
-    public const int MinimumWindowHeight = 620;
+    public const int MinimumWindowHeight = 640;
 
     public const int DefaultClientWidth = 760;
 

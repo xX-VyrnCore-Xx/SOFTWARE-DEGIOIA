@@ -22,6 +22,7 @@ internal sealed class SettingsDialog : Form
     private readonly CheckBox _saturdays = new();
     private readonly TextBox _holidays = new();
     private readonly CheckBox _autoDetect = new();
+    private readonly CheckBox _fillPresence = new();
     private readonly CheckBox _autoCheck = new();
     private readonly RoundedField _token = new();
     private readonly Label _tokenStatus = new();
@@ -262,8 +263,18 @@ internal sealed class SettingsDialog : Form
         _autoDetect.Margin = Padding.Empty;
         body.Controls.Add(_autoDetect, 0, 4);
 
+        _fillPresence.Text = "Registra la presenza (01) nei giorni lavorativi senza assenze";
+        _fillPresence.Dock = DockStyle.Fill;
+        _fillPresence.TextAlign = ContentAlignment.MiddleLeft;
+        _fillPresence.ForeColor = Theme.InkSecondary;
+        _fillPresence.Font = Theme.Fonts.Small;
+        _fillPresence.Checked = Options.FillPresence;
+        _fillPresence.AccessibleName = "Registra la presenza nei giorni senza assenze";
+        _fillPresence.Margin = Padding.Empty;
+        body.Controls.Add(_fillPresence, 0, 5);
+
         body.Controls.Add(CreateFieldLabel(
-            "Chiusure aziendali aggiuntive (oltre alle festività nazionali): una data per riga o separate da virgola — es. 02/06, 24/12"), 0, 5);
+            "Chiusure aziendali aggiuntive (oltre alle festività nazionali): una data per riga o separate da virgola — es. 02/06, 24/12"), 0, 6);
         _holidays.Dock = DockStyle.Fill;
         _holidays.Multiline = true;
         _holidays.ScrollBars = ScrollBars.None;
@@ -288,10 +299,10 @@ internal sealed class SettingsDialog : Form
             Margin = new Padding(0, 2, 0, 6)
         };
         holidaysFrame.Controls.Add(_holidays);
-        body.Controls.Add(holidaysFrame, 0, 6);
+        body.Controls.Add(holidaysFrame, 0, 7);
 
         body.Controls.Add(CreateNote(
-            "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore."), 0, 7);
+            "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore."), 0, 8);
         return page;
     }
 
@@ -599,7 +610,8 @@ internal sealed class SettingsDialog : Form
             HoursPerDay = hours,
             IncludeSaturdays = _saturdays.Checked,
             ExtraHolidays = holidays,
-            AutoDetect = _autoDetect.Checked
+            AutoDetect = _autoDetect.Checked,
+            FillPresence = _fillPresence.Checked
         };
         AutoUpdateCheck = _autoCheck.Checked;
         DialogResult = DialogResult.OK;
