@@ -4,6 +4,16 @@ namespace PresenzeXmlConverter;
 
 internal static class AttendanceMovementGenerator
 {
+    /// <summary>
+    /// Nome con cui le presenze aggiunte dall'app compaiono nella colonna «Richiesta originale»: non
+    /// vengono dal foglio, quindi i controlli sul foglio le distinguono da questo nome.
+    /// </summary>
+    public const string PresencePolicy = "Presenza";
+
+    /// <summary>La riga è una presenza aggiunta dall'app (non una richiesta del foglio)?</summary>
+    public static bool IsPresence(DailyMovement movement) =>
+        string.Equals(movement.Policy, PresencePolicy, StringComparison.Ordinal);
+
     /// <summary>Capienza di una giornata in minuti: serve solo per avvisare e per le presenze.</summary>
     private static int RuleCapacity(GenerationOptions rules) => rules.HoursPerDay is > 0m and <= 24m
         ? decimal.ToInt32(decimal.Round(rules.HoursPerDay * 60m, 0, MidpointRounding.AwayFromZero))
@@ -238,7 +248,7 @@ internal static class AttendanceMovementGenerator
                 presence.Add(new DailyMovement(
                     sample.EmployeeName,
                     sample.EmployeeCode,
-                    "Presenza",
+                    PresencePolicy,
                     options.PresenceCode.Trim(),
                     day,
                     residual / 60,

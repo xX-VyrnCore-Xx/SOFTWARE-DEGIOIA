@@ -37,6 +37,7 @@ internal sealed partial class MainForm
     private readonly TableLayoutPanel _codesSection = NewSection();
     private readonly TableLayoutPanel _historySection = NewSection();
     private readonly MappingEditorPanel _mappingPanel = new();
+    private readonly MonthCalendarView _calendarView = new();
     private Control? _conversionSection;
 
     /* ----------------------------- Dashboard ----------------------------- */

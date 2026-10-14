@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.22.15] - Corrente
+## [1.22.16] - Corrente
+
+### 🗓️ Calendario del mese e controllo delle ore
+- Nuova scheda **Calendario** nell'area di revisione: una riga per dipendente e una colonna per giorno, colorata per giustificativo (presenza in verde, ogni assenza con il suo colore, giorno misto diviso a metà). I giorni lavorativi senza movimenti hanno il contorno rosso tratteggiato; passando il mouse su un giorno si vede il dettaglio. Si sfoglia mese per mese
+- Nuovo controllo in **Controlli**: per ogni dipendente e mese confronta le ore registrate con quelle teoriche (giorni lavorativi × ore della sua giornata, nel suo rapporto di lavoro) e segnala le differenze. Si attiva solo con le presenze automatiche accese
+- Corretto un difetto dei controlli con le presenze automatiche: le presenze aggiunte dall'app non sono più segnalate come «giustificativo non configurato» né contate come «più giustificativi nello stesso giorno», e non falsano il confronto con le ore del foglio
+
+## [1.22.15]
 
 ### 👤 Ore e rapporto di lavoro per dipendente
 - **Gestione codici → Dipendenti**: tre colonne facoltative accanto al codice: **Ore al giorno** (part-time: 4, 6, 6,5…), **Assunto dal** e **Fino al**. Si salvano nel database locale insieme agli abbinamenti
