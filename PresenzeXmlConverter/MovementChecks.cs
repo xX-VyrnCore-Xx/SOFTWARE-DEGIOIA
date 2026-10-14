@@ -201,8 +201,14 @@ internal static class MovementChecks
                 group => group.Key,
                 group => group.Sum(movement => movement.Hours * 60 + movement.Minutes),
                 StringComparer.CurrentCultureIgnoreCase);
+        // Una grafia diversa dello stesso dipendente si confronta con il nome usato nei movimenti.
+        var generatedNames = movements.Select(movement => movement.EmployeeName).Distinct().ToArray();
+        string NameInMovements(string name) =>
+            generatedNames.FirstOrDefault(candidate => string.Equals(candidate, name, StringComparison.CurrentCultureIgnoreCase)) ??
+            generatedNames.FirstOrDefault(candidate => EmployeeNames.SamePerson(candidate, name)) ??
+            name;
         var declared = requests
-            .GroupBy(request => request.EmployeeName, StringComparer.CurrentCultureIgnoreCase)
+            .GroupBy(request => NameInMovements(request.EmployeeName), StringComparer.CurrentCultureIgnoreCase)
             .ToDictionary(
                 group => group.Key,
                 group => decimal.ToInt32(decimal.Round(

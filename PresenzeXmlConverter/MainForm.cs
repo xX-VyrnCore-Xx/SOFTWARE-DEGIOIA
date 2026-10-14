@@ -565,7 +565,7 @@ internal sealed partial class MainForm : Form
             }
             employees = _database.GetEmployeeMappings();
             var policies = _database.GetPolicyMappings();
-            var missingEmployees = requiredEmployees.Where(name => !employees.ContainsKey(name)).ToArray();
+            var missingEmployees = requiredEmployees.Where(name => !EmployeeNames.TryFind(employees, name, out _)).ToArray();
             var missingPolicies = requiredPolicies.Where(policy => !policies.ContainsKey(policy)).ToArray();
 
             if (missingEmployees.Length > 0 || missingPolicies.Length > 0)
@@ -595,7 +595,7 @@ internal sealed partial class MainForm : Form
                 }
                 employees = _database.GetEmployeeMappings();
                 policies = _database.GetPolicyMappings();
-                var stillMissing = requiredEmployees.Count(name => !employees.ContainsKey(name)) +
+                var stillMissing = requiredEmployees.Count(name => !EmployeeNames.TryFind(employees, name, out _)) +
                                    requiredPolicies.Count(policy => !policies.ContainsKey(policy));
                 if (stillMissing > 0)
                 {

@@ -342,8 +342,8 @@ internal static class TrriPwXmlWriter
         var duplicateCode = movements
             .GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault(group => group
-                .Select(movement => movement.EmployeeName.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(movement => EmployeeNames.Key(movement.EmployeeName))
+                .Distinct(StringComparer.Ordinal)
                 .Count() > 1);
         if (duplicateCode is not null)
         {

@@ -76,6 +76,9 @@ internal sealed class MappingEditorPanel : Panel
 
     private bool _loading;
 
+    /// <summary>Avvisi dell'ultimo salvataggio che non hanno scartato nulla (es. stesso codice su due persone).</summary>
+    public string? Warnings { get; private set; }
+
     private bool _unsaved;
 
     /// <summary>True se nelle griglie c'è qualcosa di scritto e non ancora salvato (anche una cella ancora in modifica).</summary>
@@ -150,8 +153,20 @@ internal sealed class MappingEditorPanel : Panel
         MissingRequiredCount = CountMissing();
     }
 
-    private int CountMissing() =>
-        CountMissing(_employeesGrid, _requiredEmployees) + CountMissing(_policiesGrid, _requiredPolicies);
+    private int CountMissing()
+    {
+        // Un dipendente scritto in due modi con il codice su una sola grafia non manca di nulla.
+        var coded = _employeesGrid.Rows.Cast<DataGridViewRow>()
+            .Where(row => row.Tag is string && !string.IsNullOrWhiteSpace(Convert.ToString(row.Cells[1].Value)))
+            .Select(row => EmployeeNames.Key((string)row.Tag!))
+            .ToHashSet(StringComparer.Ordinal);
+        var employees = _employeesGrid.Rows.Cast<DataGridViewRow>().Count(row =>
+            row.Tag is string name &&
+            _requiredEmployees.Contains(name) &&
+            string.IsNullOrWhiteSpace(Convert.ToString(row.Cells[1].Value)) &&
+            !coded.Contains(EmployeeNames.Key(name)));
+        return employees + CountMissing(_policiesGrid, _requiredPolicies);
+    }
 
     private static int CountMissing(ThemedGrid grid, IReadOnlySet<string> required) =>
         grid.Rows.Cast<DataGridViewRow>().Count(row =>
@@ -171,32 +186,32 @@ internal sealed class MappingEditorPanel : Panel
         // Salvataggio «a metà»: i codici mancanti non bloccano e le righe scritte male si lasciano fuori
         // (con una nota), così ciò che è valido resta salvato e non si rifà da capo.
         var skipped = allowIncomplete ? new List<string>() : null;
+        var notes = new List<string>();
         if (!TryReadMappings(_employeesGrid, _requiredEmployees, 7, "dipendente", EmployeeMappings, skipped, out error) ||
             !TryReadMappings(_policiesGrid, _requiredPolicies, 3, "giustificativo", PolicyMappings, skipped, out error))
         {
             return false;
         }
 
-        var duplicates = EmployeeMappings
+        // Lo stesso codice su più grafie dello stesso dipendente è normale («Mario Rossi» / «Rossi Mario»).
+        // Su persone diverse è probabilmente un errore di battitura: si segnala ma non si scarta nulla.
+        var conflicts = EmployeeMappings
             .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Value))
             .GroupBy(mapping => mapping.Value.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Where(group => group.Count() > 1)
+            .Where(group => group.Select(mapping => EmployeeNames.Key(mapping.Key)).Distinct(StringComparer.Ordinal).Count() > 1)
             .ToArray();
-        if (duplicates.Length > 0)
+        if (conflicts.Length > 0)
         {
             if (skipped is null)
             {
-                error = $"Il codice dipendente “{duplicates[0].Key}” è assegnato a più nomi. Verifica gli abbinamenti.";
+                error = $"Il codice dipendente “{conflicts[0].Key}” è assegnato a più persone diverse. Verifica gli abbinamenti.";
                 return false;
             }
-            foreach (var group in duplicates)
+            foreach (var group in conflicts)
             {
-                // Resta il primo (in ordine alfabetico), gli altri aspettano che l'utente li corregga.
-                foreach (var extra in group.OrderBy(mapping => mapping.Key, StringComparer.CurrentCultureIgnoreCase).Skip(1))
-                {
-                    EmployeeMappings.Remove(extra.Key);
-                    skipped.Add($"codice “{group.Key}” già usato: “{extra.Key}” non salvato");
-                }
+                notes.Add(
+                    $"il codice “{group.Key}” è usato da {string.Join(" e ", group.Select(mapping => $"“{mapping.Key}”").Take(3))}: " +
+                    "se sono persone diverse correggilo prima di esportare");
             }
         }
 
@@ -210,6 +225,15 @@ internal sealed class MappingEditorPanel : Panel
         {
             error = (skipped.Count == 1 ? "Una riga non è stata salvata: " : $"{skipped.Count} righe non sono state salvate: ") +
                     string.Join("; ", skipped.Take(3)) + (skipped.Count > 3 ? "…" : ".");
+        }
+        if (notes.Count > 0)
+        {
+            // Tutto è stato salvato: sono solo avvisi da leggere.
+            Warnings = "Salvato tutto. Attenzione: " + string.Join("; ", notes.Take(2)) + (notes.Count > 2 ? "…" : ".");
+        }
+        else
+        {
+            Warnings = null;
         }
         return true;
     }

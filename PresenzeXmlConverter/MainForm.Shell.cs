@@ -507,10 +507,12 @@ internal sealed partial class MainForm
             SetStatus(
                 note is not null
                     ? $"●   Abbinamenti salvati in parte. {note}"
-                    : missing > 0
+                    : _mappingPanel.Warnings is not null
+                        ? $"●   {_mappingPanel.Warnings}"
+                        : missing > 0
                         ? $"●   Abbinamenti salvati: mancano ancora {missing:N0} codici richiesti per creare l'anteprima."
                         : "●   Abbinamenti salvati nel database locale.",
-                note is not null || missing > 0);
+                note is not null || missing > 0 || _mappingPanel.Warnings is not null);
             Notify(
                 missing > 0 || note is not null ? ToastKind.Info : ToastKind.Success,
                 missing > 0 ? "Bozza salvata" : "Abbinamenti salvati",

@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.23.3] - Corrente
+## [1.23.4] - Corrente
+
+### 👤 Lo stesso dipendente scritto in due modi
+- Salvando gli abbinamenti non compare più «codice già usato: … non salvato» per «Vincenzo Antenori» e «Antenori Vincenzo»: nomi con le stesse parole (ordine, maiuscole, accenti) sono la **stessa persona** e possono avere lo stesso codice
+- La conversione li unisce in un solo dipendente: giorni e presenze non si dividono più in due righe del calendario e l'XML non si ferma più su «codice associato a più nominativi»
+- Due persone **diverse** con lo stesso codice restano un errore da correggere, ma il salvataggio non scarta più nulla: salva tutto e lo segnala
+- Se solo una delle due grafie ha il codice, il dipendente non risulta più «senza codice»
+
+## [1.23.3]
 
 ### ⚠️ Il calendario segnala le anomalie
 - **Segno sul giorno**: contorno e pallino **rossi** quando le ore del giorno superano la giornata (es. 13h 20m su 8h), pallino **ambra** per i giorni insoliti (più giustificativi nello stesso giorno, movimento di sabato, domenica o festivo, fuori dal rapporto di lavoro). Il tooltip spiega il motivo
