@@ -4,7 +4,21 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.23.0] - Corrente
+## [1.23.1] - Corrente
+
+### 🗓️ Calendario: barra in alto corretta
+- Le frecce del mese, il nome del mese e la ricerca non si sovrappongono più (l'etichetta era tagliata: «ettembre 2026»). La barra ora si dispone da sola e regge anche gli schermi ingranditi; «Salva immagine» e «Riepilogo CSV» hanno il giusto spazio fra loro
+
+### 🔘 Pulsanti
+- Più rilievo e coerenza: ombra sottile sotto il pulsante a riposo, anello di focus morbido da tastiera
+
+### ⬆️ Aggiornamenti
+- Il download mostra megabyte scaricati, totale e velocità, oltre alla percentuale
+- Prima di installare, se c'è un'anteprima non ancora esportata in XML, il programma lo segnala e chiede conferma (l'installazione chiude l'app); l'aggiornamento resta disponibile dal menu
+- Le Release sono pubbliche: senza token lo stato in basso dice «Aggiornamenti · attivi» invece dell'avviso «token GitHub da configurare»
+- Durante l'installazione il messaggio spiega che il programma si chiude e si riapre da solo
+
+## [1.23.0]
 
 ### 🗓️ Calendario più completo
 - **Totale ore** di ogni dipendente a fine riga, con un contatore rosso dei giorni lavorativi senza movimenti
