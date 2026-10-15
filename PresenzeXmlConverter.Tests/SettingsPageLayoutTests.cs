@@ -116,7 +116,7 @@ public class SettingsPageLayoutTests
         Assert.True(File.Exists(path), $"Sorgente del dialogo non trovato: {path}");
         var text = File.ReadAllText(path);
 
-        foreach (var page in new[] { "ConversionRows", "UpdateRows", "NotificationRows" })
+        foreach (var page in new[] { "ConversionRows", "UpdateRows", "NotificationRows", "GeneralRows" })
         {
             Assert.Contains($"CreatePage(SettingsPageLayout.{page})", text, StringComparison.Ordinal);
         }

@@ -35,7 +35,15 @@ internal sealed partial class MainForm
                 AutoUpdateEnabled(),
                 XmlFormat.Active,
                 InAppNotificationsEnabled(),
-                NativeNotificationsEnabled());
+                NativeNotificationsEnabled(),
+                _database.GetSetting("close-behavior") ?? string.Empty,
+                BuildGeneralInfo());
+            dialog.BackupNow = () =>
+            {
+                var path = _database.CreateBackup("manuale");
+                RefreshRailStatus();
+                return $"Backup creato: {Path.GetFileName(path)}";
+            };
             dialog.NotificationTestRequested += (_, choice) => SendTestNotification(choice.InApp, choice.System);
             var result = dialog.ShowDialog(this);
             if (result == DialogResult.OK)
@@ -57,6 +65,28 @@ internal sealed partial class MainForm
         }
     }
 
+    /// <summary>Percorsi e riassunti per la scheda «Generale» delle Impostazioni.</summary>
+    private GeneralInfo BuildGeneralInfo()
+    {
+        var folder = Path.GetDirectoryName(_database.DatabasePath) ?? string.Empty;
+        var database = string.Empty;
+        var codes = string.Empty;
+        try
+        {
+            database = _database.GetHealth().Describe(DateTime.UtcNow);
+            var backup = CodesBackup.Read(_database, DateTime.UtcNow);
+            var copies = CodesAutoBackup.List(CodesAutoBackup.FolderFor(_database));
+            codes = backup.Count == 0
+                ? "Codici: nessuno ancora"
+                : $"Codici: {backup.Describe()}" + (copies.Count > 0 ? $" · {copies.Count} copie automatiche" : string.Empty);
+        }
+        catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            database = "stato dei dati non leggibile";
+        }
+        return new GeneralInfo(folder, database, codes, CodesAutoBackup.FolderFor(_database));
+    }
+
     private void ApplySettings(SettingsDialog dialog)
     {
         try
@@ -70,6 +100,7 @@ internal sealed partial class MainForm
             _database.SaveSetting(AutoUpdateSetting, dialog.AutoUpdateCheck ? "true" : "false");
             _database.SaveSetting(InAppNotificationsSetting, dialog.InAppNotifications ? "true" : "false");
             _database.SaveSetting(NativeNotificationsSetting, dialog.SystemNotifications ? "true" : "false");
+            _database.SaveSetting("close-behavior", dialog.CloseBehavior);
             var xmlChanged = dialog.Format != XmlFormat.Active;
             XmlFormat.Active = dialog.Format;
             dialog.Format.Save(_database);

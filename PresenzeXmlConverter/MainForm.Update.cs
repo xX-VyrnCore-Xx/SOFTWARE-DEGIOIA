@@ -17,6 +17,7 @@ internal sealed partial class MainForm
     private const string PendingUpdateNotesSetting = "pending-update-notes";
     private const string LastRunVersionSetting = "last-run-version";
     private const string UpdateEndpointSetting = "update-endpoint";
+    private const string UpdateNoticeSetting = "update-notice";
 
     private readonly System.Windows.Forms.Timer _updateCheckDelay = new() { Interval = 4000 };
     /// <summary>
@@ -181,6 +182,7 @@ internal sealed partial class MainForm
             }
             if (result.Update is null)
             {
+                SetPendingUpdate(null);
                 RefreshUpdateStatus(
                     $"Aggiornamenti · aggiornato alla {RunningVersion.ToString(3)} · {DateTime.Now:HH:mm}",
                     false);
@@ -194,6 +196,7 @@ internal sealed partial class MainForm
             }
 
             var update = result.Update;
+            SetPendingUpdate(update);
             RefreshUpdateStatus($"Aggiornamenti · nuova versione {update.Version.ToString(3)}", true);
             // Un aggiornamento rimandato dall'utente non viene riproposto a ogni avvio,
             // ma resta disponibile dal menu "Cerca aggiornamenti…".
@@ -254,21 +257,55 @@ internal sealed partial class MainForm
         }
     }
 
-    private Version? _notifiedUpdateVersion;
+    private ToolStripMenuItem? _trayUpdateItem;
+
+    /// <summary>Aggiornamento trovato e non ancora installato (null = nessuno).</summary>
+    private UpdateInfo? _pendingUpdate;
+
+    /// <summary>
+    /// Ricorda l'aggiornamento pronto: la voce in cima al menu dell'icona nel tray e il suggerimento dell'icona lo
+    /// dicono anche a finestra chiusa, senza aspettare il fumetto.
+    /// </summary>
+    private void SetPendingUpdate(UpdateInfo? update)
+    {
+        _pendingUpdate = update;
+        if (_trayUpdateItem is not null)
+        {
+            _trayUpdateItem.Visible = update is not null;
+            _trayUpdateItem.Text = update is null ? "Installa aggiornamento" : $"Installa l'aggiornamento {update.Version.ToString(3)}…";
+        }
+        _trayIcon.Text = UpdateNotice.TrayTooltip(WindowCaption, update?.Version);
+    }
 
     private void NotifyUpdateAvailable(UpdateInfo update)
     {
-        // Una sola notifica per versione: il controllo gira ogni ora e ripeterla
-        // ogni volta diventerebbe fastidioso.
-        if (_notifiedUpdateVersion == update.Version)
+        // Una volta al giorno per la stessa versione (subito per una versione nuova): il controllo gira ogni ora e
+        // ripeterla a ogni giro sarebbe fastidioso, ma un solo avviso per sessione si perdeva in una giornata.
+        var today = DateTime.Now;
+        string? last = null;
+        try
+        {
+            last = _database.GetSetting(UpdateNoticeSetting);
+        }
+        catch (SqliteException)
+        {
+            // Senza memoria dell'ultimo avviso si avvisa comunque.
+        }
+        if (!UpdateNotice.ShouldNotify(last, update.Version, today))
         {
             return;
         }
-        _notifiedUpdateVersion = update.Version;
+        try
+        {
+            _database.SaveSetting(UpdateNoticeSetting, UpdateNotice.Record(update.Version, today));
+        }
+        catch (SqliteException)
+        {
+        }
         Notify(
             ToastKind.Info,
-            "Aggiornamento disponibile",
-            $"È pronta la versione {update.Version.ToString(3)} di Vyrn Presence: apri il programma per installarla.",
+            $"Aggiornamento {update.Version.ToString(3)} disponibile",
+            UpdateNotice.BalloonText(RunningVersion, update.Version, update.Notes),
             () => _ = CheckForUpdatesAsync(userInitiated: true),
             systemNotification: true);
     }

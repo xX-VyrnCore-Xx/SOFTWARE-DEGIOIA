@@ -71,8 +71,14 @@ internal static class SettingsPageLayout
         HintRow, CheckRow, CheckRow, ActionRow, NoteRow
     };
 
+    /// <summary>Scheda «Generale»: cosa fa la X, dove stanno i dati, copie e sicurezza.</summary>
+    public static readonly int[] GeneralRows =
+    {
+        HintRow, FieldLabelRow, CheckRow, FieldLabelRow, StatusRow, ActionRow, NoteRow
+    };
+
     /// <summary>Tutte le schede, nell'ordine in cui compaiono.</summary>
-    public static IReadOnlyList<int[]> Pages => new[] { ConversionRows, UpdateRows, XmlRows, NotificationRows };
+    public static IReadOnlyList<int[]> Pages => new[] { ConversionRows, UpdateRows, XmlRows, NotificationRows, GeneralRows };
 
     /// <summary>Spaziatura interna della pagina (sopra e sotto).</summary>
     public const int PagePadding = 16;

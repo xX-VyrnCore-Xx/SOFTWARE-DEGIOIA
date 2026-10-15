@@ -49,7 +49,8 @@ internal sealed partial class MainForm
                 ToastKind.Warning => ToolTipIcon.Warning,
                 ToastKind.Error => ToolTipIcon.Error,
                 _ => ToolTipIcon.Info
-            });
+            },
+            onClick: onClick);
     }
 
     private bool _calendarExportWired;

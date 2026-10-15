@@ -326,6 +326,18 @@ internal sealed partial class MainForm : Form
         _trayIcon.Text = WindowCaption;
         var menu = new ContextMenuStrip();
         menu.Items.Add("Apri Vyrn Presence", null, (_, _) => RestoreFromTray());
+        // Compare in cima solo quando c'è un aggiornamento pronto: si installa senza aprire prima la finestra.
+        _trayUpdateItem = new ToolStripMenuItem("Installa aggiornamento")
+        {
+            Visible = false,
+            Font = new Font(menu.Font, FontStyle.Bold)
+        };
+        _trayUpdateItem.Click += (_, _) =>
+        {
+            RestoreFromTray();
+            _ = CheckForUpdatesAsync(userInitiated: true);
+        };
+        menu.Items.Add(_trayUpdateItem);
         AddUpdateCommands(menu);
         AddDataCommands(menu);
         menu.Items.Add(new ToolStripSeparator());
@@ -349,8 +361,15 @@ internal sealed partial class MainForm : Form
         menu.Items.Add("Esci definitivamente", null, (_, _) => ExitApplication());
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
-        // Un clic sulla notifica riporta la finestra davanti.
-        _trayIcon.BalloonTipClicked += (_, _) => RestoreFromTray();
+        // Un clic sulla notifica riporta la finestra davanti e ne esegue l'azione (se ne ha una).
+        _trayIcon.BalloonTipClicked += (_, _) =>
+        {
+            var action = _balloonAction;
+            _balloonAction = null;
+            RestoreFromTray();
+            action?.Invoke();
+        };
+        _trayIcon.BalloonTipClosed += (_, _) => _balloonAction = null;
         _trayCleanup.Tick += (_, _) =>
         {
             _trayCleanup.Stop();
@@ -363,6 +382,9 @@ internal sealed partial class MainForm : Form
     }
 
     private readonly System.Windows.Forms.Timer _trayCleanup = new() { Interval = 20_000 };
+
+    /// <summary>Cosa fare se l'utente clicca sul fumetto di Windows ora visibile (null = solo riaprire la finestra).</summary>
+    private Action? _balloonAction;
 
     /// <summary>
     /// L'utente sta guardando la finestra? Solo allora una notifica è superflua: una
@@ -382,13 +404,17 @@ internal sealed partial class MainForm : Form
         string text,
         int milliseconds = 6000,
         ToolTipIcon icon = ToolTipIcon.Info,
-        bool force = false)
+        bool force = false,
+        Action? onClick = null)
     {
         // «force» è la prova delle Impostazioni: si vede anche con le notifiche spente.
         if (IsDisposed || (!force && !NativeNotificationsEnabled()))
         {
             return;
         }
+        // Il clic sul fumetto riporta la finestra davanti e fa ciò che l'avviso proponeva (aprire l'aggiornamento,
+        // il calendario, il file salvato): prima apriva solo la finestra e bisognava rifare la strada a mano.
+        _balloonAction = onClick;
         try
         {
             var alreadyRegistered = _trayIcon.Visible;
