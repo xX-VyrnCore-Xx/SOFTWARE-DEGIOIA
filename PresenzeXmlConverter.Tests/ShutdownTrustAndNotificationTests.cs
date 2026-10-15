@@ -50,8 +50,9 @@ public class ShutdownTrustAndNotificationTests
         Assert.Contains("if (IsWindowInUse)", source, StringComparison.Ordinal);
         // L'icona appena registrata non è pronta: la prima notifica si ritarda.
         Assert.Contains("Interval = 600", source, StringComparison.Ordinal);
-        // Un clic sulla notifica riporta la finestra davanti.
-        Assert.Contains("BalloonTipClicked += (_, _) => RestoreFromTray()", source, StringComparison.Ordinal);
+        // Un clic sulla notifica riporta la finestra davanti (e ne esegue l'azione, se ne ha una).
+        Assert.Matches(new Regex(@"BalloonTipClicked\s*\+=\s*\(_, _\)\s*=>\s*\{[^}]*RestoreFromTray\(\);[^}]*\}"), source);
+        Assert.Contains("action?.Invoke();", source, StringComparison.Ordinal);
         // Nessuna chiamata diretta a ShowBalloonTip fuori dall'unica routine.
         foreach (var name in new[] { "MainForm.cs", "MainForm.Update.cs", "MainForm.Data.cs", "MainForm.Shell.cs" })
         {

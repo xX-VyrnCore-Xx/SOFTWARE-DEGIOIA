@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.36.0] - Corrente
+## [1.37.0] - Corrente
+
+### 🔔 Notifiche e Impostazioni
+- **Clic sul fumetto**: toccando la notifica dell'icona vicino all'orologio si esegue l'azione (per esempio apre l'aggiornamento) invece di non fare nulla
+- **Aggiornamento disponibile anche con la finestra chiusa**: voce **«Installa aggiornamento»** nel menu dell'icona e promemoria una volta al giorno, senza ripetersi a ogni controllo
+- **Impostazioni, nuova scheda «Generale»**: comportamento alla chiusura (chiedi, riduci vicino all'orologio, esci), copia di sicurezza immediata dei codici e informazioni su dati e sicurezza
+- La conversione XML non è toccata
+
+## [1.36.0]
 
 ### 🧹 Tabelle e eliminazione
 - **Righe delle tabelle non più ridimensionabili**: trascinando il bordo di una riga la si poteva allargare a dismisura (una riga alta mezza schermata). Ora righe e intestazioni hanno l'altezza decisa dall'app, in tutto il programma

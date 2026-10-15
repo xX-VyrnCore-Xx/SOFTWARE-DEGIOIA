@@ -35,6 +35,11 @@ internal sealed class SettingsDialog : Form
     private readonly Label _xmlStatus = new();
     private readonly CheckBox _inAppNotifications = new();
     private readonly CheckBox _systemNotifications = new();
+    private readonly RadioButton _closeAsk = new();
+    private readonly RadioButton _closeTray = new();
+    private readonly RadioButton _closeExit = new();
+    private readonly Label _backupStatus = new();
+    private readonly GeneralInfo _general;
 
     public SettingsDialog(
         GenerationOptions options,
@@ -42,8 +47,12 @@ internal sealed class SettingsDialog : Form
         bool autoUpdateCheck,
         XmlFormat? xmlFormat = null,
         bool inAppNotifications = true,
-        bool systemNotifications = true)
+        bool systemNotifications = true,
+        string closeBehavior = "",
+        GeneralInfo? general = null)
     {
+        _general = general ?? GeneralInfo.Empty;
+        CloseBehavior = closeBehavior is "tray" or "exit" ? closeBehavior : string.Empty;
         _referenceYear = referenceYear;
         Options = options;
         AutoUpdateCheck = autoUpdateCheck;
@@ -135,6 +144,7 @@ internal sealed class SettingsDialog : Form
         tabs.AddPage("Aggiornamenti", BuildUpdatePage());
         tabs.AddPage("Formato XML", BuildXmlPage());
         tabs.AddPage("Notifiche", BuildNotificationsPage());
+        tabs.AddPage("Generale", BuildGeneralPage());
         tabs.SelectedIndex = 0;
         shell.Controls.Add(tabs);
         root.Controls.Add(shell, 0, 1);
@@ -199,6 +209,12 @@ internal sealed class SettingsDialog : Form
 
     /// <summary>Fumetti di Windows dal tray (valido solo dopo "Salva impostazioni").</summary>
     public bool SystemNotifications { get; private set; }
+
+    /// <summary>Cosa fa la X della finestra: «» = chiede ogni volta, «tray» = resta in background, «exit» = esce.</summary>
+    public string CloseBehavior { get; private set; }
+
+    /// <summary>Crea subito un backup dei dati e restituisce il messaggio da mostrare (la finestra principale lo imposta).</summary>
+    public Func<string>? BackupNow { get; set; }
 
     /// <summary>Chiesta da «Prova le notifiche»: la finestra principale le mostra con le scelte correnti.</summary>
     public event EventHandler<(bool InApp, bool System)>? NotificationTestRequested;
@@ -485,6 +501,114 @@ internal sealed class SettingsDialog : Form
         }
     }
 
+    /// <summary>Scheda «Generale»: comportamento della X, cartella dei dati, backup e sicurezza.</summary>
+    private Control BuildGeneralPage()
+    {
+        var (page, body) = CreatePage(SettingsPageLayout.GeneralRows);
+
+        body.Controls.Add(CreateHint(
+            "Cosa fa il programma quando chiudi la finestra, dove tiene i dati e come sono protetti."), 0, 0);
+
+        body.Controls.Add(CreateFieldLabel(
+            "Quando chiudi la finestra con la X  (in background nel tray ricevi gli avvisi degli aggiornamenti)"), 0, 1);
+        var choices = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        foreach (var (button, text, tag) in new[]
+                 {
+                     (_closeAsk, "Chiedi ogni volta", string.Empty),
+                     (_closeTray, "Resta in background (tray)", "tray"),
+                     (_closeExit, "Esci dal programma", "exit")
+                 })
+        {
+            button.Text = text;
+            button.Tag = tag;
+            button.AutoSize = true;
+            button.ForeColor = Theme.InkSecondary;
+            button.Font = Theme.Fonts.Small;
+            button.Margin = new Padding(0, 6, 22, 0);
+            button.AccessibleName = $"Alla chiusura: {text}";
+            button.Checked = string.Equals(tag, CloseBehavior, StringComparison.Ordinal);
+            choices.Controls.Add(button);
+        }
+        body.Controls.Add(choices, 0, 2);
+
+        body.Controls.Add(CreateFieldLabel(
+            "Dati: tutto resta sul tuo computer, nella cartella dei dati del tuo profilo Windows."), 0, 3);
+
+        _backupStatus.Dock = DockStyle.Fill;
+        _backupStatus.TextAlign = ContentAlignment.TopLeft;
+        _backupStatus.ForeColor = Theme.MutedInk;
+        _backupStatus.Font = Theme.Fonts.Small;
+        _backupStatus.AutoEllipsis = true;
+        _backupStatus.Margin = new Padding(0, 2, 0, 0);
+        _backupStatus.Text = _general.Describe();
+        body.Controls.Add(_backupStatus, 0, 4);
+
+        var actions = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        var openData = Theme.CreateButton("Apri la cartella dei dati", Theme.ButtonTone.Neutral, compact: true).WithIcon(Glyph.Folder);
+        openData.Size = new Size(212, 34);
+        openData.Margin = new Padding(0, 0, 8, 0);
+        openData.Enabled = _general.DataFolder.Length > 0;
+        openData.Click += (_, _) => OpenFolder(_general.DataFolder);
+        var backup = Theme.CreateButton("Backup dei dati ora", Theme.ButtonTone.Primary, compact: true).WithIcon(Glyph.Database);
+        backup.Size = new Size(190, 34);
+        backup.Margin = new Padding(0, 0, 8, 0);
+        backup.Enabled = BackupNow is not null || _general.DataFolder.Length > 0;
+        backup.Click += (_, _) =>
+        {
+            try
+            {
+                _backupStatus.ForeColor = Theme.SuccessInk;
+                _backupStatus.Text = BackupNow?.Invoke() ?? "Backup non disponibile.";
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                _backupStatus.ForeColor = Theme.DangerInk;
+                _backupStatus.Text = $"Backup non riuscito: {exception.Message}";
+            }
+        };
+        var codes = Theme.CreateButton("Copie dei codici", Theme.ButtonTone.Neutral, compact: true).WithIcon(Glyph.Transfer);
+        codes.Size = new Size(172, 34);
+        codes.Margin = Padding.Empty;
+        codes.Enabled = _general.CodesBackupFolder.Length > 0;
+        codes.Click += (_, _) => OpenFolder(_general.CodesBackupFolder);
+        actions.Controls.Add(openData);
+        actions.Controls.Add(backup);
+        actions.Controls.Add(codes);
+        body.Controls.Add(actions, 0, 5);
+
+        body.Controls.Add(CreateNote(
+            "Il token degli aggiornamenti è cifrato con il tuo utente Windows. " + ExecutableSignature.DescribeCurrentExecutable()), 0, 6);
+        return page;
+    }
+
+    private static void OpenFolder(string folder)
+    {
+        try
+        {
+            Directory.CreateDirectory(folder);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(folder) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (
+            exception is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            // Cartella non apribile: il percorso resta scritto nella scheda.
+        }
+    }
+
     private Control BuildUpdatePage()
     {
         var (page, body) = CreatePage(SettingsPageLayout.UpdateRows);
@@ -698,8 +822,31 @@ internal sealed class SettingsDialog : Form
         };
         AutoUpdateCheck = _autoCheck.Checked;
         InAppNotifications = _inAppNotifications.Checked;
+        CloseBehavior = _closeTray.Checked ? "tray" : _closeExit.Checked ? "exit" : string.Empty;
         SystemNotifications = _systemNotifications.Checked;
         DialogResult = DialogResult.OK;
         Close();
+    }
+}
+
+/// <summary>Cosa mostra la scheda «Generale»: percorsi e riassunti già calcolati dalla finestra principale.</summary>
+internal sealed record GeneralInfo(string DataFolder, string DatabaseSummary, string CodesSummary, string CodesBackupFolder)
+{
+    public static GeneralInfo Empty { get; } = new(string.Empty, string.Empty, string.Empty, string.Empty);
+
+    /// <summary>Il testo della scheda: cartella, stato del database e dei codici.</summary>
+    public string Describe()
+    {
+        var lines = new List<string>();
+        if (DataFolder.Length > 0)
+        {
+            lines.Add($"Cartella: {DataFolder}");
+        }
+        var state = string.Join(" · ", new[] { DatabaseSummary, CodesSummary }.Where(part => part.Length > 0));
+        if (state.Length > 0)
+        {
+            lines.Add(state);
+        }
+        return lines.Count == 0 ? "Nessuna informazione sui dati." : string.Join(Environment.NewLine, lines);
     }
 }
