@@ -4,6 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
+## [1.25.0] - Corrente
+
+### 📄 Report PDF del mese
+- Nel calendario il nuovo menu **«Esporta ▾»** raccoglie le tre esportazioni: **Report del mese (PDF)**, Riepilogo ore (CSV per Excel) e Immagine del mese (PNG). Un solo pulsante al posto dei due precedenti: la barra resta ordinata anche sul portatile
+- Il **report PDF** (A4) ha in testa azienda e data, quattro riquadri di sintesi (dipendenti, ore registrate, ore di assenza, giorni da controllare), la tabella per dipendente con **presenza, assenza, totale, ore teoriche, differenza e giorni scoperti**, il dettaglio delle assenze per giustificativo e l'elenco di ciò che va controllato. Più mesi → una sezione per mese; molti dipendenti → più pagine numerate
+- I numeri sono gli stessi del calendario e del CSV. Il PDF non richiede nessun programma aggiuntivo
+- Dopo ogni esportazione compare un cartellino: un clic apre il file
+
 ## [1.24.0] - Corrente
 
 ### ♻️ Riprendi dove eri rimasto
