@@ -358,27 +358,28 @@ internal sealed partial class MainForm
         progress.Show(this);
         try
         {
+            progress.SetStep(UpdateStep.Download);
+            var meter = new TransferMeter();
             await UpdateService.DownloadAsync(
                 update,
                 destination,
-                new Progress<int>(percent => progress.SetProgress(percent, $"Scaricamento in corso… {percent}%")),
+                progress: null,
                 progress.Token,
                 new Progress<(long Received, long Total)>(transfer =>
                 {
                     if (transfer.Total <= 0 || transfer.Received <= 0)
                     {
+                        // Segnale di nuovo tentativo dopo una rete interrotta: si riparte con misure pulite.
+                        meter = new TransferMeter();
+                        clock.Restart();
+                        progress.SetDetail("Connessione interrotta: nuovo tentativo…");
                         return;
                     }
-                    var seconds = Math.Max(0.5, clock.Elapsed.TotalSeconds);
-                    progress.SetProgress(
-                        (int)Math.Min(100, transfer.Received * 100 / transfer.Total),
-                        $"Scaricamento in corso… {transfer.Received * 100 / transfer.Total}% · " +
-                        $"{FormatMegabytes(transfer.Received)} di {FormatMegabytes(transfer.Total)} · " +
-                        $"{FormatMegabytes((long)(transfer.Received / seconds))}/s");
+                    meter.Add(transfer.Received, transfer.Total, clock.Elapsed);
+                    progress.SetTransfer(meter);
                 }));
-            progress.SetProgress(100);
 
-            progress.SetStatus("Verifica del file scaricato…");
+            progress.SetStep(UpdateStep.Checksum);
             var expectedChecksum = await UpdateService.TryGetChecksumAsync(update);
             if (expectedChecksum is null && update.ChecksumApiUrl is not null)
             {
@@ -398,6 +399,7 @@ internal sealed partial class MainForm
             // Da qui il file è tenuto aperto in lettura senza condivisione in scrittura: nessuno può sostituirlo
             // fra la verifica e l'avvio dell'installer.
             using var lockedInstaller = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.Read);
+            progress.SetStep(UpdateStep.Signature);
             var decision = UpdateSecurity.EvaluateInstaller(
                 AuthenticodeVerifier.Verify(destination),
                 ExecutableSignature.SignerThumbprint(Environment.ProcessPath),
@@ -430,7 +432,7 @@ internal sealed partial class MainForm
             _database.SaveSetting(PendingUpdateVersionSetting, update.Version.ToString());
             _database.SaveSetting(PendingUpdateNotesSetting, update.Notes);
 
-            progress.SetStatus("Installazione in corso: il programma si chiude e si riapre da solo…");
+            progress.SetStep(UpdateStep.Install);
             StartInstaller(destination);
             progress.Close();
             SetStatus("●   Aggiornamento avviato: Vyrn Presence si chiude per completarlo.", false);
@@ -568,9 +570,6 @@ internal sealed partial class MainForm
             true);
         OpenSettings();
     }
-
-    private static string FormatMegabytes(long bytes) =>
-        (bytes / 1048576.0).ToString("0.0", System.Globalization.CultureInfo.GetCultureInfo("it-IT")) + " MB";
 
     private static void StartInstaller(string installerPath)
     {
