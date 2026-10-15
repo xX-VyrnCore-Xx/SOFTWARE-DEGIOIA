@@ -72,6 +72,75 @@ internal sealed class MappingEditorPanel : Panel
 
         _employeesGrid.CellValueChanged += (_, _) => MarkChanged();
         _policiesGrid.CellValueChanged += (_, _) => MarkChanged();
+        _employeesGrid.KeyDown += OnGridKeyDown;
+        _policiesGrid.KeyDown += OnGridKeyDown;
+    }
+
+    /// <summary>
+    /// Nella pagina Gestione codici si possono eliminare le righe (pulsante «Elimina» o tasto Canc). Nella finestra
+    /// dei codici mancanti no: lì le righe sono quelle che servono alla conversione.
+    /// </summary>
+    public bool AllowDelete { get; set; }
+
+    /// <summary>L'utente ha chiesto di eliminare la riga corrente (tasto Canc fuori dalla modifica di una cella).</summary>
+    public event EventHandler? DeleteRequested;
+
+    private void OnGridKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Delete && AllowDelete && sender is DataGridView { IsCurrentCellInEditMode: false })
+        {
+            DeleteRequested?.Invoke(this, EventArgs.Empty);
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+        }
+    }
+
+    private ThemedGrid ActiveGrid => _tabs.SelectedIndex == 1 ? _policiesGrid : _employeesGrid;
+
+    /// <summary>La riga corrente della scheda aperta: nome e se è un giustificativo (altrimenti un dipendente).</summary>
+    public (string Name, bool IsPolicy)? CurrentEntry()
+    {
+        var grid = ActiveGrid;
+        return grid.CurrentRow?.Tag is string name ? (name, ReferenceEquals(grid, _policiesGrid)) : null;
+    }
+
+    /// <summary>
+    /// Toglie la riga dalla griglia dopo che l'abbinamento è stato eliminato dal database. Se il nome è nel file
+    /// Excel aperto la riga resta (serve alla conversione) ma torna vuota, da compilare di nuovo.
+    /// </summary>
+    public void RemoveEntry(string name, bool isPolicy)
+    {
+        var grid = isPolicy ? _policiesGrid : _employeesGrid;
+        var required = isPolicy ? _requiredPolicies : _requiredEmployees;
+        var row = grid.Rows.Cast<DataGridViewRow>().FirstOrDefault(candidate =>
+            candidate.Tag is string tag && string.Equals(tag, name, StringComparison.OrdinalIgnoreCase));
+        if (row is null)
+        {
+            return;
+        }
+        _loading = true;
+        try
+        {
+            if (required.Contains(name))
+            {
+                for (var column = 1; column < grid.Columns.Count; column++)
+                {
+                    if (!grid.Columns[column].ReadOnly)
+                    {
+                        row.Cells[column].Value = string.Empty;
+                    }
+                }
+            }
+            else
+            {
+                grid.Rows.Remove(row);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+        MissingRequiredCount = CountMissing();
     }
 
     private bool _loading;

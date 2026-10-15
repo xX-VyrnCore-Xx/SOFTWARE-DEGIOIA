@@ -95,6 +95,7 @@ internal sealed partial class MainForm
         page.Controls.Add(toolbar, 0, 0);
 
         _findingsGrid.ReadOnly = true;
+        _findingsGrid.UseRowSelection();
         _findingsGrid.EmptyStateText =
             "Nessuna segnalazione: importa un foglio Excel e genera l'anteprima per controllare i movimenti.";
         _findingsGrid.Columns.Add(CreateGridColumn("severity", "Gravità", 22, true));

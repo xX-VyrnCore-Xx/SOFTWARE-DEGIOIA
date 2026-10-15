@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.35.0] - Corrente
+## [1.36.0] - Corrente
+
+### 🧹 Tabelle e eliminazione
+- **Righe delle tabelle non più ridimensionabili**: trascinando il bordo di una riga la si poteva allargare a dismisura (una riga alta mezza schermata). Ora righe e intestazioni hanno l'altezza decisa dall'app, in tutto il programma
+- **Le aziende si possono eliminare**: il pulsante «Elimina» (e il tasto **Canc**) non trovava la riga selezionata perché le tabelle selezionavano la singola cella e non la riga. Ora aziende, storico delle esportazioni e ultime esportazioni della dashboard selezionano la **riga intera**, quindi anche «Usa in conversione», «Regole…», «Apri», «Copia» e «Salva una copia» agiscono sulla riga scelta
+- **Gestione codici: si possono eliminare dipendenti e giustificativi**: nuovo pulsante **«Elimina»** (e tasto Canc) che toglie dagli abbinamenti la riga selezionata, con conferma. Per un dipendente si eliminano anche le sue ore e il suo periodo. Se il nome è nel file Excel aperto la riga resta, vuota, da compilare di nuovo
+- La conversione XML non è toccata
+
+## [1.35.0]
 
 ### 🔒 Aggiornamenti più sicuri
 - **Firma controllata davvero**: prima di eseguire un installer scaricato l'app verifica con Windows (WinVerifyTrust) che la firma digitale sia **integra**, cioè che il file non sia stato modificato dopo la firma. Prima si leggeva solo il nome del firmatario, che non lo prova. Un installer modificato, con firma non valida, o non firmato al posto di uno firmato annulla l'aggiornamento
