@@ -24,17 +24,6 @@ internal sealed class MonthCalendarView : Panel
 
     private static readonly CultureInfo Italian = CultureInfo.GetCultureInfo("it-IT");
 
-    // Colori delle assenze (sfondo, testo): si assegnano ai giustificativi nell'ordine in cui compaiono.
-    private static readonly (Color Fill, Color Ink)[] AbsencePalette =
-    [
-        (Color.FromArgb(207, 228, 255), Color.FromArgb(0, 88, 190)),
-        (Color.FromArgb(255, 232, 200), Color.FromArgb(150, 80, 0)),
-        (Color.FromArgb(236, 222, 255), Color.FromArgb(100, 50, 160)),
-        (Color.FromArgb(255, 218, 216), Color.FromArgb(170, 30, 20)),
-        (Color.FromArgb(205, 240, 246), Color.FromArgb(0, 96, 116)),
-        (Color.FromArgb(240, 236, 200), Color.FromArgb(110, 100, 20))
-    ];
-
     private readonly Canvas _canvas;
     private readonly Label _monthLabel = new();
     private readonly Button _previous = Theme.CreateButton("‹", Theme.ButtonTone.Neutral, compact: true);
@@ -330,7 +319,7 @@ internal sealed class MonthCalendarView : Panel
             list.Add(movement);
             if (!AttendanceMovementGenerator.IsPresence(movement) && !_codeColors.ContainsKey(movement.ReasonCode))
             {
-                _codeColors[movement.ReasonCode] = _codeColors.Count % AbsencePalette.Length;
+                _codeColors[movement.ReasonCode] = _codeColors.Count % AbsencePalette.Colors.Length;
                 _codeNames[movement.ReasonCode] = movement.Policy;
             }
         }
@@ -348,7 +337,7 @@ internal sealed class MonthCalendarView : Panel
         };
         foreach (var code in _codeColors)
         {
-            var colors = AbsencePalette[code.Value];
+            var colors = AbsencePalette.Colors[code.Value];
             var name = _codeNames.TryGetValue(code.Key, out var policy) && policy.Length > 0 ? $"{code.Key} · {policy}" : code.Key;
             entries.Add((colors.Fill, colors.Ink, name, false));
         }
@@ -1187,7 +1176,7 @@ internal sealed class MonthCalendarView : Panel
         private (Color Fill, Color Ink) ColorsOf(DailyMovement movement) =>
             AttendanceMovementGenerator.IsPresence(movement)
                 ? (Theme.SuccessSoft, Theme.SuccessInk)
-                : AbsencePalette[_owner._codeColors.TryGetValue(movement.ReasonCode, out var index) ? index : 0];
+                : AbsencePalette.Colors[_owner._codeColors.TryGetValue(movement.ReasonCode, out var index) ? index : 0];
 
         private static string FormatHours(int minutes) => minutes % 60 == 0
             ? (minutes / 60).ToString(CultureInfo.InvariantCulture)

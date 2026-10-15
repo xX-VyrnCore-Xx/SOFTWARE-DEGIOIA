@@ -18,6 +18,7 @@ internal sealed partial class MainForm
     private readonly StatusRow _statusDatabase = new("Database", Glyph.Database);
     private readonly StatusRow _statusUpdates = new("Aggiornamenti", Glyph.Refresh);
     private readonly StatusRow _statusRules = new("Regole", Glyph.Chip);
+    private readonly DashboardInsightsView _dashInsights = new();
     private IconButton? _dashGenerateButton;
 
     /// <summary>La consegna in anteprima è già stata esportata? Serve al terzo passo dell'avanzamento.</summary>
@@ -79,7 +80,22 @@ internal sealed partial class MainForm
         hero.Controls.Add(BuildDashboardStatusCard(), 1, 0);
         page.Controls.Add(hero, 0, 2);
 
-        page.Controls.Add(BuildDashboardExports(), 0, 3);
+        var bottom = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Theme.Canvas,
+            Margin = Padding.Empty
+        };
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
+        bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var exports = BuildDashboardExports();
+        exports.Margin = new Padding(0, 0, 10, 0);
+        bottom.Controls.Add(exports, 0, 0);
+        bottom.Controls.Add(BuildDashboardInsightsCard(), 1, 0);
+        page.Controls.Add(bottom, 0, 3);
         page.Controls.Add(BuildSectionHint(
             "Suggerimento: puoi trascinare un file Excel (.xlsx, .xlsm) in qualunque punto della finestra."), 0, 4);
 
@@ -160,6 +176,36 @@ internal sealed partial class MainForm
         return card;
     }
 
+    private Control BuildDashboardInsightsCard()
+    {
+        var card = new SurfacePanel
+        {
+            Dock = DockStyle.Fill,
+            SurfaceFill = Theme.Surface,
+            SurfaceBorder = Theme.Divider,
+            Radius = 12,
+            Padding = new Padding(16, 12, 16, 12),
+            Margin = Padding.Empty
+        };
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.Controls.Add(CreateCardTitle("ANALISI DEL MESE"), 0, 0);
+        _dashInsights.Dock = DockStyle.Fill;
+        _dashInsights.Margin = Padding.Empty;
+        layout.Controls.Add(_dashInsights, 0, 1);
+        card.Controls.Add(layout);
+        return card;
+    }
+
     private Control BuildDashboardStatusCard()
     {
         var card = new SurfacePanel
@@ -214,6 +260,15 @@ internal sealed partial class MainForm
             : "genera l'anteprima";
         _kpiHours.Value = summary.CompactTotalText;
         _kpiHours.Caption = "nell'anteprima corrente";
+
+        _dashInsights.Insights = _movements.Count == 0
+            ? DashboardInsights.Empty
+            : DashboardInsights.From(
+                _movements,
+                CalendarAlerts.Find(
+                    _movements,
+                    _generationOptions,
+                    SafeProfiles(() => _database.GetEmployeeProfiles())));
 
         UpdateDropZones();
         _dashStepper.Current = _currentPreviewExported && !string.IsNullOrWhiteSpace(_xml)
