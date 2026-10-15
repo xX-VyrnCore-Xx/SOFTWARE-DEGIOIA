@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.37.0] - Corrente
+## [1.38.0] - Corrente
+
+### 🔄 Schermata di aggiornamento
+- **Quattro passi ben visibili**: scaricamento, controllo del file, verifica della firma, installazione. Il passo in corso è evidenziato, quelli finiti hanno la spunta verde
+- **Durante il download**: percentuale, dimensione scaricata, **velocità** e **tempo residuo** stimato (media mobile, non salta a ogni pacchetto). Se la rete si interrompe compare «nuovo tentativo» e le misure ripartono
+- **Annulla** si può usare fino alla verifica della firma; dall'installazione in poi il pulsante si disattiva
+- «Più tardi» e «Salta questa versione» restano nella finestra delle novità
+- La conversione XML non è toccata
+
+## [1.37.0]
 
 ### 🔔 Notifiche e Impostazioni
 - **Clic sul fumetto**: toccando la notifica dell'icona vicino all'orologio si esegue l'azione (per esempio apre l'aggiornamento) invece di non fare nulla
