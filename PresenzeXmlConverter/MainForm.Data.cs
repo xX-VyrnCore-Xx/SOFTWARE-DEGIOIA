@@ -41,6 +41,7 @@ internal sealed partial class MainForm
         }
 
         RefreshRailStatus();
+        NotifyCertificateExpiry();
         _ = Task.Run(() =>
         {
             try
@@ -58,6 +59,30 @@ internal sealed partial class MainForm
                 // Il backup è un di più: l'app funziona comunque (InvalidOperation: finestra già chiusa).
             }
         });
+    }
+
+    /// <summary>Una volta al giorno ricorda che il certificato di firma sta per scadere (o è scaduto).</summary>
+    private void NotifyCertificateExpiry()
+    {
+        var notice = ExecutableSignature.ExpiryNotice(ExecutableSignature.CurrentCertificateExpiry(), DateTime.Now);
+        if (notice is null)
+        {
+            return;
+        }
+        var today = DateTime.Now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        try
+        {
+            if (_database.GetSetting("cert-expiry-notice-day") == today)
+            {
+                return;
+            }
+            _database.SaveSetting("cert-expiry-notice-day", today);
+        }
+        catch (SqliteException)
+        {
+            return;
+        }
+        Notify(ToastKind.Warning, "Certificato di firma", notice);
     }
 
     /// <summary>Aggiorna lo stato dei dati mostrato in fondo alla barra laterale.</summary>

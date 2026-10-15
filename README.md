@@ -6,7 +6,7 @@ Vyrn Presence è un'applicazione Windows 11 x64 per convertire un foglio Excel d
 
 ## Installazione
 
-L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.34.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
+L'unica modalità di installazione supportata è l'installer Windows basato su Inno Setup: compila `Installer.iss` con Inno Setup 6.3 o successivo per generare `dist/PresenzeFlow-Setup-1.35.0.exe`. L'installer copia l'applicazione e la libreria nativa SQLite (`e_sqlite3.dll`) in `%LOCALAPPDATA%\Programs\PresenzeFlow` e crea i collegamenti nel menu Start e sul desktop. Non richiede privilegi amministrativi.
 
 L'installer non scarica nulla oltre al programma. L'eseguibile e l'installer sono **firmati** (vedi "Firma digitale"): il workflow non pubblica una Release senza firma. Un file firmato viene controllato più in fretta al primo avvio.
 
@@ -137,7 +137,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6.3 o successivo, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.34.0.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.35.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).
@@ -222,6 +222,22 @@ I due secret devono venire dallo **stesso** certificato e vanno **copiati dal fi
 Il workflow firma eseguibile e installer **solo se i due secret esistono**, e li verifica entrambi (che la firma ci sia, che l'hash corrisponda e che il certificato sia quello atteso). Senza certificato il workflow **si ferma** e dice quale dei due secret manca: nessuna Release esce non firmata per distrazione.
 
 Oltre all'installer e al suo checksum, la Release allega anche il **certificato pubblico** `PresenzeFlow-codesign.cer`: è quello da installare sui PC (paragrafo successivo). Non contiene la chiave privata.
+
+### Sicurezza degli aggiornamenti
+
+Prima di eseguire un aggiornamento scaricato l'app controlla, in quest'ordine:
+
+1. **Indirizzo**: gli asset della Release devono stare sul repository atteso, su `api.github.com` in HTTPS (il token viaggia con la richiesta e non finisce altrove).
+2. **Cartella privata**: l'installer si scarica in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\updates` con un nome casuale (non in `%TEMP%`, dove un altro programma potrebbe piazzare o sostituire il file) e resta aperto in sola lettura fino all'avvio: nessuno può sostituirlo dopo la verifica. I file vecchi si eliminano da soli.
+3. **Checksum** SHA-256 pubblicato con la Release.
+4. **Firma digitale integra** (WinVerifyTrust): il file non è stato modificato dopo la firma. Copiare la firma di un file su un altro non basta. Un certificato autofirmato non ancora attendibile su quel PC è accettato se il file è integro; qualsiasi altro problema di firma, e un installer non firmato al posto di uno firmato, annullano l'aggiornamento.
+5. **Stesso editore**: se l'installer è firmato da un certificato **diverso** da quello dell'app (succede al rinnovo, ma potrebbe essere un file contraffatto) l'app **chiede conferma** mostrando i due firmatari, invece di decidere da sola.
+
+Il **token GitHub** salvato sul disco è cifrato con DPAPI (legato all'utente Windows): un token in chiaro delle versioni precedenti viene riscritto cifrato alla prima lettura. Il token incorporato nella build resta solo offuscato (vedi `EmbeddedUpdateToken`): deve avere il solo permesso *Contents: Read-only* sul solo repository delle Release.
+
+**Scadenza del certificato**: l'app ricorda (una volta al giorno e in Impostazioni) quando il certificato di firma scade fra meno di 60 giorni. Le firme già fatte restano valide grazie alla marca temporale; i nuovi rilasci vanno firmati con un certificato rinnovato (`tools/New-CodeSigningCertificate.ps1`, ora con chiave RSA 4096).
+
+**Limite noto**: un certificato autofirmato dice «questo file viene dalla stessa chiave di prima», non «questo editore è stato verificato». Per una firma che Windows riconosce da solo (nessuna installazione del certificato sui PC, nessun avviso SmartScreen) serve un certificato emesso da un'autorità pubblica (per esempio Azure Trusted Signing o un certificato EV).
 
 ### Release non firmate
 
