@@ -234,6 +234,9 @@ internal sealed partial class MainForm
         Visible = false
     };
 
+    private SectionTransition? _sectionTransition;
+    private int _shownSectionIndex = -1;
+
     /// <summary>Mostra la sezione scelta e aggiorna i dati che quella sezione mostra.</summary>
     private void ApplySection()
     {
@@ -242,6 +245,8 @@ internal sealed partial class MainForm
         {
             return;
         }
+        var changed = _shownSectionIndex >= 0 && _shownSectionIndex != index;
+        _shownSectionIndex = index;
         _dashboardSection.Visible = index == SectionDashboard;
         _conversionSection.Visible = index == SectionConversion;
         _companiesSection.Visible = index == SectionCompanies;
@@ -262,6 +267,20 @@ internal sealed partial class MainForm
             case SectionHistory:
                 RefreshHistory();
                 break;
+        }
+
+        // Dissolvenza in entrata della sezione nuova (solo quando si cambia davvero sezione).
+        if (changed)
+        {
+            _sectionTransition ??= new SectionTransition(_sectionHost);
+            _sectionTransition.Play(index switch
+            {
+                SectionDashboard => _dashboardSection,
+                SectionConversion => _conversionSection,
+                SectionCompanies => _companiesSection,
+                SectionCodes => _codesSection,
+                _ => _historySection
+            });
         }
     }
 
