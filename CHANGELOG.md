@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.27.0] - Corrente
+## [1.28.0] - Corrente
+
+### 🧳 Codici e aziende da portare su un altro PC
+- Nuovo pulsante **«Trasferisci ▾»** in Gestione codici (e nel menu dell'icona vicino all'orologio): **Esporta codici e aziende…** salva in un file `.json` gli abbinamenti dei dipendenti e dei giustificativi, le ore e il periodo dei dipendenti e le aziende con le loro regole proprie
+- **Importa codici e aziende…** legge quel file su un altro PC (o dopo una reinstallazione) e **unisce**: aggiunge i nuovi, aggiorna quelli con un codice diverso, lascia ciò che nel file non c'è. Lo stesso dipendente scritto in un altro ordine («Rossi Mario» / «Mario Rossi») si aggiorna, non si duplica
+- Prima di importare chiede conferma e fa una **copia di sicurezza** del database; le voci non valide si scartano una per una e si elencano a fine importazione, senza fermare le altre
+- Un file che non è di Vyrn Presence, rovinato o di una versione più recente viene rifiutato con il motivo, senza cambiare nulla. Lo storico delle esportazioni e le preferenze non fanno parte del file
+- La conversione XML non è toccata
+
+## [1.27.0]
 
 ### 🗑️ Rimuovi il file Excel
 - Con un file caricato, l'area del file (in dashboard e nella scheda Conversione) mostra una **«×»**: un clic (o il tasto **Canc**) lo rimuove, per un file importato per sbaglio o che non serve più

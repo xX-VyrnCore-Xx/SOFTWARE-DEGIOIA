@@ -421,8 +421,17 @@ internal sealed partial class MainForm
             SetStatus("●   Elenchi dei codici ricaricati dal database locale.", false);
         };
         Describe(reload, "Ricarica elenchi", "Rilegge dal database gli abbinamenti salvati.");
+        var transfer = Theme.CreateButton("Trasferisci  ▾", Theme.ButtonTone.Neutral);
+        transfer.Size = new Size(138, 36);
+        transfer.Margin = new Padding(0, 0, 8, 0);
+        transfer.Click += (_, _) => ShowTransferMenu(transfer);
+        Describe(
+            transfer,
+            "Trasferisci codici e aziende",
+            "Esporta in un file i codici, le ore dei dipendenti e le aziende per usarli su un altro PC, oppure importali da un file.");
         actions.Controls.Add(save);
         actions.Controls.Add(reload);
+        actions.Controls.Add(transfer);
         bar.Controls.Add(actions, 1, 0);
         return bar;
     }
