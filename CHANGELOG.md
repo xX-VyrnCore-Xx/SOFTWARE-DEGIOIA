@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.40.0] - Corrente
+## [1.41.0] - Corrente
+
+### 📊 Grafico «Ore al giorno»
+- **Nuova sezione nella card «Analisi del mese»**: una colonna per ogni giorno del mese, **presenza in azzurro e assenza in arancio** sopra, con altezza proporzionale alle ore di tutti i dipendenti. I fine settimana restano vuoti, quindi si vedono a colpo d'occhio
+- **Animazione a cascata**: le colonne crescono da sinistra a destra a ogni nuova anteprima (ferme se in Windows hai spento gli effetti di animazione)
+- Il grafico compare solo se nella card c'è spazio anche per almeno una riga di giustificativi: con la finestra bassa tutto resta come prima, nulla viene tagliato
+- La conversione XML non è toccata
+
+## [1.40.0]
 
 ### 🔎 Ricerca globale
 - **Il campo di ricerca in alto cerca ovunque**: oltre ai movimenti trova **aziende, dipendenti, giustificativi ed esportazioni**. Parole in qualsiasi ordine, senza distinguere maiuscole e accenti (stesse regole di prima)
