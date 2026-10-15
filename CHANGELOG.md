@@ -4,7 +4,22 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.34.0] - Corrente
+## [1.35.0] - Corrente
+
+### 🔒 Aggiornamenti più sicuri
+- **Firma controllata davvero**: prima di eseguire un installer scaricato l'app verifica con Windows (WinVerifyTrust) che la firma digitale sia **integra**, cioè che il file non sia stato modificato dopo la firma. Prima si leggeva solo il nome del firmatario, che non lo prova. Un installer modificato, con firma non valida, o non firmato al posto di uno firmato annulla l'aggiornamento
+- **Cambio di certificato: decidi tu**: se l'installer è firmato da un certificato diverso da quello dell'app (rinnovo, ma potrebbe anche essere un file contraffatto) compare una richiesta di conferma con i due firmatari; prima veniva accettato in silenzio
+- **Download in una cartella privata**: l'installer si scarica in `%LOCALAPPDATA%\DeGioia\PresenzeXmlConverter\updates` con un nome casuale, non più in `%TEMP%` con un nome prevedibile, e resta aperto in sola lettura fino all'avvio: nessun altro programma può sostituirlo fra la verifica e l'esecuzione. I file vecchi si eliminano da soli
+- **Indirizzi controllati**: gli asset della Release devono stare sul repository atteso, su api.github.com in HTTPS, prima che il token venga inviato
+- **Token cifrato sul disco** (DPAPI, legato al tuo utente Windows): un token salvato in chiaro dalle versioni precedenti viene riscritto cifrato alla prima lettura; copiato su un altro PC o utente non si legge
+
+### 📜 Certificato di firma
+- Ricorda **una volta al giorno** (e in Impostazioni → Aggiornamenti) quando il certificato di firma scade fra meno di 60 giorni o è scaduto; le firme già fatte restano valide grazie alla marca temporale
+- Lo script `New-CodeSigningCertificate.ps1` crea ora il certificato con **chiave RSA 4096**
+- README: nuova sezione «Sicurezza degli aggiornamenti» con i controlli, il token e il limite noto dei certificati autofirmati (e cosa serve per una firma riconosciuta da Windows senza installare nulla)
+- La conversione XML non è toccata
+
+## [1.34.0]
 
 ### 🪟 Barra del titolo chiara
 - La **barra del titolo di Windows** (quella con «Vyrn Presence 1.34.0» e i tre pulsanti) ora è **bianca**, come l'intestazione dell'app, invece che nera. Su Windows 11 usa i colori esatti dell'app (fondo bianco, testo scuro, bordo sottile); su Windows 10 passa al tema chiaro. Vale anche se il sistema è in modalità scura

@@ -51,9 +51,10 @@ $certificate = New-SelfSignedCertificate `
     -Subject $Subject `
     -FriendlyName 'PresenzeFlow code signing' `
     -KeyAlgorithm RSA `
-    -KeyLength 3072 `
+    -KeyLength 4096 `
     -HashAlgorithm SHA256 `
     -KeyUsage DigitalSignature `
+    -KeyExportPolicy Exportable `
     -NotAfter (Get-Date).AddYears($Years) `
     -CertStoreLocation 'Cert:\CurrentUser\My'
 
