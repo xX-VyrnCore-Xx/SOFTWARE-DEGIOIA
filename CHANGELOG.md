@@ -4,7 +4,18 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.33.0] - Corrente
+## [1.34.0] - Corrente
+
+### 🪟 Barra del titolo chiara
+- La **barra del titolo di Windows** (quella con «Vyrn Presence 1.34.0» e i tre pulsanti) ora è **bianca**, come l'intestazione dell'app, invece che nera. Su Windows 11 usa i colori esatti dell'app (fondo bianco, testo scuro, bordo sottile); su Windows 10 passa al tema chiaro. Vale anche se il sistema è in modalità scura
+
+### 🎨 Icone ridisegnate
+- **Tutte le icone dell'app sono state ridisegnate** su una griglia unica di 24 unità, a tratto uniforme con estremità e angoli tondi: coerenti fra loro, più nitide e proporzionate (ingranaggio a otto denti, orologio, cestino, scudo con spunta, database a tre dischi, persone, chip, cartella, tabella, freccia circolare…)
+- Le cinque icone della **barra laterale** (Dashboard, Conversione, Aziende, Codici, Storico) usano la stessa libreria: non ci sono più due stili diversi. Nuove: Dashboard (quattro riquadri), Foglio con freccia, Edificio, Elenco
+- Le icone sono ora **dati** (un unico disegno usato dal programma e dai test): un test controlla che ognuna esista, sia diversa dalle altre e stia dentro il margine della griglia, così nessun tratto viene tagliato
+- La conversione XML non è toccata
+
+## [1.33.0]
 
 ### 🌅 Cambio sezione animato
 - Quando passi da una sezione all'altra (Dashboard, Conversione, Aziende, Gestione codici, Storico) la sezione nuova **compare con una breve dissolvenza** (circa 0,2 secondi) e un lieve scorrimento verso l'alto, invece di apparire di colpo

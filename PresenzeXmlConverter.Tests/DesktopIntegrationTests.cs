@@ -8,7 +8,7 @@ namespace PresenzeXmlConverter.Tests;
 /// </summary>
 public class DesktopIntegrationTests
 {
-    /* ---------------------------- Titolo scuro ---------------------------- */
+    /* ---------------------------- Barra del titolo ---------------------------- */
 
     [Fact]
     public void TheDarkTitleBarAttributeIsChosenForTheReportedWindowsBuild()
@@ -21,6 +21,20 @@ public class DesktopIntegrationTests
         // Windows 10 1809: l'attributo era ancora il 19, ma si prova anche l'altro
         // perché la versione riportata può essere quella dichiarata nel manifesto.
         Assert.Equal(new[] { 19, 20 }, WindowChrome.DarkModeAttributesToTry(17763));
+    }
+
+    [Fact]
+    public void TheTitleBarUsesTheAppHeaderColorsInWindowsOrder()
+    {
+        // COLORREF è 0x00BBGGRR: con rosso e blu scambiati la barra avrebbe un altro colore.
+        Assert.Equal(0x332211, WindowChrome.ToColorRef(System.Drawing.Color.FromArgb(0x11, 0x22, 0x33)));
+        Assert.Equal(0xFFFFFF, WindowChrome.ToColorRef(System.Drawing.Color.White));
+
+        // La barra del titolo è chiara come l'intestazione dell'app, non nera sopra di essa.
+        var (caption, text, _) = WindowChrome.TitleBarColors();
+        Assert.Equal(Theme.HeaderFill, caption);
+        Assert.True(caption.GetBrightness() > 0.9f);
+        Assert.True(text.GetBrightness() < 0.3f);
     }
 
     [Fact]

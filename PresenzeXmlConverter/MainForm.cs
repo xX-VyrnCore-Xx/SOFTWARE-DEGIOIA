@@ -203,7 +203,7 @@ internal sealed partial class MainForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        // Il titolo nativo segue l'intestazione scura dell'app (Windows 10/11).
+        // La barra del titolo nativa segue l'intestazione chiara dell'app (Windows 10/11).
         WindowChrome.Apply(Handle);
     }
 

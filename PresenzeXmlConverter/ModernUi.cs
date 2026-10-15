@@ -2,33 +2,6 @@ using System.Drawing.Drawing2D;
 
 namespace PresenzeXmlConverter;
 
-/// <summary>Icone vettoriali disegnate con qualche tratto: nessuna immagine esterna, nitide a ogni DPI.</summary>
-internal enum Glyph
-{
-    Search,
-    Gear,
-    Refresh,
-    Upload,
-    File,
-    Check,
-    Clock,
-    Database,
-    Shield,
-    Arrow,
-    Folder,
-    Alert,
-    Table,
-    Code,
-    Chip,
-    Users,
-    Sum,
-    Download,
-    Plus,
-    Trash,
-    Transfer,
-    Save
-}
-
 /// <summary>
 /// Libreria delle icone dell'interfaccia. Ogni icona sta in un quadrato (di solito
 /// 16-20 px) ed è disegnata con una penna a estremità tonde, così le linee restano
@@ -36,6 +9,10 @@ internal enum Glyph
 /// </summary>
 internal static class Glyphs
 {
+    /// <summary>
+    /// Disegna l'icona nel riquadro. I tracciati stanno in <see cref="IconGeometry"/> (griglia 24 × 24): qui si
+    /// scalano al riquadro e si tracciano con una penna a estremità tonde dello spessore indicato (in pixel).
+    /// </summary>
     public static void Draw(Graphics graphics, Rectangle box, Glyph glyph, Color ink, float stroke = 1.6f)
     {
         if (box.Width < 6 || box.Height < 6)
@@ -46,154 +23,53 @@ internal static class Glyphs
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var pen = new Pen(ink, stroke) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
         using var brush = new SolidBrush(ink);
-        var s = Math.Min(box.Width, box.Height);
-        var x = box.Left + ((box.Width - s) / 2f);
-        var y = box.Top + ((box.Height - s) / 2f);
-        PointF P(float fx, float fy) => new(x + (fx * s), y + (fy * s));
-        RectangleF R(float fx, float fy, float fw, float fh) => new(x + (fx * s), y + (fy * s), fw * s, fh * s);
+        var side = Math.Min(box.Width, box.Height);
+        var scale = side / IconGeometry.Grid;
+        var left = box.Left + ((box.Width - side) / 2f);
+        var top = box.Top + ((box.Height - side) / 2f);
+        PointF Map(float x, float y) => new(left + (x * scale), top + (y * scale));
 
-        switch (glyph)
+        foreach (var shape in IconGeometry.For(glyph))
         {
-            case Glyph.Search:
-                graphics.DrawEllipse(pen, R(0.08f, 0.08f, 0.62f, 0.62f));
-                graphics.DrawLine(pen, P(0.62f, 0.62f), P(0.92f, 0.92f));
-                break;
-
-            case Glyph.Gear:
-                graphics.DrawEllipse(pen, R(0.3f, 0.3f, 0.4f, 0.4f));
-                for (var tooth = 0; tooth < 8; tooth++)
+            using var path = new GraphicsPath();
+            var current = PointF.Empty;
+            var figureOpen = false;
+            foreach (var seg in shape.Segs)
+            {
+                var v = seg.Values;
+                switch (seg.Op)
                 {
-                    var angle = tooth * Math.PI / 4;
-                    var inner = 0.34f;
-                    var outer = 0.47f;
-                    graphics.DrawLine(
-                        pen,
-                        P(0.5f + (float)(Math.Cos(angle) * inner), 0.5f + (float)(Math.Sin(angle) * inner)),
-                        P(0.5f + (float)(Math.Cos(angle) * outer), 0.5f + (float)(Math.Sin(angle) * outer)));
+                    case 'M':
+                        if (figureOpen)
+                        {
+                            path.StartFigure();
+                        }
+                        current = Map(v[0], v[1]);
+                        figureOpen = true;
+                        break;
+                    case 'L':
+                        var line = Map(v[0], v[1]);
+                        path.AddLine(current, line);
+                        current = line;
+                        break;
+                    case 'C':
+                        var end = Map(v[4], v[5]);
+                        path.AddBezier(current, Map(v[0], v[1]), Map(v[2], v[3]), end);
+                        current = end;
+                        break;
+                    case 'Z':
+                        path.CloseFigure();
+                        break;
                 }
-                break;
-
-            case Glyph.Refresh:
-                graphics.DrawArc(pen, R(0.12f, 0.12f, 0.76f, 0.76f), -40, 270);
-                graphics.DrawLine(pen, P(0.82f, 0.04f), P(0.82f, 0.30f));
-                graphics.DrawLine(pen, P(0.82f, 0.30f), P(0.56f, 0.30f));
-                break;
-
-            case Glyph.Upload:
-                graphics.DrawLine(pen, P(0.5f, 0.64f), P(0.5f, 0.1f));
-                graphics.DrawLine(pen, P(0.3f, 0.3f), P(0.5f, 0.1f));
-                graphics.DrawLine(pen, P(0.7f, 0.3f), P(0.5f, 0.1f));
-                graphics.DrawLines(pen, [P(0.12f, 0.6f), P(0.12f, 0.9f), P(0.88f, 0.9f), P(0.88f, 0.6f)]);
-                break;
-
-            case Glyph.File:
-                graphics.DrawLines(pen, [P(0.2f, 0.06f), P(0.62f, 0.06f), P(0.82f, 0.26f), P(0.82f, 0.94f), P(0.2f, 0.94f), P(0.2f, 0.06f)]);
-                graphics.DrawLines(pen, [P(0.62f, 0.06f), P(0.62f, 0.26f), P(0.82f, 0.26f)]);
-                graphics.DrawLine(pen, P(0.34f, 0.52f), P(0.68f, 0.52f));
-                graphics.DrawLine(pen, P(0.34f, 0.72f), P(0.68f, 0.72f));
-                break;
-
-            case Glyph.Check:
-                graphics.DrawLines(pen, [P(0.14f, 0.54f), P(0.4f, 0.78f), P(0.86f, 0.24f)]);
-                break;
-
-            case Glyph.Clock:
-                graphics.DrawEllipse(pen, R(0.08f, 0.08f, 0.84f, 0.84f));
-                graphics.DrawLines(pen, [P(0.5f, 0.26f), P(0.5f, 0.5f), P(0.68f, 0.6f)]);
-                break;
-
-            case Glyph.Database:
-                graphics.DrawEllipse(pen, R(0.16f, 0.08f, 0.68f, 0.26f));
-                graphics.DrawArc(pen, R(0.16f, 0.34f, 0.68f, 0.26f), 0, 180);
-                graphics.DrawArc(pen, R(0.16f, 0.58f, 0.68f, 0.26f), 0, 180);
-                graphics.DrawLine(pen, P(0.16f, 0.21f), P(0.16f, 0.71f));
-                graphics.DrawLine(pen, P(0.84f, 0.21f), P(0.84f, 0.71f));
-                break;
-
-            case Glyph.Shield:
-                graphics.DrawLines(pen, [P(0.5f, 0.06f), P(0.86f, 0.2f), P(0.82f, 0.56f), P(0.5f, 0.94f), P(0.18f, 0.56f), P(0.14f, 0.2f), P(0.5f, 0.06f)]);
-                graphics.DrawLines(pen, [P(0.34f, 0.5f), P(0.46f, 0.62f), P(0.68f, 0.38f)]);
-                break;
-
-            case Glyph.Arrow:
-                graphics.DrawLine(pen, P(0.1f, 0.5f), P(0.88f, 0.5f));
-                graphics.DrawLines(pen, [P(0.6f, 0.22f), P(0.88f, 0.5f), P(0.6f, 0.78f)]);
-                break;
-
-            case Glyph.Folder:
-                graphics.DrawLines(pen, [P(0.08f, 0.2f), P(0.38f, 0.2f), P(0.5f, 0.34f), P(0.92f, 0.34f), P(0.92f, 0.8f), P(0.08f, 0.8f), P(0.08f, 0.2f)]);
-                break;
-
-            case Glyph.Alert:
-                graphics.DrawLines(pen, [P(0.5f, 0.08f), P(0.94f, 0.86f), P(0.06f, 0.86f), P(0.5f, 0.08f)]);
-                graphics.DrawLine(pen, P(0.5f, 0.38f), P(0.5f, 0.6f));
-                graphics.FillEllipse(brush, R(0.45f, 0.7f, 0.1f, 0.1f));
-                break;
-
-            case Glyph.Table:
-                graphics.DrawRectangle(pen, x + (0.08f * s), y + (0.14f * s), 0.84f * s, 0.72f * s);
-                graphics.DrawLine(pen, P(0.08f, 0.38f), P(0.92f, 0.38f));
-                graphics.DrawLine(pen, P(0.4f, 0.14f), P(0.4f, 0.86f));
-                break;
-
-            case Glyph.Code:
-                graphics.DrawLines(pen, [P(0.32f, 0.26f), P(0.08f, 0.5f), P(0.32f, 0.74f)]);
-                graphics.DrawLines(pen, [P(0.68f, 0.26f), P(0.92f, 0.5f), P(0.68f, 0.74f)]);
-                graphics.DrawLine(pen, P(0.56f, 0.18f), P(0.44f, 0.82f));
-                break;
-
-            case Glyph.Chip:
-                graphics.DrawRectangle(pen, x + (0.26f * s), y + (0.26f * s), 0.48f * s, 0.48f * s);
-                foreach (var t in new[] { 0.38f, 0.62f })
-                {
-                    graphics.DrawLine(pen, P(t, 0.1f), P(t, 0.26f));
-                    graphics.DrawLine(pen, P(t, 0.74f), P(t, 0.9f));
-                    graphics.DrawLine(pen, P(0.1f, t), P(0.26f, t));
-                    graphics.DrawLine(pen, P(0.74f, t), P(0.9f, t));
-                }
-                break;
-
-            case Glyph.Users:
-                graphics.DrawEllipse(pen, R(0.3f, 0.1f, 0.4f, 0.4f));
-                graphics.DrawArc(pen, R(0.12f, 0.56f, 0.76f, 0.7f), 190, 160);
-                break;
-
-            case Glyph.Download:
-                graphics.DrawLine(pen, P(0.5f, 0.1f), P(0.5f, 0.64f));
-                graphics.DrawLine(pen, P(0.3f, 0.44f), P(0.5f, 0.64f));
-                graphics.DrawLine(pen, P(0.7f, 0.44f), P(0.5f, 0.64f));
-                graphics.DrawLines(pen, [P(0.12f, 0.6f), P(0.12f, 0.9f), P(0.88f, 0.9f), P(0.88f, 0.6f)]);
-                break;
-
-            case Glyph.Plus:
-                graphics.DrawLine(pen, P(0.5f, 0.14f), P(0.5f, 0.86f));
-                graphics.DrawLine(pen, P(0.14f, 0.5f), P(0.86f, 0.5f));
-                break;
-
-            case Glyph.Trash:
-                graphics.DrawLine(pen, P(0.12f, 0.26f), P(0.88f, 0.26f));
-                graphics.DrawLines(pen, [P(0.38f, 0.26f), P(0.38f, 0.12f), P(0.62f, 0.12f), P(0.62f, 0.26f)]);
-                graphics.DrawLines(pen, [P(0.22f, 0.26f), P(0.28f, 0.9f), P(0.72f, 0.9f), P(0.78f, 0.26f)]);
-                graphics.DrawLine(pen, P(0.42f, 0.44f), P(0.42f, 0.76f));
-                graphics.DrawLine(pen, P(0.58f, 0.44f), P(0.58f, 0.76f));
-                break;
-
-            case Glyph.Transfer:
-                graphics.DrawLine(pen, P(0.1f, 0.32f), P(0.9f, 0.32f));
-                graphics.DrawLines(pen, [P(0.7f, 0.12f), P(0.9f, 0.32f), P(0.7f, 0.52f)]);
-                graphics.DrawLine(pen, P(0.1f, 0.68f), P(0.9f, 0.68f));
-                graphics.DrawLines(pen, [P(0.3f, 0.48f), P(0.1f, 0.68f), P(0.3f, 0.88f)]);
-                break;
-
-            case Glyph.Save:
-                graphics.DrawLines(pen, [P(0.12f, 0.12f), P(0.76f, 0.12f), P(0.88f, 0.24f), P(0.88f, 0.88f), P(0.12f, 0.88f), P(0.12f, 0.12f)]);
-                graphics.DrawLines(pen, [P(0.3f, 0.12f), P(0.3f, 0.36f), P(0.64f, 0.36f), P(0.64f, 0.12f)]);
-                graphics.DrawLines(pen, [P(0.28f, 0.88f), P(0.28f, 0.58f), P(0.72f, 0.58f), P(0.72f, 0.88f)]);
-                break;
-
-            default: // Sum
-                graphics.DrawLines(pen, [P(0.76f, 0.14f), P(0.24f, 0.14f), P(0.54f, 0.5f), P(0.24f, 0.86f), P(0.76f, 0.86f)]);
-                break;
+            }
+            if (shape.Filled)
+            {
+                graphics.FillPath(brush, path);
+            }
+            else
+            {
+                graphics.DrawPath(pen, path);
+            }
         }
         graphics.SmoothingMode = previous;
     }
