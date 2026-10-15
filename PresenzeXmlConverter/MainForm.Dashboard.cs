@@ -18,6 +18,10 @@ internal sealed partial class MainForm
     private readonly StatusRow _statusDatabase = new("Database", Glyph.Database);
     private readonly StatusRow _statusUpdates = new("Aggiornamenti", Glyph.Refresh);
     private readonly StatusRow _statusRules = new("Regole", Glyph.Chip);
+    private readonly StatusRow _statusCertificate = new("Certificato", Glyph.Shield);
+
+    // La firma si legge dal file una volta sola: la dashboard si aggiorna spesso.
+    private static readonly Lazy<DateTime?> CertificateExpiry = new(ExecutableSignature.CurrentCertificateExpiry);
     private readonly DashboardInsightsView _dashInsights = new();
     private IconButton? _dashGenerateButton;
 
@@ -222,18 +226,18 @@ internal sealed partial class MainForm
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 6,
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-        for (var row = 0; row < 4; row++)
+        for (var row = 0; row < 5; row++)
         {
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 25));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
         }
         layout.Controls.Add(CreateCardTitle("STATO DEL SISTEMA"), 0, 0);
-        var rows = new[] { _statusFile, _statusDatabase, _statusUpdates, _statusRules };
+        var rows = new[] { _statusFile, _statusDatabase, _statusUpdates, _statusRules, _statusCertificate };
         for (var index = 0; index < rows.Length; index++)
         {
             rows[index].Dock = DockStyle.Fill;
@@ -286,6 +290,16 @@ internal sealed partial class MainForm
         _statusRules.SetState(
             GenerationSettings.Describe(_generationOptions),
             StatusTone.Good);
+        var certificate = CertificateStatus.Describe(CertificateExpiry.Value, DateTime.Now);
+        _statusCertificate.SetState(
+            certificate.Text,
+            certificate.Level switch
+            {
+                HealthLevel.Good => StatusTone.Good,
+                HealthLevel.Warning => StatusTone.Warning,
+                HealthLevel.Bad => StatusTone.Bad,
+                _ => StatusTone.Neutral
+            });
 
         if (_dashGenerateButton is not null)
         {
