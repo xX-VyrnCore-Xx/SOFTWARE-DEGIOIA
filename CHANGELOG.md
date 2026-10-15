@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.32.0] - Corrente
+## [1.33.0] - Corrente
+
+### 🌅 Cambio sezione animato
+- Quando passi da una sezione all'altra (Dashboard, Conversione, Aziende, Gestione codici, Storico) la sezione nuova **compare con una breve dissolvenza** (circa 0,2 secondi) e un lieve scorrimento verso l'alto, invece di apparire di colpo
+- Funziona fotografando la sezione nuova, già pronta, e mostrandola in un velo che **non blocca il mouse**; a fine animazione il velo si toglie e resta la sezione vera, quindi nulla cambia nel funzionamento
+- Non parte all'avvio né se riselezioni la stessa sezione; con gli effetti di animazione di Windows disattivati, a finestra non visibile o in caso di errore di disegno la sezione appare subito, come prima
+- La conversione XML non è toccata
+
+## [1.32.0]
 
 ### 🔢 Conteggio animato nelle schede
 - I quattro numeri della dashboard (**Richieste, Dipendenti, Movimenti, Ore assegnate**) **scorrono fino al valore nuovo** in circa 0,4 secondi quando carichi un file o generi l'anteprima, invece di cambiare di colpo
