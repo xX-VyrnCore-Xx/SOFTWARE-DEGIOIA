@@ -12,6 +12,10 @@ internal sealed class DashboardInsightsView : Control
     private const int BarHeight = 12;
     private const int RowHeight = 22;
     private const int BadgeHeight = 24;
+    private const int ChartHeight = 64;
+    private const int ChartCaptionHeight = 16;
+
+    private static readonly Color AbsenceBar = Color.FromArgb(255, 159, 10);
 
     private static readonly Color DangerSoft = Color.FromArgb(255, 226, 223);
     private static readonly Color WarningSoft = Color.FromArgb(255, 238, 207);
@@ -108,6 +112,12 @@ internal sealed class DashboardInsightsView : Control
 
         var badgesNeeded = _insights.CheckDays + _insights.NoticeDays > 0;
         var reserved = badgesNeeded ? BadgeHeight + 4 : 0;
+        // Il grafico «Ore al giorno» compare solo se, oltre a lui, resta posto per almeno una riga di giustificativi.
+        if (_insights.Days.Count > 1 && ClientSize.Height - y - reserved >= ChartHeight + 8 + RowHeight)
+        {
+            DrawDayChart(g, new Rectangle(0, y, width, ChartHeight));
+            y += ChartHeight + 8;
+        }
         var rows = Math.Min(_insights.Absences.Count, Math.Max(0, (ClientSize.Height - y - reserved) / RowHeight));
         var top = _insights.Absences.Count == 0 ? 1 : _insights.Absences.Max(share => share.Minutes);
         for (var index = 0; index < rows; index++)
@@ -119,6 +129,41 @@ internal sealed class DashboardInsightsView : Control
         if (badgesNeeded)
         {
             DrawBadges(g, new Rectangle(0, ClientSize.Height - BadgeHeight, width, BadgeHeight));
+        }
+    }
+
+    /// <summary>Una colonna per ogni giorno: presenza in azzurro, assenza in arancio sopra; le colonne crescono a cascata.</summary>
+    private void DrawDayChart(Graphics g, Rectangle area)
+    {
+        TextRenderer.DrawText(
+            g,
+            "Ore al giorno",
+            Theme.Fonts.Tiny,
+            new Rectangle(area.X, area.Y, area.Width, ChartCaptionHeight),
+            Theme.MutedInk,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
+        var plot = new Rectangle(area.X, area.Y + ChartCaptionHeight, area.Width, area.Height - ChartCaptionHeight - 2);
+        if (plot.Width < 20 || plot.Height < 8)
+        {
+            return;
+        }
+        using (var baseline = new Pen(Theme.Divider, 1f))
+        {
+            g.DrawLine(baseline, plot.Left, plot.Bottom, plot.Right, plot.Bottom);
+        }
+        using var presence = new SolidBrush(Theme.Brand);
+        using var absence = new SolidBrush(AbsenceBar);
+        foreach (var bar in DayBars.Layout(_insights.Days, plot.Width, plot.Height, _grow.Value))
+        {
+            var top = plot.Bottom - bar.Height;
+            if (bar.PresenceHeight > 0)
+            {
+                g.FillRectangle(presence, plot.Left + bar.X, plot.Bottom - bar.PresenceHeight, bar.Width, bar.PresenceHeight);
+            }
+            if (bar.AbsenceHeight > 0)
+            {
+                g.FillRectangle(absence, plot.Left + bar.X, top, bar.Width, bar.AbsenceHeight);
+            }
         }
     }
 
