@@ -253,6 +253,34 @@ internal sealed class LocalDatabase
 
     public void SaveEmployeeMapping(string name, string code) => SaveMapping("Employees", name, code);
 
+    /// <summary>Toglie il dipendente dagli abbinamenti, con le sue ore e il suo periodo (se c'erano). True se c'era.</summary>
+    public bool DeleteEmployeeMapping(string name)
+    {
+        name = (name ?? string.Empty).Trim();
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM EmployeeProfiles WHERE Name = $name;
+            DELETE FROM Employees WHERE Name = $name;
+            """;
+        command.Parameters.AddWithValue("$name", name);
+        var removed = command.ExecuteNonQuery() > 0;
+        transaction.Commit();
+        return removed;
+    }
+
+    /// <summary>Toglie il giustificativo dagli abbinamenti. True se c'era.</summary>
+    public bool DeletePolicyMapping(string policy)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM Policies WHERE Name = $name;";
+        command.Parameters.AddWithValue("$name", (policy ?? string.Empty).Trim());
+        return command.ExecuteNonQuery() > 0;
+    }
+
     public void SavePolicyMapping(string policy, string code) => SaveMapping("Policies", policy, code);
 
     private void Initialize()

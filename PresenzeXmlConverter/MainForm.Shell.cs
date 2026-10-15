@@ -324,6 +324,7 @@ internal sealed partial class MainForm
         layout.Controls.Add(CreateCardTitle("ULTIME ESPORTAZIONI"), 0, 0);
 
         _dashExportsGrid.ReadOnly = true;
+        _dashExportsGrid.UseRowSelection();
         _dashExportsGrid.EmptyStateText = "Nessun XML esportato: le consegne compariranno qui.";
         _dashExportsGrid.Columns.Add(CreateGridColumn("when", "Quando", 30, true));
         _dashExportsGrid.Columns.Add(CreateGridColumn("file", "File XML", 42, true));
@@ -440,11 +441,22 @@ internal sealed partial class MainForm
             SetStatus("●   Elenchi dei codici ricaricati dal database locale.", false);
         };
         Describe(reload, "Ricarica elenchi", "Rilegge dal database gli abbinamenti salvati.");
+        var delete = Theme.CreateButton("Elimina", Theme.ButtonTone.Neutral).WithIcon(Glyph.Trash);
+        delete.Size = new Size(116, 36);
+        delete.Margin = new Padding(0, 0, 8, 0);
+        delete.Click += (_, _) => DeleteSelectedCode();
+        Describe(
+            delete,
+            "Elimina la riga selezionata",
+            "Toglie dagli abbinamenti il dipendente o il giustificativo selezionato (tasto Canc). Se è nel file Excel aperto resta da compilare di nuovo.");
+        _mappingPanel.AllowDelete = true;
+        _mappingPanel.DeleteRequested += (_, _) => DeleteSelectedCode();
         var transfer = CreateTransferButton(() => Theme.CreateButton("Trasferisci", Theme.ButtonTone.Neutral).WithIcon(Glyph.Transfer));
         transfer.Size = new Size(138, 36);
         transfer.Margin = new Padding(0, 0, 8, 0);
         actions.Controls.Add(save);
         actions.Controls.Add(reload);
+        actions.Controls.Add(delete);
         actions.Controls.Add(transfer);
         bar.Controls.Add(actions, 1, 0);
         return bar;
@@ -476,6 +488,48 @@ internal sealed partial class MainForm
         {
             ShowError("Impossibile leggere gli abbinamenti", exception);
         }
+    }
+
+    /// <summary>Elimina dagli abbinamenti la riga selezionata (dipendente o giustificativo), dopo conferma.</summary>
+    private void DeleteSelectedCode()
+    {
+        if (!_codesLoaded || _mappingPanel.CurrentEntry() is not { } entry)
+        {
+            SetStatus("●   Seleziona la riga da eliminare.", true);
+            return;
+        }
+        var what = entry.IsPolicy ? "il giustificativo" : "il dipendente";
+        var extra = entry.IsPolicy ? string.Empty : " con le sue ore e il suo periodo";
+        if (MessageBox.Show(
+                this,
+                $"Eliminare {what} «{entry.Name}»{extra} dagli abbinamenti?{Environment.NewLine}{Environment.NewLine}" +
+                "I file XML già esportati non cambiano. Se compare ancora nel file Excel aperto, dovrai inserirne di nuovo il codice.",
+                "Elimina abbinamento",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+        {
+            return;
+        }
+        try
+        {
+            if (entry.IsPolicy)
+            {
+                _database.DeletePolicyMapping(entry.Name);
+            }
+            else
+            {
+                _database.DeleteEmployeeMapping(entry.Name);
+            }
+        }
+        catch (SqliteException exception)
+        {
+            ShowError("Impossibile eliminare l'abbinamento", exception);
+            return;
+        }
+        _mappingPanel.RemoveEntry(entry.Name, entry.IsPolicy);
+        InvalidatePreview();
+        SetStatus($"●   {(entry.IsPolicy ? "Giustificativo" : "Dipendente")} «{entry.Name}» eliminato dagli abbinamenti.", false);
     }
 
     private void SaveCodesPage()
@@ -624,6 +678,7 @@ internal sealed partial class MainForm
         layout.Controls.Add(_historySummaryLabel, 0, 0);
 
         _historyGrid.ReadOnly = true;
+        _historyGrid.UseRowSelection();
         _historyGrid.EmptyStateText =
             "Nessuna esportazione registrata: salva un file XML e la consegna comparirà qui.";
         _historyGrid.Columns.Add(CreateGridColumn("when", "Quando", 20, true));

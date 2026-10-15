@@ -24,6 +24,11 @@ internal sealed class ThemedGrid : DataGridView
         GridColor = Theme.Divider;
         CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
         RowHeadersVisible = false;
+        // Righe e intestazioni hanno l'altezza decisa dall'app: trascinando il bordo di una riga la si poteva
+        // allargare a dismisura (una riga alta mezza schermata) e la tabella non tornava più com'era.
+        AllowUserToResizeRows = false;
+        RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.DisableResizing;
+        AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
         SelectionMode = DataGridViewSelectionMode.CellSelect;
         MultiSelect = false;
         EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
@@ -48,6 +53,17 @@ internal sealed class ThemedGrid : DataGridView
         DefaultCellStyle.SelectionForeColor = Theme.Ink;
         DefaultCellStyle.Padding = new Padding(9, 0, 5, 0);
         AlternatingRowsDefaultCellStyle.BackColor = Theme.AltRow;
+    }
+
+    /// <summary>
+    /// Selezione per riga intera, per le tabelle di sola lettura i cui pulsanti agiscono sulla riga scelta
+    /// (aziende, storico, esportazioni): con la selezione di cella <c>SelectedRows</c> resta vuoto e
+    /// «Elimina», «Usa», «Apri» non trovano nulla su cui lavorare.
+    /// </summary>
+    public void UseRowSelection()
+    {
+        SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        MultiSelect = false;
     }
 
     /// <summary>

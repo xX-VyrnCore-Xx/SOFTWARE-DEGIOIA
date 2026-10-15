@@ -80,6 +80,15 @@ internal sealed partial class MainForm
         layout.Controls.Add(_companyEditNotes, 2, 1);
 
         _companiesGrid.ReadOnly = true;
+        _companiesGrid.UseRowSelection();
+        _companiesGrid.KeyDown += (_, args) =>
+        {
+            if (args.KeyCode == Keys.Delete)
+            {
+                DeleteSelectedCompany();
+                args.Handled = true;
+            }
+        };
         _companiesGrid.EmptyStateText =
             "Nessuna azienda salvata: scrivi codice e ragione sociale e premi «Salva azienda».";
         _companiesGrid.Columns.Add(CreateGridColumn("use", "In uso", 10, true));
