@@ -19,6 +19,7 @@ internal sealed class ThemedButton : Button
     // (non a passi fissi) invece di scattare, come nelle app curate.
     private float _blend;
     private AnimationClock? _clock;
+    private Glyph? _icon;
 
     public ThemedButton()
     {
@@ -29,6 +30,17 @@ internal sealed class ThemedButton : Button
             ControlStyles.ResizeRedraw,
             true);
         FlatStyle = FlatStyle.Flat;
+    }
+
+    /// <summary>Icona a sinistra del testo; si toglie da sola se il pulsante è troppo stretto per entrambi.</summary>
+    public Glyph? Icon
+    {
+        get => _icon;
+        set
+        {
+            _icon = value;
+            Invalidate();
+        }
     }
 
     protected override void OnMouseEnter(EventArgs e)
@@ -198,6 +210,35 @@ internal sealed class ThemedButton : Button
             }
         }
 
+        var ink = Enabled ? ForeColor : Theme.DisabledInk;
+        const TextFormatFlags flags = TextFormatFlags.VerticalCenter |
+                                      TextFormatFlags.SingleLine |
+                                      TextFormatFlags.EndEllipsis |
+                                      TextFormatFlags.NoPrefix;
+        if (_icon is { } glyph && !string.IsNullOrEmpty(Text))
+        {
+            var iconSize = Height >= 32 ? 16 : 14;
+            var layout = ButtonLayout.Compute(
+                ClientSize.Width,
+                ModernPalette.Measure(Text, Font).Width,
+                iconSize,
+                7,
+                Math.Max(8, Padding.Left),
+                hasIcon: true);
+            if (layout.ShowIcon)
+            {
+                Glyphs.Draw(graphics, new Rectangle(layout.IconLeft, (ClientSize.Height - 2 - iconSize) / 2, iconSize, iconSize), glyph, ink, 1.6f);
+                TextRenderer.DrawText(
+                    graphics,
+                    Text,
+                    Font,
+                    new Rectangle(layout.TextLeft, 0, layout.TextWidth + 2, ClientSize.Height),
+                    ink,
+                    flags | TextFormatFlags.Left | TextFormatFlags.NoPadding);
+                return;
+            }
+        }
+
         var textBounds = new Rectangle(
             Padding.Left,
             0,
@@ -208,12 +249,8 @@ internal sealed class ThemedButton : Button
             Text,
             Font,
             textBounds,
-            Enabled ? ForeColor : Theme.DisabledInk,
-            TextFormatFlags.HorizontalCenter |
-            TextFormatFlags.VerticalCenter |
-            TextFormatFlags.SingleLine |
-            TextFormatFlags.EndEllipsis |
-            TextFormatFlags.NoPrefix);
+            ink,
+            flags | TextFormatFlags.HorizontalCenter);
     }
 
     /// <summary>Fondo dietro gli angoli arrotondati: il primo colore pieno risalendo i genitori.</summary>
@@ -227,5 +264,19 @@ internal sealed class ThemedButton : Button
             }
         }
         return Theme.Canvas;
+    }
+}
+
+internal static class ButtonIcons
+{
+    /// <summary>Mette un'icona a un pulsante dell'app (i pulsanti di altro tipo restano com'erano).</summary>
+    public static T WithIcon<T>(this T button, Glyph glyph) where T : Button
+    {
+        if (button is ThemedButton themed)
+        {
+            themed.Icon = glyph;
+            Theme.FitButtonToText(themed);
+        }
+        return button;
     }
 }

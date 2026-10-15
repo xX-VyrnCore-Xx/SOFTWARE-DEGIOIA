@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.29.1] - Corrente
+## [1.30.0] - Corrente
+
+### 🎨 Icone e pulsanti rivisti
+- **Quattro icone nuove** nello stesso stile a tratto (Più, Cestino, Trasferisci, Salva) e **icone sui pulsanti che ne mancavano**: Gestione codici (Salva abbinamenti, Ricarica elenchi, Trasferisci), Aziende (Salva azienda, Usa in conversione, Nuova, Regole, Elimina, Trasferisci) e il menu «Esporta» del calendario. A colpo d'occhio si distingue «Elimina» da «Salva»
+- Icona e testo stanno **insieme al centro** del pulsante; se la larghezza non basta per entrambi (finestra stretta, DPI alto) **l'icona sparisce e l'etichetta resta intera**, mai tagliata
+- I pulsanti con icona sono larghi quanto serve (a prova di schermi 13–15")
+- I pulsanti della dashboard e delle azioni principali ora hanno la **stessa transizione morbida** al passaggio del mouse degli altri (prima il colore scattava)
+- La conversione XML non è toccata
+
+## [1.29.1]
 
 ### 🛠️ Correzione di «Trasferisci»
 - **Esporta e importa codici e aziende non chiudono più il programma**: il menu «Trasferisci ▾» veniva eliminato alla chiusura, prima che il clic sulla voce fosse eseguito («Cannot access a disposed object… ContextMenuStrip»). Ora il menu resta vivo e un test sui sorgenti controlla che non si ripeta

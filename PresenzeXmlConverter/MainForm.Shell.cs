@@ -406,12 +406,12 @@ internal sealed partial class MainForm
             BackColor = Color.Transparent,
             Margin = Padding.Empty
         };
-        var save = Theme.CreateButton("Salva abbinamenti", Theme.ButtonTone.Primary);
+        var save = Theme.CreateButton("Salva abbinamenti", Theme.ButtonTone.Primary).WithIcon(Glyph.Save);
         save.Size = new Size(178, 36);
         save.Margin = new Padding(8, 0, 0, 0);
         save.Click += (_, _) => SaveCodesPage();
         Describe(save, "Salva abbinamenti", "Salva nel database locale i codici inseriti nelle due griglie.");
-        var reload = Theme.CreateButton("Ricarica elenchi", Theme.ButtonTone.Neutral);
+        var reload = Theme.CreateButton("Ricarica elenchi", Theme.ButtonTone.Neutral).WithIcon(Glyph.Refresh);
         reload.Size = new Size(150, 36);
         reload.Margin = Padding.Empty;
         reload.Click += (_, _) =>
@@ -421,7 +421,7 @@ internal sealed partial class MainForm
             SetStatus("●   Elenchi dei codici ricaricati dal database locale.", false);
         };
         Describe(reload, "Ricarica elenchi", "Rilegge dal database gli abbinamenti salvati.");
-        var transfer = CreateTransferButton(() => Theme.CreateButton("Trasferisci", Theme.ButtonTone.Neutral));
+        var transfer = CreateTransferButton(() => Theme.CreateButton("Trasferisci", Theme.ButtonTone.Neutral).WithIcon(Glyph.Transfer));
         transfer.Size = new Size(138, 36);
         transfer.Margin = new Padding(0, 0, 8, 0);
         actions.Controls.Add(save);
