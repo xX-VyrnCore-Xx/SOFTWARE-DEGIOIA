@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.25.0] - Corrente
+## [1.26.0] - Corrente
+
+### 📊 Dashboard più ricca
+- Nuova card **«Analisi del mese»** accanto alle ultime esportazioni: una barra presenza/assenza, i **giustificativi che pesano di più** (con gli stessi colori del calendario, ore e barretta proporzionale) e i giorni **da controllare / da verificare**
+- Si aggiorna a ogni anteprima; senza dati invita a generarla. Mostra solo le righe che entrano nell'altezza, quindi non si taglia sul portatile
+- La conversione XML non è toccata
+
+## [1.25.0]
 
 ### 📄 Report PDF del mese
 - Nel calendario il nuovo menu **«Esporta ▾»** raccoglie le tre esportazioni: **Report del mese (PDF)**, Riepilogo ore (CSV per Excel) e Immagine del mese (PNG). Un solo pulsante al posto dei due precedenti: la barra resta ordinata anche sul portatile
