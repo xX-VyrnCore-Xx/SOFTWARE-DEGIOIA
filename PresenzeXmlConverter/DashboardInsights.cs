@@ -21,6 +21,12 @@ internal static class AbsencePalette
 /// <summary>Ore di un giustificativo di assenza nell'anteprima, con il suo colore.</summary>
 internal sealed record AbsenceShare(string Code, string Policy, int Minutes, int ColorIndex);
 
+/// <summary>Minuti di presenza e di assenza di tutti i dipendenti in un giorno: una barra del grafico «Ore al giorno».</summary>
+internal readonly record struct DayTotal(DateTime Date, int PresenceMinutes, int AbsenceMinutes)
+{
+    public int TotalMinutes => PresenceMinutes + AbsenceMinutes;
+}
+
 /// <summary>
 /// Numeri dell'analisi mostrata nella dashboard: quanta presenza e quanta assenza ci sono nell'anteprima,
 /// quali giustificativi pesano di più e quanti giorni vanno controllati. Come <see cref="DashboardSummary"/>
@@ -35,6 +41,9 @@ internal sealed record DashboardInsights(
 {
     public static DashboardInsights Empty { get; } = new(0, 0, [], 0, 0);
 
+    /// <summary>Totale di ogni giorno con movimenti, in ordine di data (alimenta il grafico a barre).</summary>
+    public IReadOnlyList<DayTotal> Days { get; init; } = [];
+
     public bool HasData => PresenceMinutes + AbsenceMinutes > 0;
 
     /// <summary>Quota di assenza sul totale, da 0 a 1.</summary>
@@ -46,7 +55,8 @@ internal sealed record DashboardInsights(
         AbsenceMinutes == other.AbsenceMinutes &&
         CheckDays == other.CheckDays &&
         NoticeDays == other.NoticeDays &&
-        Absences.SequenceEqual(other.Absences);
+        Absences.SequenceEqual(other.Absences) &&
+        Days.SequenceEqual(other.Days);
 
     public static DashboardInsights From(IReadOnlyList<DailyMovement> movements, IReadOnlyList<CalendarAlert> alerts)
     {
@@ -85,11 +95,24 @@ internal sealed record DashboardInsights(
             .GroupBy(alert => (alert.EmployeeName, alert.Date))
             .Select(group => group.Max(alert => alert.Severity))
             .ToArray();
+        var perDay = movements
+            .GroupBy(movement => movement.Date.Date)
+            .OrderBy(group => group.Key)
+            .Select(group =>
+            {
+                var presenceMinutes = group.Where(AttendanceMovementGenerator.IsPresence).Sum(m => (m.Hours * 60) + m.Minutes);
+                var total = group.Sum(m => (m.Hours * 60) + m.Minutes);
+                return new DayTotal(group.Key, presenceMinutes, total - presenceMinutes);
+            })
+            .ToArray();
         return new DashboardInsights(
             presence,
             absences.Sum(share => share.Minutes),
             absences,
             days.Count(severity => severity == AlertSeverity.Check),
-            days.Count(severity => severity == AlertSeverity.Notice));
+            days.Count(severity => severity == AlertSeverity.Notice))
+        {
+            Days = perDay
+        };
     }
 }
