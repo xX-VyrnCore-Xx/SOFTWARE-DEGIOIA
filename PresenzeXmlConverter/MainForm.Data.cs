@@ -125,9 +125,136 @@ internal sealed partial class MainForm
         }
     }
 
+    /// <summary>Salva codici, aziende e profili in un file da portare su un altro PC (o da tenere come copia).</summary>
+    private void ExportCodesBackup()
+    {
+        try
+        {
+            var backup = CodesBackup.Read(_database, DateTime.UtcNow);
+            if (backup.Count == 0)
+            {
+                ShowInformation("Esporta codici e aziende", "Non c'è ancora nulla da esportare: inserisci prima codici o aziende.");
+                return;
+            }
+            using var picker = new SaveFileDialog
+            {
+                Title = "Esporta codici e aziende",
+                Filter = "Codici e aziende (*.json)|*.json",
+                AddExtension = true,
+                DefaultExt = "json",
+                FileName = CodesBackup.SuggestFileName(DateTime.Now),
+                OverwritePrompt = true
+            };
+            if (!string.IsNullOrEmpty(_lastExportDirectory) && Directory.Exists(_lastExportDirectory))
+            {
+                picker.InitialDirectory = _lastExportDirectory;
+            }
+            if (picker.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+            File.WriteAllText(picker.FileName, backup.ToJson(), new System.Text.UTF8Encoding(false));
+            SetStatus($"●   Codici e aziende esportati: {Path.GetFileName(picker.FileName)}", false);
+            Notify(
+                ToastKind.Success,
+                "Codici e aziende esportati",
+                $"{backup.Describe()} · clic per aprire la cartella.",
+                () => RevealInExplorer(picker.FileName));
+        }
+        catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            ShowError("Esportazione non riuscita", exception);
+        }
+    }
+
+    /// <summary>
+    /// Importa un file di codici e aziende (anche da un altro PC). Unisce: il file aggiunge e aggiorna, ciò che non
+    /// contiene resta. Prima di scrivere si fa una copia di sicurezza del database.
+    /// </summary>
+    private void ImportCodesBackup()
+    {
+        try
+        {
+            using var picker = new OpenFileDialog
+            {
+                Title = "Importa codici e aziende",
+                Filter = "Codici e aziende (*.json)|*.json|Tutti i file (*.*)|*.*",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+            if (picker.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+            if (new FileInfo(picker.FileName).Length > CodesBackup.MaximumFileBytes)
+            {
+                ShowInformation("Importa codici e aziende", "Il file è troppo grande per essere un elenco di codici.");
+                return;
+            }
+            if (!CodesBackup.TryParse(File.ReadAllText(picker.FileName), out var backup, out var problem))
+            {
+                ShowInformation("Importa codici e aziende", problem);
+                return;
+            }
+            if (backup.Count == 0)
+            {
+                ShowInformation("Importa codici e aziende", "Il file non contiene nessun codice né azienda.");
+                return;
+            }
+            var unsaved = _codesLoaded && _mappingPanel.HasUnsavedChanges
+                ? $"{Environment.NewLine}{Environment.NewLine}Attenzione: nella pagina dei codici hai modifiche non salvate, che l'importazione sostituisce."
+                : string.Empty;
+            if (MessageBox.Show(
+                    this,
+                    $"Il file contiene {backup.Describe()}." +
+                    $"{Environment.NewLine}{Environment.NewLine}I nuovi vengono aggiunti e quelli con un codice diverso aggiornati; " +
+                    $"ciò che nel file non c'è resta com'è. Prima si fa una copia di sicurezza dei dati.{unsaved}" +
+                    $"{Environment.NewLine}{Environment.NewLine}Importare?",
+                    "Importa codici e aziende",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            {
+                return;
+            }
+
+            _database.CreateBackup("prima-di-importare");
+            var report = backup.ApplyTo(_database);
+            _codesLoaded = false;
+            LoadCompaniesQuietly();
+            RefreshCompanies();
+            EnsureCodesLoaded();
+            RefreshRailStatus();
+            InvalidatePreview();
+            SetStatus($"●   Codici e aziende importati: {report.Describe()}", report.Skipped.Count > 0);
+            var detail = report.Skipped.Count == 0
+                ? report.Describe()
+                : $"{report.Describe()}{Environment.NewLine}{Environment.NewLine}Scartati:{Environment.NewLine}" +
+                  string.Join(Environment.NewLine, report.Skipped.Take(8)) +
+                  (report.Skipped.Count > 8 ? $"{Environment.NewLine}… e altri {report.Skipped.Count - 8:N0}." : string.Empty);
+            ShowInformation("Importazione terminata", detail);
+        }
+        catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
+        {
+            ShowError("Importazione non riuscita", exception);
+        }
+    }
+
+    /// <summary>Menu «Trasferisci»: esporta o importa codici e aziende per cambiare PC.</summary>
+    private void ShowTransferMenu(Control anchor)
+    {
+        var menu = new ContextMenuStrip();
+        menu.Items.Add("Esporta codici e aziende…", null, (_, _) => ExportCodesBackup());
+        menu.Items.Add("Importa codici e aziende…", null, (_, _) => ImportCodesBackup());
+        menu.Closed += (_, _) => menu.Dispose();
+        menu.Show(anchor, new Point(0, anchor.Height));
+    }
+
     private void AddDataCommands(ContextMenuStrip menu)
     {
         menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Esporta codici e aziende…", null, (_, _) => ExportCodesBackup());
+        menu.Items.Add("Importa codici e aziende…", null, (_, _) => ImportCodesBackup());
         menu.Items.Add("Stato del database…", null, (_, _) => ShowDatabaseStatus());
         menu.Items.Add("Backup dei dati ora", null, (_, _) => BackupDatabaseNow());
         menu.Items.Add("Apri cartella dei dati", null, (_, _) => OpenDataFolder());
