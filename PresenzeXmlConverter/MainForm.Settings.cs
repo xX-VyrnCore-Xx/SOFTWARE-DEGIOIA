@@ -101,6 +101,12 @@ internal sealed partial class MainForm
             _database.SaveSetting(InAppNotificationsSetting, dialog.InAppNotifications ? "true" : "false");
             _database.SaveSetting(NativeNotificationsSetting, dialog.SystemNotifications ? "true" : "false");
             _database.SaveSetting("close-behavior", dialog.CloseBehavior);
+            var themeChanged = dialog.ThemeMode != ThemePreference.Load();
+            if (themeChanged && !ThemePreference.Save(dialog.ThemeMode))
+            {
+                SetStatus("Impossibile salvare la scelta del tema: resta quello di prima.", true);
+                themeChanged = false;
+            }
             var xmlChanged = dialog.Format != XmlFormat.Active;
             XmlFormat.Active = dialog.Format;
             dialog.Format.Save(_database);
@@ -122,6 +128,11 @@ internal sealed partial class MainForm
             else
             {
                 SetStatus("●   Impostazioni salvate", false);
+            }
+
+            if (themeChanged)
+            {
+                SetStatus("●   Tema salvato: chiudi e riapri il programma per vederlo.", false);
             }
 
             if (dialog.TokenSaved)

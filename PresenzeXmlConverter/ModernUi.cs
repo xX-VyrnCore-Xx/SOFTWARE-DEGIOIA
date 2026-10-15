@@ -84,8 +84,8 @@ internal static class ModernPalette
         Theme.ButtonTone.Positive => (Theme.Success, Theme.SuccessHover, Theme.SuccessPressed, Theme.Success, Color.White),
         Theme.ButtonTone.Danger => (Theme.Danger, Color.FromArgb(230, 50, 40), Color.FromArgb(200, 40, 32), Theme.Danger, Color.White),
         Theme.ButtonTone.OnDark => (
-            Color.FromArgb(242, 242, 247), Color.FromArgb(229, 229, 234), Color.FromArgb(216, 216, 222),
-            Color.FromArgb(222, 222, 228), Theme.Ink),
+            Theme.HeaderButtonFill, Theme.HeaderButtonHover, Theme.HeaderButtonPressed,
+            Theme.HeaderButtonBorder, Theme.Ink),
         _ => (Theme.NeutralFill, Theme.NeutralHover, Theme.NeutralPressed, Theme.NeutralBorder, Theme.NeutralInk)
     };
 
@@ -959,8 +959,8 @@ internal sealed class StatusRow : Control
         var (soft, ink) = _tone switch
         {
             StatusTone.Good => (Theme.SuccessSoft, Theme.SuccessInk),
-            StatusTone.Warning => (Color.FromArgb(254, 243, 199), Theme.WarningInk),
-            StatusTone.Bad => (Color.FromArgb(254, 226, 226), Theme.DangerInk),
+            StatusTone.Warning => (Theme.WarningSoft, Theme.WarningInk),
+            StatusTone.Bad => (Theme.DangerSoft, Theme.DangerInk),
             _ => (Theme.Sunken, Theme.MutedInk)
         };
         var chip = new Rectangle(0, (Height - 24) / 2, 24, 24);

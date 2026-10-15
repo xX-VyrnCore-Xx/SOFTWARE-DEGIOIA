@@ -201,7 +201,7 @@ internal sealed class MonthCalendarView : Panel
         var severe = checks > 0 || _reviewErrors > 0;
         _alertText.Text = "⚠  Da controllare prima di esportare: " + string.Join("  ·  ", parts) + ".";
         _alertText.ForeColor = severe ? Theme.DangerInk : Theme.WarningInk;
-        _alertBar.BackColor = severe ? Color.FromArgb(255, 238, 236) : Color.FromArgb(255, 245, 225);
+        _alertBar.BackColor = severe ? Theme.DangerSoft : Theme.WarningSoft;
         _alertNext.Visible = _alertDays.Count > 0;
         _alertNext.Text = _alertCursor < 0 ? "Vai al primo" : "Vai al prossimo";
         _alertChecks.Visible = hasReview && _openChecks is not null;

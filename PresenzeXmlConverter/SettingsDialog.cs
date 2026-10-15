@@ -38,6 +38,9 @@ internal sealed class SettingsDialog : Form
     private readonly RadioButton _closeAsk = new();
     private readonly RadioButton _closeTray = new();
     private readonly RadioButton _closeExit = new();
+    private readonly RadioButton _themeSystem = new();
+    private readonly RadioButton _themeLight = new();
+    private readonly RadioButton _themeDark = new();
     private readonly Label _backupStatus = new();
     private readonly GeneralInfo _general;
 
@@ -212,6 +215,9 @@ internal sealed class SettingsDialog : Form
 
     /// <summary>Cosa fa la X della finestra: «» = chiede ogni volta, «tray» = resta in background, «exit» = esce.</summary>
     public string CloseBehavior { get; private set; }
+
+    /// <summary>Tema scelto: come Windows, chiaro o scuro (si applica al prossimo avvio; valido dopo "Salva impostazioni").</summary>
+    public ThemeMode ThemeMode { get; private set; } = ThemePreference.Load();
 
     /// <summary>Crea subito un backup dei dati e restituisce il messaggio da mostrare (la finestra principale lo imposta).</summary>
     public Func<string>? BackupNow { get; set; }
@@ -539,7 +545,36 @@ internal sealed class SettingsDialog : Form
         body.Controls.Add(choices, 0, 2);
 
         body.Controls.Add(CreateFieldLabel(
-            "Dati: tutto resta sul tuo computer, nella cartella dei dati del tuo profilo Windows."), 0, 3);
+            "Aspetto dell'app  (la scelta si applica al prossimo avvio: chiudi e riapri il programma)"), 0, 3);
+        var themeChoices = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty
+        };
+        foreach (var (button, text, mode) in new[]
+                 {
+                     (_themeSystem, "Come Windows", ThemeMode.System),
+                     (_themeLight, "Chiaro", ThemeMode.Light),
+                     (_themeDark, "Scuro", ThemeMode.Dark)
+                 })
+        {
+            button.Text = text;
+            button.Tag = mode;
+            button.AutoSize = true;
+            button.ForeColor = Theme.InkSecondary;
+            button.Font = Theme.Fonts.Small;
+            button.Margin = new Padding(0, 6, 22, 0);
+            button.AccessibleName = $"Tema: {text}";
+            button.Checked = mode == ThemeMode;
+            themeChoices.Controls.Add(button);
+        }
+        body.Controls.Add(themeChoices, 0, 4);
+
+        body.Controls.Add(CreateFieldLabel(
+            "Dati: tutto resta sul tuo computer, nella cartella dei dati del tuo profilo Windows."), 0, 5);
 
         _backupStatus.Dock = DockStyle.Fill;
         _backupStatus.TextAlign = ContentAlignment.TopLeft;
@@ -548,7 +583,7 @@ internal sealed class SettingsDialog : Form
         _backupStatus.AutoEllipsis = true;
         _backupStatus.Margin = new Padding(0, 2, 0, 0);
         _backupStatus.Text = _general.Describe();
-        body.Controls.Add(_backupStatus, 0, 4);
+        body.Controls.Add(_backupStatus, 0, 6);
 
         var actions = new FlowLayoutPanel
         {
@@ -588,10 +623,10 @@ internal sealed class SettingsDialog : Form
         actions.Controls.Add(openData);
         actions.Controls.Add(backup);
         actions.Controls.Add(codes);
-        body.Controls.Add(actions, 0, 5);
+        body.Controls.Add(actions, 0, 7);
 
         body.Controls.Add(CreateNote(
-            "Il token degli aggiornamenti è cifrato con il tuo utente Windows. " + ExecutableSignature.DescribeCurrentExecutable()), 0, 6);
+            "Il token degli aggiornamenti è cifrato con il tuo utente Windows. " + ExecutableSignature.DescribeCurrentExecutable()), 0, 8);
         return page;
     }
 
@@ -823,6 +858,7 @@ internal sealed class SettingsDialog : Form
         AutoUpdateCheck = _autoCheck.Checked;
         InAppNotifications = _inAppNotifications.Checked;
         CloseBehavior = _closeTray.Checked ? "tray" : _closeExit.Checked ? "exit" : string.Empty;
+        ThemeMode = _themeLight.Checked ? ThemeMode.Light : _themeDark.Checked ? ThemeMode.Dark : ThemeMode.System;
         SystemNotifications = _systemNotifications.Checked;
         DialogResult = DialogResult.OK;
         Close();

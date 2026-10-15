@@ -66,7 +66,7 @@ internal static class WindowChrome
     internal static (Color Caption, Color Text, Color Border) TitleBarColors() =>
         (Theme.HeaderFill, Theme.Ink, Theme.Divider);
 
-    /// <summary>Applica la barra del titolo chiara e chiede gli angoli arrotondati.</summary>
+    /// <summary>Applica la barra del titolo nel tema dell'app e chiede gli angoli arrotondati.</summary>
     public static void Apply(IntPtr window)
     {
         if (!OperatingSystem.IsWindows() || window == IntPtr.Zero)
@@ -74,18 +74,18 @@ internal static class WindowChrome
             return;
         }
 
-        ApplyLightTitleBar(window);
+        ApplyTitleBarMode(window);
         ApplyTitleBarColors(window);
         ApplyRoundedCorners(window);
     }
 
-    /// <summary>Spegne il tema scuro della barra (anche se il sistema è in modalità scura).</summary>
-    private static void ApplyLightTitleBar(IntPtr window)
+    /// <summary>Barra chiara o scura come il tema dell'app, qualunque sia la modalità del sistema.</summary>
+    private static void ApplyTitleBarMode(IntPtr window)
     {
-        var disabled = 0;
+        var dark = Theme.IsDark ? 1 : 0;
         foreach (var attribute in DarkModeAttributesToTry(Environment.OSVersion.Version.Build))
         {
-            if (SetWindowAttribute(window, attribute, disabled))
+            if (SetWindowAttribute(window, attribute, dark))
             {
                 return;
             }
