@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.31.0] - Corrente
+## [1.32.0] - Corrente
+
+### 🔢 Conteggio animato nelle schede
+- I quattro numeri della dashboard (**Richieste, Dipendenti, Movimenti, Ore assegnate**) **scorrono fino al valore nuovo** in circa 0,4 secondi quando carichi un file o generi l'anteprima, invece di cambiare di colpo
+- Ogni numero scorre per conto suo e **mantiene il formato finale**: «176h 30m» passa per «88h 15m» (i minuti hanno sempre due cifre) e «1,234» non perde il separatore delle migliaia; se il nuovo valore è più basso, scende
+- Se il valore non cambia non si rianima; con gli effetti di animazione di Windows disattivati, o con la dashboard non visibile, salta subito al valore
+- La conversione XML non è toccata
+
+## [1.31.0]
 
 ### 💾 Copia automatica di codici e aziende
 - Il programma tiene da solo una **copia di codici, ore dei dipendenti e aziende** nella cartella dei dati (sottocartella `codici-backup`): la salva all'avvio e alla chiusura, **solo se qualcosa è cambiato**, una al giorno, e conserva le ultime sette

@@ -807,6 +807,10 @@ internal sealed class MetricCard : Control
     private readonly Color _soft;
     private string _value = "0";
     private string _caption = string.Empty;
+    // Conteggio animato: dal testo mostrato al testo di arrivo (vedi CountUpText).
+    private string _shown = "0";
+    private string _from = "0";
+    private AnimationClock? _count;
 
     public MetricCard(string label, Glyph glyph, Color accent, Color soft)
     {
@@ -832,10 +836,53 @@ internal sealed class MetricCard : Control
         get => _value;
         set
         {
+            _count?.Jump(1f);
             _value = value;
+            _shown = value;
             AccessibleDescription = $"{Label}: {value}";
             Invalidate();
         }
+    }
+
+    /// <summary>
+    /// Cambia il valore facendo scorrere i numeri dal testo mostrato a quello nuovo (circa 0,4 secondi). Se il testo
+    /// è lo stesso non fa nulla; senza finestra visibile o con gli effetti di Windows spenti salta subito al valore.
+    /// </summary>
+    public void AnimateTo(string value)
+    {
+        if (string.Equals(_value, value, StringComparison.Ordinal))
+        {
+            return;
+        }
+        _from = _shown;
+        _value = value;
+        AccessibleDescription = $"{Label}: {value}";
+        if (_count is null)
+        {
+            _count = new AnimationClock(this, 1f);
+            _count.Frame += (_, _) =>
+            {
+                _shown = CountUpText.Frame(_from, _value, _count.Value);
+                Invalidate();
+            };
+        }
+        _count.Jump(0f);
+        _count.AnimateTo(1f, Motion.Slow);
+        if (!_count.IsRunning)
+        {
+            _shown = _value;
+        }
+        Invalidate();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _count?.Dispose();
+            _count = null;
+        }
+        base.Dispose(disposing);
     }
 
     public string Caption
@@ -894,7 +941,7 @@ internal sealed class MetricCard : Control
             ModernPalette.Single);
         TextRenderer.DrawText(
             graphics,
-            _value,
+            _shown,
             Theme.Fonts.Kpi,
             new Rectangle(left, bounds.Top + 27, width, 32),
             _accent,
