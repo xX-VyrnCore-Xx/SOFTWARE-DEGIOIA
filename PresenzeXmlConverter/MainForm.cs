@@ -262,6 +262,7 @@ internal sealed partial class MainForm : Form
         {
             SaveWindowBounds();
             _database.MaintainOnExit();
+            CodesAutoBackup.Run(_database, DateTime.Now);
         }
         catch (Exception)
         {

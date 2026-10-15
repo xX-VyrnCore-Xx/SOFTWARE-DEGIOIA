@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.30.0] - Corrente
+## [1.31.0] - Corrente
+
+### 💾 Copia automatica di codici e aziende
+- Il programma tiene da solo una **copia di codici, ore dei dipendenti e aziende** nella cartella dei dati (sottocartella `codici-backup`): la salva all'avvio e alla chiusura, **solo se qualcosa è cambiato**, una al giorno, e conserva le ultime sette
+- Se cambi PC o reinstalli, il file è già pronto: basta copiarlo sul nuovo PC e usare **Trasferisci ▾ → Importa codici e aziende…** (il dialogo parte dalla cartella delle copie)
+- Nuove voci: **«Apri la cartella delle copie automatiche»** nel menu Trasferisci e **«Apri cartella delle copie dei codici»** nel menu dell'icona vicino all'orologio
+- Una copia che non riesce non disturba mai l'avvio o la chiusura; una copia rovinata viene sostituita, mai considerata valida
+- La conversione XML non è toccata
+
+## [1.30.0]
 
 ### 🎨 Icone e pulsanti rivisti
 - **Quattro icone nuove** nello stesso stile a tratto (Più, Cestino, Trasferisci, Salva) e **icone sui pulsanti che ne mancavano**: Gestione codici (Salva abbinamenti, Ricarica elenchi, Trasferisci), Aziende (Salva azienda, Usa in conversione, Nuova, Regole, Elimina, Trasferisci) e il menu «Esporta» del calendario. A colpo d'occhio si distingue «Elimina» da «Salva»
