@@ -3,13 +3,12 @@ using System.Runtime.InteropServices;
 namespace PresenzeXmlConverter;
 
 /// <summary>
-/// Aspetto nativo della finestra su Windows: titolo scuro e angoli arrotondati.
+/// Aspetto nativo della finestra su Windows: barra del titolo chiara come l'intestazione dell'app e angoli arrotondati.
 ///
-/// La finestra principale ha un'intestazione scura disegnata nell'area client:
-/// senza questo, Windows disegna sopra di essa una barra del titolo chiara e la
-/// finestra sembra composta da due programmi diversi. Ogni chiamata è protetta:
-/// su Windows più vecchi, o in un ambiente senza compositore, non cambia nulla
-/// e non solleva errori.
+/// L'intestazione dell'applicazione è bianca: la barra del titolo di Windows, se segue il tema scuro del sistema,
+/// resta nera sopra di essa e la finestra sembra composta da due programmi diversi. Si chiede quindi a Windows
+/// la barra chiara (su Windows 11 anche con i colori esatti dell'app: fondo, testo e bordo). Ogni chiamata è
+/// protetta: su Windows più vecchi, o in un ambiente senza compositore, non cambia nulla e non solleva errori.
 /// </summary>
 internal static class WindowChrome
 {
@@ -18,6 +17,15 @@ internal static class WindowChrome
 
     /// <summary>Lo stesso attributo nella numerazione provvisoria di Windows 10 1809.</summary>
     private const int ImmersiveDarkModeLegacy = 19;
+
+    /// <summary>DWMWA_BORDER_COLOR (Windows 11).</summary>
+    private const int BorderColor = 34;
+
+    /// <summary>DWMWA_CAPTION_COLOR (Windows 11).</summary>
+    private const int CaptionColor = 35;
+
+    /// <summary>DWMWA_TEXT_COLOR (Windows 11).</summary>
+    private const int TextColor = 36;
 
     /// <summary>DWMWA_WINDOW_CORNER_PREFERENCE (Windows 11).</summary>
     private const int WindowCornerPreference = 33;
@@ -48,7 +56,17 @@ internal static class WindowChrome
     /// <summary>Windows 11 disegna da sé gli angoli arrotondati delle finestre standard.</summary>
     internal static bool SupportsRoundedCorners(int windowsBuild) => windowsBuild >= Windows11Build;
 
-    /// <summary>Applica il tema scuro al titolo e chiede gli angoli arrotondati.</summary>
+    /// <summary>
+    /// Il colore nel formato COLORREF di Windows (0x00BBGGRR), come lo vogliono gli attributi DWM dei colori:
+    /// scambiando rosso e blu si otterrebbe una barra di un altro colore.
+    /// </summary>
+    internal static int ToColorRef(Color color) => color.R | (color.G << 8) | (color.B << 16);
+
+    /// <summary>Colori della barra del titolo (Windows 11): gli stessi dell'intestazione dell'app.</summary>
+    internal static (Color Caption, Color Text, Color Border) TitleBarColors() =>
+        (Theme.HeaderFill, Theme.Ink, Theme.Divider);
+
+    /// <summary>Applica la barra del titolo chiara e chiede gli angoli arrotondati.</summary>
     public static void Apply(IntPtr window)
     {
         if (!OperatingSystem.IsWindows() || window == IntPtr.Zero)
@@ -56,20 +74,35 @@ internal static class WindowChrome
             return;
         }
 
-        ApplyDarkTitleBar(window);
+        ApplyLightTitleBar(window);
+        ApplyTitleBarColors(window);
         ApplyRoundedCorners(window);
     }
 
-    private static void ApplyDarkTitleBar(IntPtr window)
+    /// <summary>Spegne il tema scuro della barra (anche se il sistema è in modalità scura).</summary>
+    private static void ApplyLightTitleBar(IntPtr window)
     {
-        var enabled = 1;
+        var disabled = 0;
         foreach (var attribute in DarkModeAttributesToTry(Environment.OSVersion.Version.Build))
         {
-            if (SetWindowAttribute(window, attribute, enabled))
+            if (SetWindowAttribute(window, attribute, disabled))
             {
                 return;
             }
         }
+    }
+
+    /// <summary>Su Windows 11 dà alla barra i colori dell'app (fondo, testo, bordo); prima di Windows 11 non fa nulla.</summary>
+    private static void ApplyTitleBarColors(IntPtr window)
+    {
+        if (!SupportsRoundedCorners(Environment.OSVersion.Version.Build))
+        {
+            return;
+        }
+        var (caption, text, border) = TitleBarColors();
+        SetWindowAttribute(window, CaptionColor, ToColorRef(caption));
+        SetWindowAttribute(window, TextColor, ToColorRef(text));
+        SetWindowAttribute(window, BorderColor, ToColorRef(border));
     }
 
     private static void ApplyRoundedCorners(IntPtr window)

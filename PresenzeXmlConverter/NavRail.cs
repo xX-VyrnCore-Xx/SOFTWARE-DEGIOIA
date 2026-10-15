@@ -260,10 +260,7 @@ internal sealed class NavRail : Control
                 (int)(box.Top + (box.Height - 18) / 2),
                 18,
                 18);
-            using (var iconPen = new Pen(ink, 1.7f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-            {
-                DrawIcon(e.Graphics, iconBox, item.Icon, ink, iconPen);
-            }
+            Glyphs.Draw(e.Graphics, iconBox, GlyphFor(item.Icon), ink, 1.7f);
 
             var badgeWidth = 0;
             if (_badges.TryGetValue(index, out var badge) && badge.Length > 0)
@@ -307,76 +304,15 @@ internal sealed class NavRail : Control
         }
     }
 
-    /// <summary>
-    /// Icone disegnate con qualche tratto: quadrati per la dashboard, un foglio
-    /// per la conversione, un elenco per i codici, un orologio per lo storico.
-    /// Restano leggibili a 18 pixel e non richiedono file esterni.
-    /// </summary>
-    private static void DrawIcon(Graphics graphics, Rectangle box, NavIcon icon, Color ink, Pen pen)
+    /// <summary>L'icona della libreria che rappresenta una voce della barra.</summary>
+    private static Glyph GlyphFor(NavIcon icon) => icon switch
     {
-        switch (icon)
-        {
-            case NavIcon.Dashboard:
-                var cell = box.Width / 2 - 2;
-                foreach (var (x, y) in new[]
-                         {
-                             (box.Left, box.Top), (box.Left + cell + 3, box.Top),
-                             (box.Left, box.Top + cell + 3), (box.Left + cell + 3, box.Top + cell + 3)
-                         })
-                {
-                    using var path = Theme.RoundedRectangle(new Rectangle(x, y, cell, cell), 2);
-                    using var brush = new SolidBrush(ink);
-                    graphics.FillPath(brush, path);
-                }
-                break;
-
-            case NavIcon.Convert:
-                var page = new Rectangle(box.Left + 2, box.Top, box.Width - 5, box.Height);
-                using (var path = Theme.RoundedRectangle(page, 2))
-                {
-                    graphics.DrawPath(pen, path);
-                }
-                graphics.DrawLine(pen, box.Left + 5, box.Top + 6, box.Right - 6, box.Top + 6);
-                graphics.DrawLine(pen, box.Left + 5, box.Top + 10, box.Right - 6, box.Top + 10);
-                graphics.DrawLine(pen, box.Left + 5, box.Top + 14, box.Left + 9, box.Top + 14);
-                break;
-
-            case NavIcon.Company:
-                // Edificio: corpo, porta e due file di finestre.
-                graphics.DrawRectangle(pen, box.Left + 3, box.Top + 2, box.Width - 7, box.Height - 4);
-                graphics.DrawLine(pen, box.Left + box.Width / 2 - 1, box.Bottom - 2, box.Left + box.Width / 2 - 1, box.Bottom - 7);
-                using (var window = new SolidBrush(ink))
-                {
-                    for (var row = 0; row < 2; row++)
-                    {
-                        graphics.FillRectangle(window, box.Left + 6, box.Top + 5 + (row * 5), 2, 2);
-                        graphics.FillRectangle(window, box.Right - 8, box.Top + 5 + (row * 5), 2, 2);
-                    }
-                }
-                break;
-
-            case NavIcon.Codes:
-                for (var row = 0; row < 3; row++)
-                {
-                    var y = box.Top + 3 + (row * 6);
-                    using var dot = new SolidBrush(ink);
-                    graphics.FillEllipse(dot, box.Left + 1, y, 3, 3);
-                    graphics.DrawLine(pen, box.Left + 7, y + 1, box.Right - 1, y + 1);
-                }
-                break;
-
-            default:
-                graphics.DrawEllipse(pen, box.Left + 1, box.Top + 1, box.Width - 2, box.Height - 2);
-                graphics.DrawLine(pen, box.Left + box.Width / 2, box.Top + 5, box.Left + box.Width / 2, box.Top + box.Height / 2);
-                graphics.DrawLine(
-                    pen,
-                    box.Left + box.Width / 2,
-                    box.Top + box.Height / 2,
-                    box.Right - 4,
-                    box.Top + box.Height / 2 + 3);
-                break;
-        }
-    }
+        NavIcon.Dashboard => Glyph.Dashboard,
+        NavIcon.Convert => Glyph.Sheet,
+        NavIcon.Company => Glyph.Building,
+        NavIcon.Codes => Glyph.List,
+        _ => Glyph.Clock
+    };
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
