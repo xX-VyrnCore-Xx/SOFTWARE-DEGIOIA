@@ -4,7 +4,18 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.41.0] - Corrente
+## [1.42.0] - Corrente
+
+### 🌙 Tema scuro
+- **Nuovo tema scuro**, ispirato alla grafica di riferimento: fondo grafite, schede più chiare, azzurro luminoso per i pulsanti e le selezioni, verde/arancio/rosso schiariti per gli stati. La **barra del titolo di Windows** segue il tema
+- **Si sceglie in Impostazioni → Generale → Aspetto dell'app**: *Come Windows* (predefinito: segue il tema delle app di Windows), *Chiaro* o *Scuro*. La scelta si applica **al prossimo avvio** del programma: chiudi e riapri
+- Contrasto controllato con un test per ogni coppia testo/fondo (testi, pillole, pulsanti, griglie) in entrambi i temi, così nulla resta illeggibile
+- Il tema chiaro resta identico a prima
+- Restano di Windows (chiari anche nel tema scuro): finestre di messaggio e menu a comparsa del sistema
+- Effetti sobri: nessuna animazione nuova oltre a quelle già presenti, che si fermano da sole se in Windows hai spento gli effetti
+- La conversione XML non è toccata
+
+## [1.41.0]
 
 ### 📊 Grafico «Ore al giorno»
 - **Nuova sezione nella card «Analisi del mese»**: una colonna per ogni giorno del mese, **presenza in azzurro e assenza in arancio** sopra, con altezza proporzionale alle ore di tutti i dipendenti. I fine settimana restano vuoti, quindi si vedono a colpo d'occhio
