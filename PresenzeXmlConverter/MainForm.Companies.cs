@@ -171,7 +171,7 @@ internal sealed partial class MainForm
 
         _companyDeleteButton.Text = "Elimina";
         Theme.StyleButton(_companyDeleteButton, Theme.ButtonTone.Neutral, compact: true);
-        _companyDeleteButton.Margin = Padding.Empty;
+        _companyDeleteButton.Margin = new Padding(8, 0, 0, 0);
         _companyDeleteButton.Click += (_, _) => DeleteSelectedCompany();
         Describe(_companyDeleteButton, "Elimina azienda", "Toglie l'azienda dall'elenco: i file già esportati non cambiano.");
 
@@ -202,6 +202,11 @@ internal sealed partial class MainForm
         actions.Controls.Add(_companyNewButton);
         actions.Controls.Add(_companyRulesButton);
         actions.Controls.Add(_companyDeleteButton);
+        var transfer = CreateTransferButton(() => Theme.CreateButton("Trasferisci", Theme.ButtonTone.Neutral, compact: true));
+        transfer.Margin = Padding.Empty;
+        transfer.MinimumSize = new Size(132, transfer.MinimumSize.Height);
+        transfer.Size = new Size(132, transfer.Height);
+        actions.Controls.Add(transfer);
         bar.Controls.Add(actions, 0, 0);
         return bar;
     }

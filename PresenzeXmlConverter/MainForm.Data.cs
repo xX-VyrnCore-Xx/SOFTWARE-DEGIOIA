@@ -240,14 +240,34 @@ internal sealed partial class MainForm
         }
     }
 
+    // Il menu è uno solo e resta vivo: eliminarlo alla chiusura (evento Closed) lo distruggeva PRIMA che
+    // Windows Forms eseguisse il clic della voce scelta, e il clic finiva su un controllo già distrutto
+    // («Cannot access a disposed object… ContextMenuStrip»).
+    private ContextMenuStrip? _transferMenu;
+
     /// <summary>Menu «Trasferisci»: esporta o importa codici e aziende per cambiare PC.</summary>
     private void ShowTransferMenu(Control anchor)
     {
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("Esporta codici e aziende…", null, (_, _) => ExportCodesBackup());
-        menu.Items.Add("Importa codici e aziende…", null, (_, _) => ImportCodesBackup());
-        menu.Closed += (_, _) => menu.Dispose();
-        menu.Show(anchor, new Point(0, anchor.Height));
+        if (_transferMenu is null)
+        {
+            _transferMenu = new ContextMenuStrip { ShowImageMargin = false };
+            _transferMenu.Items.Add("Esporta codici e aziende…", null, (_, _) => ExportCodesBackup());
+            _transferMenu.Items.Add("Importa codici e aziende…", null, (_, _) => ImportCodesBackup());
+        }
+        _transferMenu.Show(anchor, new Point(0, anchor.Height));
+    }
+
+    /// <summary>Pulsante «Trasferisci ▾», lo stesso in Gestione codici e in Aziende.</summary>
+    private Button CreateTransferButton(Func<Button> create)
+    {
+        var transfer = create();
+        transfer.Text = "Trasferisci  ▾";
+        transfer.Click += (_, _) => ShowTransferMenu(transfer);
+        Describe(
+            transfer,
+            "Trasferisci codici e aziende",
+            "Esporta in un file i codici, le ore dei dipendenti e le aziende per usarli su un altro PC, oppure importali da un file.");
+        return transfer;
     }
 
     private void AddDataCommands(ContextMenuStrip menu)

@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.29.0] - Corrente
+## [1.29.1] - Corrente
+
+### 🛠️ Correzione di «Trasferisci»
+- **Esporta e importa codici e aziende non chiudono più il programma**: il menu «Trasferisci ▾» veniva eliminato alla chiusura, prima che il clic sulla voce fosse eseguito («Cannot access a disposed object… ContextMenuStrip»). Ora il menu resta vivo e un test sui sorgenti controlla che non si ripeta
+- «Trasferisci ▾» c'è anche nella pagina **Aziende**, oltre a Gestione codici
+- La conversione XML non è toccata
+
+## [1.29.0]
 
 ### ✨ Animazioni più fluide
 - **Barra laterale**: la pillola blu della sezione attiva **scorre** da una voce all'altra e il testo vira al bianco man mano che la copre, invece di saltare
