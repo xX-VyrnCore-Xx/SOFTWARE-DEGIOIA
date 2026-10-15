@@ -39,8 +39,7 @@ internal sealed class MonthCalendarView : Panel
     private readonly Label _monthLabel = new();
     private readonly Button _previous = Theme.CreateButton("‹", Theme.ButtonTone.Neutral, compact: true);
     private readonly Button _next = Theme.CreateButton("›", Theme.ButtonTone.Neutral, compact: true);
-    private readonly Button _save = Theme.CreateButton("Salva immagine", Theme.ButtonTone.Neutral, compact: true);
-    private readonly Button _summary = Theme.CreateButton("Riepilogo CSV", Theme.ButtonTone.Neutral, compact: true);
+    private readonly Button _export = Theme.CreateButton("Esporta  ▾", Theme.ButtonTone.Neutral, compact: true);
     private readonly RoundedField _search = new();
     private readonly CheckBox _gapsOnly = new();
     private readonly Panel _alertBar = new();
@@ -111,13 +110,11 @@ internal sealed class MonthCalendarView : Panel
         _gapsOnly.AccessibleName = "Mostra solo i dipendenti con giorni scoperti, anomalie o ore del mese che non tornano";
         left.Controls.AddRange([_previous, _monthLabel, _next, _search, _gapsOnly]);
 
-        _save.Margin = new Padding(0, 2, 8, 0);
-        _save.AccessibleName = "Salva l'immagine del calendario";
-        _save.Click += (_, _) => SaveImage();
-        _summary.Margin = new Padding(0, 2, 0, 0);
-        _summary.AccessibleName = "Esporta il riepilogo delle ore in un file CSV";
-        _summary.Click += (_, _) => SaveSummary();
-        right.Controls.AddRange([_save, _summary]);
+        // Un solo pulsante con il menu delle esportazioni: sul portatile la barra non si affolla.
+        _export.Margin = new Padding(0, 2, 0, 0);
+        _export.AccessibleName = "Esporta il mese: immagine, riepilogo CSV o report PDF";
+        _export.Click += (_, _) => ShowExportMenu();
+        right.Controls.AddRange([_export]);
 
         top.Controls.Add(left);
         top.Controls.Add(right);
@@ -487,13 +484,11 @@ internal sealed class MonthCalendarView : Panel
             _monthLabel.Text = "Calendario";
             _previous.Enabled = false;
             _next.Enabled = false;
-            _save.Enabled = false;
-            _summary.Enabled = false;
+            _export.Enabled = false;
             _gapsOnly.Enabled = false;
             return;
         }
-        _save.Enabled = true;
-        _summary.Enabled = true;
+        _export.Enabled = true;
         _gapsOnly.Enabled = true;
         var (year, month) = _months[_monthIndex];
         var title = new DateTime(year, month, 1).ToString("MMMM yyyy", Italian);
@@ -563,6 +558,61 @@ internal sealed class MonthCalendarView : Panel
     private string DescribeFooter(DateTime day) =>
         $"{FooterLabel} · {day.ToString("dddd d MMMM", Italian)}{Environment.NewLine}{PresentOn(day)} su {_visible.Count}";
 
+    /// <summary>Scatta dopo ogni esportazione riuscita, con il percorso del file scritto.</summary>
+    public event EventHandler<string>? Exported;
+
+    /// <summary>Azienda mostrata in testa al report PDF.</summary>
+    public string CompanyLabel { get; set; } = string.Empty;
+
+    private void ShowExportMenu()
+    {
+        var menu = new ContextMenuStrip { ShowImageMargin = false };
+        menu.Items.Add("Report del mese (PDF)", null, (_, _) => SaveReport());
+        menu.Items.Add("Riepilogo ore (CSV per Excel)", null, (_, _) => SaveSummary());
+        menu.Items.Add("Immagine del mese (PNG)", null, (_, _) => SaveImage());
+        menu.Show(_export, new Point(0, _export.Height));
+    }
+
+    private void SaveReport()
+    {
+        if (_movements.Count == 0)
+        {
+            return;
+        }
+        using var picker = new SaveFileDialog
+        {
+            Title = "Salva il report del mese",
+            Filter = "Documento PDF (*.pdf)|*.pdf",
+            AddExtension = true,
+            DefaultExt = "pdf",
+            FileName = _months.Count > 0
+                ? $"Report ore {_months[_monthIndex].Year}-{_months[_monthIndex].Month:00}.pdf"
+                : "Report ore.pdf",
+            OverwritePrompt = true
+        };
+        if (picker.ShowDialog(FindForm()) != DialogResult.OK)
+        {
+            return;
+        }
+        try
+        {
+            var rows = MonthlySummary.Build(_movements, _options, _profiles, _periodStart, _periodEnd);
+            var alerts = _alertsByEmployee.Values.SelectMany(days => days.Values).SelectMany(list => list).ToArray();
+            var company = CompanyLabel.Length > 0 ? CompanyLabel : "Riepilogo dei movimenti generati";
+            File.WriteAllBytes(picker.FileName, MonthlyReport.Build(company, rows, alerts, DateTime.Now));
+            Exported?.Invoke(this, picker.FileName);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(
+                FindForm(),
+                "Non è stato possibile salvare il report: " + exception.Message,
+                "Calendario",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+    }
+
     private void SaveSummary()
     {
         if (_movements.Count == 0)
@@ -586,6 +636,7 @@ internal sealed class MonthCalendarView : Panel
         {
             var rows = MonthlySummary.Build(_movements, _options, _profiles, _periodStart, _periodEnd);
             File.WriteAllText(picker.FileName, MonthlySummary.ToCsv(rows), new System.Text.UTF8Encoding(true));
+            Exported?.Invoke(this, picker.FileName);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -622,6 +673,7 @@ internal sealed class MonthCalendarView : Panel
         {
             using var image = _canvas.RenderImage(_monthLabel.Text);
             image.Save(picker.FileName, System.Drawing.Imaging.ImageFormat.Png);
+            Exported?.Invoke(this, picker.FileName);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.ExternalException)
         {

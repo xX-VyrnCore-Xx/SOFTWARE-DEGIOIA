@@ -52,8 +52,26 @@ internal sealed partial class MainForm
             });
     }
 
+    private bool _calendarExportWired;
+
     /// <summary>Riempie il calendario con i movimenti correnti e il loro periodo.</summary>
-    private void RefreshCalendar(IReadOnlyList<DailyMovement> movements) =>
+    private void RefreshCalendar(IReadOnlyList<DailyMovement> movements)
+    {
+        if (!_calendarExportWired)
+        {
+            _calendarExportWired = true;
+            _calendarView.Exported += (_, path) => Notify(
+                ToastKind.Success,
+                "File salvato",
+                $"{Path.GetFileName(path)} · clic per aprirlo.",
+                () => OpenFile(path));
+        }
+        var company = _companyCode.Value.Trim();
+        _calendarView.CompanyLabel = company.Length > 0 ? $"Azienda {company}" : string.Empty;
+        CalendarSetData(movements);
+    }
+
+    private void CalendarSetData(IReadOnlyList<DailyMovement> movements) =>
         _calendarView.SetData(
             movements,
             _generationOptions,
@@ -108,6 +126,22 @@ internal sealed partial class MainForm
                 "Prova notifica di Windows",
                 "Se vedi questo messaggio, le notifiche di sistema funzionano.",
                 force: true);
+        }
+    }
+
+    /// <summary>Apre un file con il programma associato (il PDF nel lettore, il CSV in Excel).</summary>
+    private static void OpenFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            }
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // Nessun programma associato: il file resta dov'è.
         }
     }
 
