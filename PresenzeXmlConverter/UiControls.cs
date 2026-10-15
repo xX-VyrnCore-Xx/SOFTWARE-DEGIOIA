@@ -75,7 +75,7 @@ internal sealed class ThemedGrid : DataGridView
     /// </summary>
     public string EmptyStateText { get; set; } = string.Empty;
 
-    private static readonly Color HoverRow = Color.FromArgb(243, 247, 255);
+    private static Color HoverRow => Theme.HoverRow;
     private int _hoverRow = -1;
 
     protected override void OnCellMouseEnter(DataGridViewCellEventArgs e)
@@ -275,7 +275,7 @@ internal sealed class RoundedField : Panel
         }
     }
 
-    private Color FillColor => _onDark ? Color.FromArgb(238, 238, 243) : Theme.FieldFill;
+    private Color FillColor => _onDark ? Theme.HeaderFieldFill : Theme.FieldFill;
 
     public int MaxLength
     {
@@ -356,7 +356,7 @@ internal sealed class RoundedField : Panel
                 e.Graphics.DrawPath(ring, ringPath);
             }
         }
-        var idleBorder = _onDark ? Color.FromArgb(226, 226, 232) : Theme.DividerStrong;
+        var idleBorder = _onDark ? Theme.HeaderFieldBorder : Theme.DividerStrong;
         var activeBorder = Theme.Brand;
         using var pen = new Pen(_input.Focused ? activeBorder : idleBorder, 1f);
         e.Graphics.DrawPath(pen, path);

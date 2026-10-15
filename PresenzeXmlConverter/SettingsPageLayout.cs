@@ -71,10 +71,10 @@ internal static class SettingsPageLayout
         HintRow, CheckRow, CheckRow, ActionRow, NoteRow
     };
 
-    /// <summary>Scheda «Generale»: cosa fa la X, dove stanno i dati, copie e sicurezza.</summary>
+    /// <summary>Scheda «Generale»: cosa fa la X, tema, dove stanno i dati, copie e sicurezza.</summary>
     public static readonly int[] GeneralRows =
     {
-        HintRow, FieldLabelRow, CheckRow, FieldLabelRow, StatusRow, ActionRow, NoteRow
+        HintRow, FieldLabelRow, CheckRow, FieldLabelRow, CheckRow, FieldLabelRow, StatusRow, ActionRow, NoteRow
     };
 
     /// <summary>Tutte le schede, nell'ordine in cui compaiono.</summary>

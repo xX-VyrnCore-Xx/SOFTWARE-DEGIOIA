@@ -11,84 +11,103 @@ namespace PresenzeXmlConverter;
 /// </summary>
 internal static class Theme
 {
+    /// <summary>La tavolozza in uso: si sceglie una volta all'avvio (<see cref="Apply"/>) e i controlli leggono sempre da qui.</summary>
+    public static ThemePalette Current { get; private set; } = ThemePalette.Light;
+
+    public static bool IsDark => Current.IsDark;
+
+    /// <summary>Sceglie il tema. Va chiamato prima di creare qualunque finestra o controllo: i colori si leggono alla creazione.</summary>
+    public static void Apply(bool dark) => Current = dark ? ThemePalette.Dark : ThemePalette.Light;
+
+    // Colori aggiunti con il tema scuro (nel tema chiaro hanno gli stessi valori usati prima nel codice).
+    public static Color HoverRow => Current.HoverRow;
+    public static Color WarningSoft => Current.WarningSoft;
+    public static Color DangerSoft => Current.DangerSoft;
+    public static Color HeaderFieldFill => Current.HeaderFieldFill;
+    public static Color HeaderFieldBorder => Current.HeaderFieldBorder;
+    public static Color HeaderButtonFill => Current.HeaderButtonFill;
+    public static Color HeaderButtonHover => Current.HeaderButtonHover;
+    public static Color HeaderButtonPressed => Current.HeaderButtonPressed;
+    public static Color HeaderButtonBorder => Current.HeaderButtonBorder;
+
     /* ------------------------------ Testo ------------------------------ */
-    public static readonly Color Ink = Color.FromArgb(29, 29, 31);             // titoli, testo principale
-    public static readonly Color InkSecondary = Color.FromArgb(60, 60, 67);   // corpo del testo
-    public static readonly Color MutedInk = Color.FromArgb(110, 110, 115);     // testo di supporto
-    public static readonly Color FaintInk = Color.FromArgb(174, 174, 178);     // numerazioni, placeholder
+    public static Color Ink => Current.Ink;
+    public static Color InkSecondary => Current.InkSecondary;
+    public static Color MutedInk => Current.MutedInk;
+    public static Color FaintInk => Current.FaintInk;
 
     /* --------------------------- Superfici ----------------------------- */
-    public static readonly Color Surface = Color.White;                        // fondo delle card
-    public static readonly Color Canvas = Color.FromArgb(245, 245, 247);       // fondo della finestra
-    public static readonly Color Sunken = Color.FromArgb(236, 236, 241);       // fasce e intestazioni di griglia
-    public static readonly Color AltRow = Color.FromArgb(249, 249, 251);       // righe alternate della griglia
-    public static readonly Color FieldFill = Color.FromArgb(255, 255, 255);    // fondo dei campi di testo
+    public static Color Surface => Current.Surface;
+    public static Color Canvas => Current.Canvas;
+    public static Color Sunken => Current.Sunken;
+    public static Color AltRow => Current.AltRow;
+    public static Color FieldFill => Current.FieldFill;
 
     /* ---------------------------- Bordi -------------------------------- */
-    public static readonly Color Divider = Color.FromArgb(229, 229, 234);      // linee sottili
-    public static readonly Color DividerStrong = Color.FromArgb(209, 209, 214);// bordi dei campi
+    public static Color Divider => Current.Divider;
+    public static Color DividerStrong => Current.DividerStrong;
 
     /* ------------------------- Marca (primario) ------------------------ */
-    public static readonly Color Brand = Color.FromArgb(0, 122, 255);
-    public static readonly Color BrandHover = Color.FromArgb(0, 106, 230);
-    public static readonly Color BrandPressed = Color.FromArgb(0, 88, 200);
-    public static readonly Color BrandDeep = Color.FromArgb(0, 64, 148);      // fondo dei badge scuri
-    public static readonly Color BrandSoft = Color.FromArgb(232, 242, 255);    // fondo bottoni secondari
-    public static readonly Color BrandLite = Color.FromArgb(207, 228, 255);    // selezione in griglia
-    public static readonly Color BrandInk = Color.FromArgb(0, 98, 204);       // testo su fondo chiaro
-    public static readonly Color Accent = Color.FromArgb(90, 200, 250);         // accento secondario (ciano) dei gradienti
+    public static Color Brand => Current.Brand;
+    public static Color BrandHover => Current.BrandHover;
+    public static Color BrandPressed => Current.BrandPressed;
+    public static Color BrandDeep => Current.BrandDeep;
+    public static Color BrandSoft => Current.BrandSoft;
+    public static Color BrandLite => Current.BrandLite;
+    public static Color BrandInk => Current.BrandInk;
+    public static Color Accent => Current.Accent;
 
     /* --------------------------- Esito positivo ------------------------ */
-    public static readonly Color Success = Color.FromArgb(52, 199, 89);
-    public static readonly Color SuccessHover = Color.FromArgb(40, 176, 74);
-    public static readonly Color SuccessPressed = Color.FromArgb(30, 150, 62);
-    public static readonly Color SuccessSoft = Color.FromArgb(226, 247, 232);
-    public static readonly Color SuccessInk = Color.FromArgb(24, 110, 48);
+    public static Color Success => Current.Success;
+    public static Color SuccessHover => Current.SuccessHover;
+    public static Color SuccessPressed => Current.SuccessPressed;
+    public static Color SuccessSoft => Current.SuccessSoft;
+    public static Color SuccessInk => Current.SuccessInk;
 
     /* ---------------------------- Attenzione --------------------------- */
-    public static readonly Color Warning = Color.FromArgb(255, 149, 0);
-    public static readonly Color WarningInk = Color.FromArgb(158, 88, 0);
+    public static Color Warning => Current.Warning;
+    public static Color WarningInk => Current.WarningInk;
 
     /* ------------------------------ Errore ----------------------------- */
-    public static readonly Color Danger = Color.FromArgb(255, 59, 48);
-    public static readonly Color DangerInk = Color.FromArgb(176, 28, 20);
+    public static Color Danger => Current.Danger;
+    public static Color DangerInk => Current.DangerInk;
 
     /* ------------------------ Pulsanti neutri -------------------------- */
-    public static readonly Color NeutralFill = Color.FromArgb(255, 255, 255);
-    public static readonly Color NeutralHover = Color.FromArgb(245, 245, 247);
-    public static readonly Color NeutralPressed = Color.FromArgb(232, 232, 237);
-    public static readonly Color NeutralBorder = Color.FromArgb(209, 209, 214);
-    public static readonly Color NeutralInk = Color.FromArgb(29, 29, 31);
+    public static Color NeutralFill => Current.NeutralFill;
+    public static Color NeutralHover => Current.NeutralHover;
+    public static Color NeutralPressed => Current.NeutralPressed;
+    public static Color NeutralBorder => Current.NeutralBorder;
+    public static Color NeutralInk => Current.NeutralInk;
 
     /* ----------------------- Stato disabilitato ------------------------ */
-    public static readonly Color DisabledFill = Color.FromArgb(244, 244, 246);
-    public static readonly Color DisabledInk = Color.FromArgb(174, 174, 178);
+    public static Color DisabledFill => Current.DisabledFill;
+    public static Color DisabledInk => Current.DisabledInk;
 
     /* --------------------------- Header scuro -------------------------- */
-    public static readonly Color HeaderFill = Color.FromArgb(255, 255, 255);
-    public static readonly Color HeaderInk = Color.FromArgb(29, 29, 31);
-    public static readonly Color HeaderMuted = Color.FromArgb(110, 110, 115);
+    public static Color HeaderFill => Current.HeaderFill;
+    public static Color HeaderInk => Current.HeaderInk;
+    public static Color HeaderMuted => Current.HeaderMuted;
 
     /* --------------------------- Badge in header ----------------------- */
-    public static readonly Color PillIdleFill = Color.FromArgb(232, 242, 255);
-    public static readonly Color PillIdleInk = Color.FromArgb(0, 98, 204);
-    public static readonly Color PillReadyFill = Color.FromArgb(226, 247, 232);
-    public static readonly Color PillReadyInk = Color.FromArgb(24, 110, 48);
-    public static readonly Color PillWarningFill = Color.FromArgb(255, 243, 224);
-    public static readonly Color PillWarningInk = Color.FromArgb(158, 88, 0);
+    public static Color PillIdleFill => Current.PillIdleFill;
+    public static Color PillIdleInk => Current.PillIdleInk;
+    public static Color PillReadyFill => Current.PillReadyFill;
+    public static Color PillReadyInk => Current.PillReadyInk;
+    public static Color PillWarningFill => Current.PillWarningFill;
+    public static Color PillWarningInk => Current.PillWarningInk;
 
     /* ------------------------ Editor XML scuro ------------------------- */
-    public static readonly Color EditorFill = Color.FromArgb(15, 23, 42);
-    public static readonly Color EditorInk = Color.FromArgb(226, 232, 240);
-    public static readonly Color EditorTag = Color.FromArgb(125, 211, 252);
-    public static readonly Color EditorString = Color.FromArgb(190, 242, 100);
-    public static readonly Color EditorValue = Color.FromArgb(167, 243, 208);
+    public static Color EditorFill => Current.EditorFill;
+    public static Color EditorInk => Current.EditorInk;
+    public static Color EditorTag => Current.EditorTag;
+    public static Color EditorString => Current.EditorString;
+    public static Color EditorValue => Current.EditorValue;
 
     /* ----------------------- Colori della griglia ---------------------- */
-    public static readonly Color CodeInk = Color.FromArgb(0, 98, 204);        // codici PAGHE
-    public static readonly Color NumberInk = Color.FromArgb(24, 110, 48);       // ore e minuti
-    public static readonly Color DateInk = Color.FromArgb(110, 110, 115);       // date
-    public static readonly Color RowNumberInk = Color.FromArgb(174, 174, 178);
+    public static Color CodeInk => Current.CodeInk;
+    public static Color NumberInk => Current.NumberInk;
+    public static Color DateInk => Current.DateInk;
+    public static Color RowNumberInk => Current.RowNumberInk;
 
     /// <summary>
     /// Font condivisi: creati una volta sola e nominati per uso, così le
@@ -282,8 +301,8 @@ internal static class Theme
         ButtonTone.Positive => new ButtonPalette(Success, SuccessHover, SuccessPressed, Success, Color.White, 0),
         ButtonTone.Danger => new ButtonPalette(Danger, Color.FromArgb(230, 50, 40), Color.FromArgb(200, 40, 32), Danger, Color.White, 0),
         ButtonTone.OnDark => new ButtonPalette(
-            Color.FromArgb(242, 242, 247), Color.FromArgb(229, 229, 234), Color.FromArgb(216, 216, 222),
-            Color.FromArgb(222, 222, 228), Ink, 1),
+            HeaderButtonFill, HeaderButtonHover, HeaderButtonPressed,
+            HeaderButtonBorder, Ink, 1),
         _ => new ButtonPalette(NeutralFill, NeutralHover, NeutralPressed, NeutralBorder, NeutralInk, 1)
     };
 

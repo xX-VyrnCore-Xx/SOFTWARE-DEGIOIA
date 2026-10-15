@@ -17,8 +17,8 @@ internal sealed class DashboardInsightsView : Control
 
     private static readonly Color AbsenceBar = Color.FromArgb(255, 159, 10);
 
-    private static readonly Color DangerSoft = Color.FromArgb(255, 226, 223);
-    private static readonly Color WarningSoft = Color.FromArgb(255, 238, 207);
+    private static Color DangerSoft => Theme.DangerSoft;
+    private static Color WarningSoft => Theme.WarningSoft;
 
     private DashboardInsights _insights = DashboardInsights.Empty;
 

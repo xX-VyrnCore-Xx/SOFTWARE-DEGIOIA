@@ -9,6 +9,9 @@ static class Program
     {
         ApplicationConfiguration.Initialize();
 
+        // Il tema (chiaro o scuro) si sceglie prima di creare qualunque finestra: i colori si leggono alla creazione.
+        ThemePreference.ApplyAtStartup();
+
         // Identità Windows: la barra delle applicazioni, le notifiche del tray e
         // i collegamenti bloccati usano lo stesso nome del prodotto. Il mutex
         // tiene traccia dell'esecuzione e permette all'installer di riconoscere
