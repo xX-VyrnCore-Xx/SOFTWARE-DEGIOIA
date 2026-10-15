@@ -460,6 +460,8 @@ internal sealed class DropZone : Control
     private string _subtitle = "oppure fai clic per sceglierlo";
     private bool _loaded;
     private bool _removeHot;
+    // 0 = a riposo, 1 = attiva (mouse sopra, file in arrivo, tastiera): colori e bordo scorrono invece di scattare.
+    private AnimationClock? _activeClock;
 
     public DropZone()
     {
@@ -532,8 +534,9 @@ internal sealed class DropZone : Control
         }
 
         var active = (_hover || _dragging || Focused) && !Busy;
-        var fill = _loaded ? Theme.SuccessSoft : active ? Theme.BrandSoft : Theme.FieldFill;
-        var line = _loaded ? Theme.Success : active ? Theme.Brand : Theme.DividerStrong;
+        var blend = Busy ? 0f : _activeClock?.Value ?? (active ? 1f : 0f);
+        var fill = _loaded ? Theme.SuccessSoft : Mix(Theme.FieldFill, Theme.BrandSoft, blend);
+        var line = _loaded ? Theme.Success : Mix(Theme.DividerStrong, Theme.Brand, blend);
         using (var path = Theme.RoundedRectangle(bounds, 12))
         {
             using var fillBrush = new SolidBrush(fill);
@@ -545,11 +548,11 @@ internal sealed class DropZone : Control
         var chip = Math.Min(44, bounds.Height - 20);
         var chipBox = new Rectangle(bounds.Left + 16, bounds.Top + ((bounds.Height - chip) / 2), chip, chip);
         using (var chipPath = Theme.RoundedRectangle(chipBox, 12))
-        using (var chipBrush = new SolidBrush(_loaded ? Theme.Success : active ? Theme.Brand : Theme.BrandLite))
+        using (var chipBrush = new SolidBrush(_loaded ? Theme.Success : Mix(Theme.BrandLite, Theme.Brand, blend)))
         {
             graphics.FillPath(chipBrush, chipPath);
         }
-        var chipInk = _loaded ? Color.White : active ? Color.White : Theme.BrandInk;
+        var chipInk = _loaded ? Color.White : blend > 0.5f ? Color.White : Theme.BrandInk;
         Glyphs.Draw(
             graphics,
             Rectangle.Inflate(chipBox, -(chip / 4), -(chip / 4)),
@@ -624,7 +627,7 @@ internal sealed class DropZone : Control
     {
         base.OnMouseEnter(e);
         _hover = true;
-        Invalidate();
+        SyncActive();
     }
 
     protected override void OnMouseLeave(EventArgs e)
@@ -632,19 +635,50 @@ internal sealed class DropZone : Control
         base.OnMouseLeave(e);
         _hover = false;
         _removeHot = false;
-        Invalidate();
+        SyncActive();
     }
 
     protected override void OnGotFocus(EventArgs e)
     {
         base.OnGotFocus(e);
-        Invalidate();
+        SyncActive();
     }
 
     protected override void OnLostFocus(EventArgs e)
     {
         base.OnLostFocus(e);
+        SyncActive();
+    }
+
+    private void SyncActive()
+    {
+        _activeClock ??= CreateActiveClock();
+        var active = (_hover || _dragging || Focused) && !Busy;
+        _activeClock.AnimateTo(active ? 1f : 0f, active ? Motion.Quick : Motion.Standard);
         Invalidate();
+    }
+
+    private AnimationClock CreateActiveClock()
+    {
+        var clock = new AnimationClock(this);
+        clock.Frame += (_, _) => Invalidate();
+        return clock;
+    }
+
+    private static Color Mix(Color from, Color to, float amount) => Color.FromArgb(
+        255,
+        (int)Math.Round(from.R + ((to.R - from.R) * amount)),
+        (int)Math.Round(from.G + ((to.G - from.G) * amount)),
+        (int)Math.Round(from.B + ((to.B - from.B) * amount)));
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _activeClock?.Dispose();
+            _activeClock = null;
+        }
+        base.Dispose(disposing);
     }
 
     protected override bool IsInputKey(Keys keyData) => keyData is Keys.Enter or Keys.Space || base.IsInputKey(keyData);
@@ -672,21 +706,21 @@ internal sealed class DropZone : Control
             drgevent.Data?.GetData(DataFormats.FileDrop) as string[] ?? Array.Empty<string>());
         _dragging = path is not null && !Busy;
         drgevent.Effect = _dragging ? DragDropEffects.Copy : DragDropEffects.None;
-        Invalidate();
+        SyncActive();
     }
 
     protected override void OnDragLeave(EventArgs e)
     {
         base.OnDragLeave(e);
         _dragging = false;
-        Invalidate();
+        SyncActive();
     }
 
     protected override void OnDragDrop(DragEventArgs drgevent)
     {
         base.OnDragDrop(drgevent);
         _dragging = false;
-        Invalidate();
+        SyncActive();
         var path = WorkbookDrop.FirstWorkbookPath(
             drgevent.Data?.GetData(DataFormats.FileDrop) as string[] ?? Array.Empty<string>());
         if (path is not null && !Busy)

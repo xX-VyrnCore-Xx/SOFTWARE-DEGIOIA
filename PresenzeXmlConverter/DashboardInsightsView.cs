@@ -18,6 +18,9 @@ internal sealed class DashboardInsightsView : Control
 
     private DashboardInsights _insights = DashboardInsights.Empty;
 
+    // 0 → 1 a ogni nuova analisi: le fasce colorate e le barrette crescono invece di comparire di colpo.
+    private readonly AnimationClock _grow;
+
     public DashboardInsightsView()
     {
         SetStyle(
@@ -29,6 +32,17 @@ internal sealed class DashboardInsightsView : Control
         BackColor = Theme.Surface;
         AccessibleRole = AccessibleRole.StaticText;
         AccessibleName = "Analisi del mese";
+        _grow = new AnimationClock(this, 1f);
+        _grow.Frame += (_, _) => Invalidate();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _grow.Dispose();
+        }
+        base.Dispose(disposing);
     }
 
     public DashboardInsights Insights
@@ -36,8 +50,14 @@ internal sealed class DashboardInsightsView : Control
         get => _insights;
         set
         {
+            var changed = !_insights.SameAs(value);
             _insights = value;
             AccessibleDescription = Describe(value);
+            if (changed && value.HasData)
+            {
+                _grow.Jump(0f);
+                _grow.AnimateTo(1f, Motion.Slow);
+            }
             Invalidate();
         }
     }
@@ -92,7 +112,7 @@ internal sealed class DashboardInsightsView : Control
         var top = _insights.Absences.Count == 0 ? 1 : _insights.Absences.Max(share => share.Minutes);
         for (var index = 0; index < rows; index++)
         {
-            DrawAbsenceRow(g, _insights.Absences[index], new Rectangle(0, y, width, RowHeight), top);
+            DrawAbsenceRow(g, _insights.Absences[index], new Rectangle(0, y, width, RowHeight), top, _grow.Value);
             y += RowHeight;
         }
 
@@ -119,7 +139,7 @@ internal sealed class DashboardInsightsView : Control
         // Le assenze partono da destra, ognuna con il proprio colore.
         foreach (var share in _insights.Absences)
         {
-            var span = (int)Math.Round((double)bounds.Width * share.Minutes / total);
+            var span = (int)Math.Round((double)bounds.Width * share.Minutes / total * _grow.Value);
             x -= span;
             using var brush = new SolidBrush(AbsencePalette.For(share.ColorIndex).Ink);
             g.FillRectangle(brush, x, bounds.Y, span + 1, bounds.Height);
@@ -127,7 +147,7 @@ internal sealed class DashboardInsightsView : Control
         g.Clip = previous;
     }
 
-    private static void DrawAbsenceRow(Graphics g, AbsenceShare share, Rectangle row, int top)
+    private static void DrawAbsenceRow(Graphics g, AbsenceShare share, Rectangle row, int top, float grow)
     {
         var (fill, ink) = AbsencePalette.For(share.ColorIndex);
         using (var chip = new SolidBrush(fill))
@@ -157,7 +177,7 @@ internal sealed class DashboardInsightsView : Control
         {
             g.FillPath(back, path);
         }
-        var filled = Math.Max(6, (int)Math.Round((double)barWidth * share.Minutes / top));
+        var filled = Math.Max(6, (int)Math.Round((double)barWidth * share.Minutes / top * grow));
         using (var front = new SolidBrush(ink))
         using (var path = RoundedPath(new Rectangle(track.X, track.Y, filled, track.Height), 3))
         {

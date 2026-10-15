@@ -40,6 +40,14 @@ internal sealed record DashboardInsights(
     /// <summary>Quota di assenza sul totale, da 0 a 1.</summary>
     public double AbsenceRatio => HasData ? (double)AbsenceMinutes / (PresenceMinutes + AbsenceMinutes) : 0;
 
+    /// <summary>Stessi numeri e stesse assenze? (Il confronto dei record non basta: le liste si confrontano per riferimento.)</summary>
+    public bool SameAs(DashboardInsights other) =>
+        PresenceMinutes == other.PresenceMinutes &&
+        AbsenceMinutes == other.AbsenceMinutes &&
+        CheckDays == other.CheckDays &&
+        NoticeDays == other.NoticeDays &&
+        Absences.SequenceEqual(other.Absences);
+
     public static DashboardInsights From(IReadOnlyList<DailyMovement> movements, IReadOnlyList<CalendarAlert> alerts)
     {
         if (movements.Count == 0)
