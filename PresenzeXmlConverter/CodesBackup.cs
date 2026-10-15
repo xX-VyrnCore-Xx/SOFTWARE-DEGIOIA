@@ -86,6 +86,9 @@ internal sealed record CodesBackup(
             database.GetCompanies().Select(company => new CompanyEntry(company.Code, company.Name, company.Notes, company.Rules)).ToArray());
     }
 
+    /// <summary>Il contenuto senza la data di esportazione: due copie con la stessa chiave contengono gli stessi dati.</summary>
+    public string ContentKey() => (this with { ExportedUtc = DateTime.MinValue }).ToJson();
+
     public string ToJson()
     {
         var document = new Document

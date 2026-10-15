@@ -49,6 +49,8 @@ internal sealed partial class MainForm
                 {
                     BeginInvoke(RefreshRailStatus);
                 }
+                // Copia dei codici e delle aziende pronta per il cambio PC (solo se sono cambiati).
+                CodesAutoBackup.Run(_database, DateTime.Now);
             }
             catch (Exception exception) when (
                 exception is SqliteException or IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -107,6 +109,22 @@ internal sealed partial class MainForm
             exception is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             SetStatus($"Impossibile aprire la cartella dei dati: {exception.Message}", true);
+        }
+    }
+
+    /// <summary>Apre la cartella con le copie automatiche di codici e aziende (si crea se manca).</summary>
+    private void OpenCodesBackupFolder()
+    {
+        var folder = CodesAutoBackup.FolderFor(_database);
+        try
+        {
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (
+            exception is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            SetStatus($"Impossibile aprire la cartella delle copie: {exception.Message}", true);
         }
     }
 
@@ -182,6 +200,12 @@ internal sealed partial class MainForm
                 CheckFileExists = true,
                 Multiselect = false
             };
+            // Si parte dalla cartella delle copie automatiche, se ce n'è già qualcuna.
+            var autoFolder = CodesAutoBackup.FolderFor(_database);
+            if (CodesAutoBackup.List(autoFolder).Count > 0)
+            {
+                picker.InitialDirectory = autoFolder;
+            }
             if (picker.ShowDialog(this) != DialogResult.OK)
             {
                 return;
@@ -253,6 +277,8 @@ internal sealed partial class MainForm
             _transferMenu = new ContextMenuStrip { ShowImageMargin = false };
             _transferMenu.Items.Add("Esporta codici e aziende…", null, (_, _) => ExportCodesBackup());
             _transferMenu.Items.Add("Importa codici e aziende…", null, (_, _) => ImportCodesBackup());
+            _transferMenu.Items.Add(new ToolStripSeparator());
+            _transferMenu.Items.Add("Apri la cartella delle copie automatiche", null, (_, _) => OpenCodesBackupFolder());
         }
         _transferMenu.Show(anchor, new Point(0, anchor.Height));
     }
@@ -278,5 +304,6 @@ internal sealed partial class MainForm
         menu.Items.Add("Stato del database…", null, (_, _) => ShowDatabaseStatus());
         menu.Items.Add("Backup dei dati ora", null, (_, _) => BackupDatabaseNow());
         menu.Items.Add("Apri cartella dei dati", null, (_, _) => OpenDataFolder());
+        menu.Items.Add("Apri cartella delle copie dei codici", null, (_, _) => OpenCodesBackupFolder());
     }
 }
