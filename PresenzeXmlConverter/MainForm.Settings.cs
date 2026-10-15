@@ -300,6 +300,7 @@ internal sealed partial class MainForm
             ClearGeneratedPreview();
             ResetReview();
             UpdateSheetButton();
+            MarkSessionDirty();
             _previewTitleLabel.Text = "File importato · pronto per la conversione";
             _previewSubtitleLabel.Text =
                 $"Foglio letto: {inspection.SheetName}. Controlla i codici e genera l’anteprima dei movimenti.";

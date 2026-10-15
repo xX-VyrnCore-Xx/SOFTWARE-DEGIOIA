@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.23.4] - Corrente
+## [1.24.0] - Corrente
+
+### ♻️ Riprendi dove eri rimasto
+- Il programma **salva da solo il lavoro in corso** (file importato, anteprima con le correzioni fatte a mano, se l'XML è già stato esportato) pochi secondi dopo ogni cambiamento e alla chiusura
+- All'apertura **riporta tutto com'era**: riapre il file, ricrea l'anteprima con le tue modifiche e ti porta nella pagina di lavoro, con un avviso «Lavoro ripristinato»
+- Se il file Excel è stato modificato nel frattempo l'anteprima salvata non vale più: viene riaperto il file e basta ricreare l'anteprima. Se il file non si trova più, l'anteprima salvata resta comunque disponibile
+- Dal menu dell'icona nel tray, **«Dimentica il lavoro salvato»** fa ripartire il programma da zero alla prossima apertura
+
+## [1.23.4]
 
 ### 👤 Lo stesso dipendente scritto in due modi
 - Salvando gli abbinamenti non compare più «codice già usato: … non salvato» per «Vincenzo Antenori» e «Antenori Vincenzo»: nomi con le stesse parole (ordine, maiuscole, accenti) sono la **stessa persona** e possono avere lo stesso codice

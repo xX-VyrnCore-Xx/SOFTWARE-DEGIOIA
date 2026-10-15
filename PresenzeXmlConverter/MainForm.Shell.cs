@@ -908,6 +908,7 @@ internal sealed partial class MainForm
                 delivered);
             _exports = _database.GetExports();
             _currentPreviewExported = true;
+            MarkSessionDirty();
             RefreshDashboard();
             if (_navRail.SelectedIndex == SectionHistory)
             {
