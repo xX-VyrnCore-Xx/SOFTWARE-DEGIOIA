@@ -144,6 +144,7 @@ internal sealed partial class MainForm
             Ctrl+G   Genera anteprima e XML
             Ctrl+S   Salva l'XML su file
             Ctrl+F   Cerca nei movimenti
+            Ctrl+K   Cerca ovunque (movimenti, aziende, codici, esportazioni)
             Ctrl+0   Sezione Dashboard
             Ctrl+1   Scheda Movimenti
             Ctrl+2   Scheda Anteprima XML
@@ -169,6 +170,10 @@ internal sealed partial class MainForm
                 return true;
             case Keys.Control | Keys.S when _exportButton.Enabled:
                 ExportXml();
+                return true;
+            case Keys.Control | Keys.K:
+                _headerSearch.Input.Focus();
+                _headerSearch.Input.SelectAll();
                 return true;
             case Keys.Control | Keys.F:
                 ShowSection(SectionConversion);

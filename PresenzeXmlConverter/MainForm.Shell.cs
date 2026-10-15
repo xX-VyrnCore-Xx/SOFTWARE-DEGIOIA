@@ -128,6 +128,10 @@ internal sealed partial class MainForm
         // è arrivati e da lì si parte con un clic.
         _navRail.SelectedIndex = SectionDashboard;
         ApplySection();
+
+        // L'elenco dei risultati della ricerca sta sopra a tutto, sotto il campo della testata.
+        Controls.Add(_searchPopup);
+        _searchPopup.BringToFront();
     }
 
     private TableLayoutPanel? _shellBody;
@@ -1060,6 +1064,9 @@ internal sealed partial class MainForm
     /* --------------------- Ricerca, avvio e dati differiti --------------- */
 
     private readonly RoundedField _headerSearch = new();
+    private readonly SearchResultsPopup _searchPopup = new();
+    private Dictionary<string, string> _searchEmployees = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string> _searchPolicies = new(StringComparer.OrdinalIgnoreCase);
     private bool _searchSyncing;
 
     /// <summary>
@@ -1099,9 +1106,18 @@ internal sealed partial class MainForm
         // spazio ma resta usabile.
         _headerSearch.Dock = DockStyle.None;
         _headerSearch.OnDark = true;
-        _headerSearch.Placeholder = "Cerca nei movimenti…  (Ctrl+F)";
-        _headerSearch.Input.AccessibleName = "Cerca nei movimenti";
+        _headerSearch.Placeholder = "Cerca ovunque…  (Ctrl+K)";
+        _headerSearch.Input.AccessibleName = "Cerca nei movimenti, aziende, codici ed esportazioni";
         _headerSearch.TextChanged += (_, _) => SearchFromHeader();
+        _headerSearch.Input.GotFocus += (_, _) =>
+        {
+            RefreshSearchSources();
+            ComputeSearchHits(_headerSearch.Value);
+            UpdateSearchPopup();
+        };
+        _headerSearch.Input.LostFocus += (_, _) => _searchPopup.Visible = false;
+        _headerSearch.Input.KeyDown += HeaderSearchKeyDown;
+        _searchPopup.HitChosen += OnSearchHitChosen;
         host.Controls.Add(_headerSearch);
         host.Resize += (_, _) => LayoutHeaderSearch(host);
         LayoutHeaderSearch(host);
@@ -1119,6 +1135,7 @@ internal sealed partial class MainForm
             Math.Max(0, (host.ClientSize.Height - height) / 2),
             width,
             height);
+        PositionSearchPopup();
     }
 
     private void SearchFromHeader()
@@ -1131,7 +1148,10 @@ internal sealed partial class MainForm
         try
         {
             var value = _headerSearch.Value;
-            if (value.Length > 0)
+            ComputeSearchHits(value);
+            // Se oltre ai movimenti non c'è altro da proporre la ricerca fa quello che ha sempre fatto:
+            // porta ai movimenti filtrati. Se ci sono aziende, codici o esportazioni, scegli tu.
+            if (value.Length > 0 && !_searchHasOthers)
             {
                 ShowSection(SectionConversion);
                 _previewTabs.SelectedIndex = 0;
@@ -1139,10 +1159,141 @@ internal sealed partial class MainForm
             // Il filtro vero resta quello dell'area di revisione: qui si scrive
             // nello stesso campo, così la ricerca si comporta in un modo solo.
             _previewSearch.Value = value;
+            UpdateSearchPopup();
         }
         finally
         {
             _searchSyncing = false;
+        }
+    }
+
+    /// <summary>Dipendenti e giustificativi si leggono dal database una volta a ogni ingresso nel campo, non a ogni tasto.</summary>
+    private void RefreshSearchSources()
+    {
+        try
+        {
+            _searchEmployees = new Dictionary<string, string>(_database.GetEmployeeMappings(), StringComparer.OrdinalIgnoreCase);
+            _searchPolicies = new Dictionary<string, string>(_database.GetPolicyMappings(), StringComparer.OrdinalIgnoreCase);
+        }
+        catch (SqliteException)
+        {
+            // La ricerca resta su aziende ed esportazioni: nessun errore da mostrare per un di più.
+        }
+    }
+
+    private bool _searchHasOthers;
+
+    private void ComputeSearchHits(string value)
+    {
+        var hits = GlobalSearch.Find(value, _movements.Count, _companies, _searchEmployees, _searchPolicies, _exports);
+        _searchPopup.SetHits(hits);
+        _searchHasOthers = hits.Any(hit => hit.Kind != SearchKind.Movements);
+    }
+
+    private void UpdateSearchPopup()
+    {
+        var show = _headerSearch.Input.Focused && _searchHasOthers;
+        if (show)
+        {
+            PositionSearchPopup();
+        }
+        _searchPopup.Visible = show;
+        if (show)
+        {
+            _searchPopup.BringToFront();
+        }
+    }
+
+    private void PositionSearchPopup()
+    {
+        if (_headerSearch.Parent is null || _searchPopup.HitCount == 0)
+        {
+            return;
+        }
+        var origin = PointToClient(_headerSearch.Parent.PointToScreen(_headerSearch.Location));
+        _searchPopup.SetBounds(
+            origin.X,
+            origin.Y + _headerSearch.Height + 4,
+            _headerSearch.Width,
+            _searchPopup.PreferredHeight);
+    }
+
+    private void HeaderSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!_searchPopup.Visible)
+        {
+            return;
+        }
+        switch (e.KeyCode)
+        {
+            case Keys.Down:
+                _searchPopup.Move(1);
+                break;
+            case Keys.Up:
+                _searchPopup.Move(-1);
+                break;
+            case Keys.Enter:
+                _searchPopup.ChooseCurrent();
+                break;
+            case Keys.Escape:
+                _searchPopup.Visible = false;
+                break;
+            default:
+                return;
+        }
+        e.Handled = true;
+        e.SuppressKeyPress = true;
+    }
+
+    /// <summary>Apre la sezione giusta e, dove si può, seleziona la riga trovata.</summary>
+    private void OnSearchHitChosen(SearchHit hit)
+    {
+        _searchPopup.Visible = false;
+        switch (hit.Kind)
+        {
+            case SearchKind.Movements:
+                ShowSection(SectionConversion);
+                _previewTabs.SelectedIndex = 0;
+                _previewSearch.Value = hit.Key;
+                break;
+            case SearchKind.Company:
+                ShowSection(SectionCompanies);
+                SelectGridRow(_companiesGrid, row => row.Tag is CompanyRecord company &&
+                    string.Equals(company.Code, hit.Key, StringComparison.OrdinalIgnoreCase));
+                break;
+            case SearchKind.Employee:
+            case SearchKind.Policy:
+                ShowSection(SectionCodes);
+                _mappingPanel.SelectTab(hit.Kind == SearchKind.Employee ? 0 : 1);
+                break;
+            case SearchKind.Export:
+                ShowSection(SectionHistory);
+                SelectGridRow(_historyGrid, row => row.Tag is ExportRecord record &&
+                    record.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) == hit.Key);
+                break;
+        }
+    }
+
+    private static void SelectGridRow(DataGridView grid, Func<DataGridViewRow, bool> match)
+    {
+        foreach (DataGridViewRow row in grid.Rows)
+        {
+            if (!match(row))
+            {
+                continue;
+            }
+            grid.ClearSelection();
+            row.Selected = true;
+            if (row.Cells.Count > 0 && row.Cells[0].Visible)
+            {
+                grid.CurrentCell = row.Cells[0];
+            }
+            if (row.Index >= 0 && row.Index < grid.Rows.Count)
+            {
+                grid.FirstDisplayedScrollingRowIndex = Math.Max(0, row.Index - 2);
+            }
+            grid.Focus();
+            return;
         }
     }
 

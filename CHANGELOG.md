@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.39.0] - Corrente
+## [1.40.0] - Corrente
+
+### 🔎 Ricerca globale
+- **Il campo di ricerca in alto cerca ovunque**: oltre ai movimenti trova **aziende, dipendenti, giustificativi ed esportazioni**. Parole in qualsiasi ordine, senza distinguere maiuscole e accenti (stesse regole di prima)
+- **Elenco dei risultati sotto il campo**: fino a 8 voci con icona, titolo e dettaglio. Si naviga con **Su/Giù**, si sceglie con **Invio** o con un clic, **Esc** lo chiude. La scelta apre la sezione giusta e seleziona la riga trovata (aziende ed esportazioni); per dipendenti e giustificativi apre Gestione codici sulla scheda giusta
+- Nuova scorciatoia **Ctrl+K** per scrivere subito nel campo; **Ctrl+F** continua a filtrare i movimenti
+- Se a corrispondere sono solo i movimenti, la ricerca fa quello di sempre: porta ai movimenti filtrati
+- La conversione XML non è toccata
+
+## [1.39.0]
 
 ### ✨ Dashboard più curata
 - **Stato del sistema a pillole**: il valore di ogni riga è in una pillola colorata (verde = a posto, giallo = da controllare, rosso = problema), come nella grafica di riferimento
