@@ -222,7 +222,9 @@ internal static class Theme
             button.Font,
             new Size(int.MaxValue, int.MaxValue),
             TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
-        var needed = textWidth + button.Padding.Horizontal + (button.FlatAppearance.BorderSize * 2) + 16;
+        // Con un'icona serve anche il suo posto (come nel disegno del pulsante: icona + 7 px di distanza).
+        var iconRoom = button is ThemedButton { Icon: not null } ? (button.Height >= 32 ? 16 : 14) + 7 : 0;
+        var needed = textWidth + iconRoom + button.Padding.Horizontal + (button.FlatAppearance.BorderSize * 2) + 16;
         if (needed > button.MinimumSize.Width)
         {
             button.MinimumSize = new Size(needed, button.MinimumSize.Height);

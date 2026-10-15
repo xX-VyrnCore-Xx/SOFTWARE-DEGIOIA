@@ -22,7 +22,11 @@ internal enum Glyph
     Chip,
     Users,
     Sum,
-    Download
+    Download,
+    Plus,
+    Trash,
+    Transfer,
+    Save
 }
 
 /// <summary>
@@ -161,6 +165,32 @@ internal static class Glyphs
                 graphics.DrawLines(pen, [P(0.12f, 0.6f), P(0.12f, 0.9f), P(0.88f, 0.9f), P(0.88f, 0.6f)]);
                 break;
 
+            case Glyph.Plus:
+                graphics.DrawLine(pen, P(0.5f, 0.14f), P(0.5f, 0.86f));
+                graphics.DrawLine(pen, P(0.14f, 0.5f), P(0.86f, 0.5f));
+                break;
+
+            case Glyph.Trash:
+                graphics.DrawLine(pen, P(0.12f, 0.26f), P(0.88f, 0.26f));
+                graphics.DrawLines(pen, [P(0.38f, 0.26f), P(0.38f, 0.12f), P(0.62f, 0.12f), P(0.62f, 0.26f)]);
+                graphics.DrawLines(pen, [P(0.22f, 0.26f), P(0.28f, 0.9f), P(0.72f, 0.9f), P(0.78f, 0.26f)]);
+                graphics.DrawLine(pen, P(0.42f, 0.44f), P(0.42f, 0.76f));
+                graphics.DrawLine(pen, P(0.58f, 0.44f), P(0.58f, 0.76f));
+                break;
+
+            case Glyph.Transfer:
+                graphics.DrawLine(pen, P(0.1f, 0.32f), P(0.9f, 0.32f));
+                graphics.DrawLines(pen, [P(0.7f, 0.12f), P(0.9f, 0.32f), P(0.7f, 0.52f)]);
+                graphics.DrawLine(pen, P(0.1f, 0.68f), P(0.9f, 0.68f));
+                graphics.DrawLines(pen, [P(0.3f, 0.48f), P(0.1f, 0.68f), P(0.3f, 0.88f)]);
+                break;
+
+            case Glyph.Save:
+                graphics.DrawLines(pen, [P(0.12f, 0.12f), P(0.76f, 0.12f), P(0.88f, 0.24f), P(0.88f, 0.88f), P(0.12f, 0.88f), P(0.12f, 0.12f)]);
+                graphics.DrawLines(pen, [P(0.3f, 0.12f), P(0.3f, 0.36f), P(0.64f, 0.36f), P(0.64f, 0.12f)]);
+                graphics.DrawLines(pen, [P(0.28f, 0.88f), P(0.28f, 0.58f), P(0.72f, 0.58f), P(0.72f, 0.88f)]);
+                break;
+
             default: // Sum
                 graphics.DrawLines(pen, [P(0.76f, 0.14f), P(0.24f, 0.14f), P(0.54f, 0.5f), P(0.24f, 0.86f), P(0.76f, 0.86f)]);
                 break;
@@ -212,6 +242,8 @@ internal sealed class IconButton : Control
     private bool _hover;
     private bool _pressed;
     private bool _badge;
+    // 0 = riposo, 1 = passaggio del mouse: il colore scorre con una curva a tempo invece di scattare.
+    private AnimationClock? _hoverClock;
 
     public IconButton(string text, Glyph? glyph, Theme.ButtonTone tone = Theme.ButtonTone.Neutral)
     {
@@ -335,7 +367,8 @@ internal sealed class IconButton : Control
         }
         else
         {
-            fill = _pressed ? palette.Pressed : _hover ? palette.Hover : palette.Fill;
+            var blend = _hoverClock?.Value ?? (_hover ? 1f : 0f);
+            fill = _pressed ? palette.Pressed : Mix(palette.Fill, palette.Hover, blend);
             border = palette.Border;
             ink = palette.Ink;
         }
@@ -387,7 +420,7 @@ internal sealed class IconButton : Control
     {
         base.OnMouseEnter(e);
         _hover = true;
-        Invalidate();
+        SyncHover();
     }
 
     protected override void OnMouseLeave(EventArgs e)
@@ -395,7 +428,38 @@ internal sealed class IconButton : Control
         base.OnMouseLeave(e);
         _hover = false;
         _pressed = false;
+        SyncHover();
+    }
+
+    private void SyncHover()
+    {
+        _hoverClock ??= CreateHoverClock();
+        // Entra in fretta (risponde al mouse), esce un po' più piano.
+        _hoverClock.AnimateTo(_hover && Enabled ? 1f : 0f, _hover ? Motion.Quick : Motion.Standard);
         Invalidate();
+    }
+
+    private AnimationClock CreateHoverClock()
+    {
+        var clock = new AnimationClock(this);
+        clock.Frame += (_, _) => Invalidate();
+        return clock;
+    }
+
+    private static Color Mix(Color from, Color to, float amount) => Color.FromArgb(
+        255,
+        (int)Math.Round(from.R + ((to.R - from.R) * amount)),
+        (int)Math.Round(from.G + ((to.G - from.G) * amount)),
+        (int)Math.Round(from.B + ((to.B - from.B) * amount)));
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _hoverClock?.Dispose();
+            _hoverClock = null;
+        }
+        base.Dispose(disposing);
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
@@ -431,6 +495,7 @@ internal sealed class IconButton : Control
     protected override void OnEnabledChanged(EventArgs e)
     {
         base.OnEnabledChanged(e);
+        _hoverClock?.Jump(0f);
         Invalidate();
     }
 

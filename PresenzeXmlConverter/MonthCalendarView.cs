@@ -28,7 +28,7 @@ internal sealed class MonthCalendarView : Panel
     private readonly Label _monthLabel = new();
     private readonly Button _previous = Theme.CreateButton("‹", Theme.ButtonTone.Neutral, compact: true);
     private readonly Button _next = Theme.CreateButton("›", Theme.ButtonTone.Neutral, compact: true);
-    private readonly Button _export = Theme.CreateButton("Esporta  ▾", Theme.ButtonTone.Neutral, compact: true);
+    private readonly Button _export = Theme.CreateButton("Esporta  ▾", Theme.ButtonTone.Neutral, compact: true).WithIcon(Glyph.Download);
     private readonly RoundedField _search = new();
     private readonly CheckBox _gapsOnly = new();
     private readonly Panel _alertBar = new();

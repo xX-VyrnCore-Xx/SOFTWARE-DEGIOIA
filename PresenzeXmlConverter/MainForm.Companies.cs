@@ -152,30 +152,35 @@ internal sealed partial class MainForm
             Margin = Padding.Empty
         };
         _companySaveButton.Text = "Salva azienda";
+        _companySaveButton.WithIcon(Glyph.Save);
         Theme.StyleButton(_companySaveButton, Theme.ButtonTone.Primary, compact: true);
         _companySaveButton.Margin = new Padding(8, 0, 0, 0);
         _companySaveButton.Click += (_, _) => SaveCompanyFromForm();
         Describe(_companySaveButton, "Salva azienda", "Crea l'azienda o aggiorna quella con lo stesso codice.");
 
         _companyUseButton.Text = "Usa in conversione";
+        _companyUseButton.WithIcon(Glyph.Arrow);
         Theme.StyleButton(_companyUseButton, Theme.ButtonTone.Positive, compact: true);
         _companyUseButton.Margin = new Padding(8, 0, 0, 0);
         _companyUseButton.Click += (_, _) => UseSelectedCompany();
         Describe(_companyUseButton, "Usa in conversione", "Imposta l'azienda selezionata come azienda del file XML.");
 
         _companyNewButton.Text = "Nuova";
+        _companyNewButton.WithIcon(Glyph.Plus);
         Theme.StyleButton(_companyNewButton, Theme.ButtonTone.Neutral, compact: true);
         _companyNewButton.Margin = new Padding(8, 0, 0, 0);
         _companyNewButton.Click += (_, _) => ClearCompanyForm();
         Describe(_companyNewButton, "Nuova azienda", "Svuota i campi per inserire un'altra azienda.");
 
         _companyDeleteButton.Text = "Elimina";
+        _companyDeleteButton.WithIcon(Glyph.Trash);
         Theme.StyleButton(_companyDeleteButton, Theme.ButtonTone.Neutral, compact: true);
         _companyDeleteButton.Margin = new Padding(8, 0, 0, 0);
         _companyDeleteButton.Click += (_, _) => DeleteSelectedCompany();
         Describe(_companyDeleteButton, "Elimina azienda", "Toglie l'azienda dall'elenco: i file già esportati non cambiano.");
 
         _companyRulesButton.Text = "Regole…";
+        _companyRulesButton.WithIcon(Glyph.Gear);
         Theme.StyleButton(_companyRulesButton, Theme.ButtonTone.Neutral, compact: true);
         _companyRulesButton.Margin = new Padding(8, 0, 0, 0);
         _companyRulesButton.Click += (_, _) => EditSelectedCompanyRules();
@@ -202,7 +207,7 @@ internal sealed partial class MainForm
         actions.Controls.Add(_companyNewButton);
         actions.Controls.Add(_companyRulesButton);
         actions.Controls.Add(_companyDeleteButton);
-        var transfer = CreateTransferButton(() => Theme.CreateButton("Trasferisci", Theme.ButtonTone.Neutral, compact: true));
+        var transfer = CreateTransferButton(() => Theme.CreateButton("Trasferisci", Theme.ButtonTone.Neutral, compact: true).WithIcon(Glyph.Transfer));
         transfer.Margin = Padding.Empty;
         transfer.MinimumSize = new Size(132, transfer.MinimumSize.Height);
         transfer.Size = new Size(132, transfer.Height);
