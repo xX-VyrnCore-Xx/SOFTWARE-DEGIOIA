@@ -307,9 +307,15 @@ internal sealed partial class MainForm
 
     private async Task DownloadAndInstallAsync(UpdateInfo update)
     {
-        var destination = Path.Combine(
-            Path.GetTempPath(),
-            $"PresenzeFlow-Setup-{update.Version.ToString(3)}.exe");
+        // Cartella privata dell'utente e nome casuale: in %TEMP% con un nome prevedibile un altro programma potrebbe
+        // piazzare (o sostituire) il file prima che venga eseguito.
+        var updateDirectory = UpdateSecurity.PrivateUpdateDirectory();
+        Directory.CreateDirectory(updateDirectory);
+        foreach (var stale in UpdateSecurity.StaleInstallers(updateDirectory, DateTime.UtcNow, TimeSpan.FromDays(1)))
+        {
+            TryDelete(stale);
+        }
+        var destination = Path.Combine(updateDirectory, UpdateSecurity.InstallerFileName(update.Version, Guid.NewGuid()));
         using var progress = new UpdateProgressDialog(update.Version.ToString(3));
         var clock = Stopwatch.StartNew();
         progress.Show(this);
@@ -352,13 +358,34 @@ internal sealed partial class MainForm
                     "Il file scaricato non corrisponde al checksum della Release: aggiornamento annullato.");
             }
 
-            if (ExecutableSignature.IsSignatureDowngrade(
-                    ExecutableSignature.SignerThumbprint(Environment.ProcessPath),
-                    ExecutableSignature.SignerThumbprint(destination)))
+            // Da qui il file è tenuto aperto in lettura senza condivisione in scrittura: nessuno può sostituirlo
+            // fra la verifica e l'avvio dell'installer.
+            using var lockedInstaller = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var decision = UpdateSecurity.EvaluateInstaller(
+                AuthenticodeVerifier.Verify(destination),
+                ExecutableSignature.SignerThumbprint(Environment.ProcessPath),
+                ExecutableSignature.SignerThumbprint(destination));
+            if (decision.Verdict is InstallerVerdict.RejectUnsigned or InstallerVerdict.RejectTampered)
             {
+                lockedInstaller.Dispose();
                 TryDelete(destination);
-                throw new InvalidDataException(
-                    "L'installer scaricato non è firmato, mentre questa applicazione lo è: aggiornamento annullato per sicurezza.");
+                throw new InvalidDataException(decision.Message);
+            }
+            if (decision.Verdict == InstallerVerdict.AskUser &&
+                MessageBox.Show(
+                    this,
+                    decision.Message + Environment.NewLine + Environment.NewLine +
+                    $"Firmatario attuale: {ExecutableSignature.DescribeCurrentExecutable()}" + Environment.NewLine +
+                    $"Firmatario dell'installer: {ExecutableSignature.DescribeFile(destination)}" + Environment.NewLine + Environment.NewLine +
+                    "Vuoi installare lo stesso?",
+                    "Aggiornamento firmato da un altro certificato",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            {
+                lockedInstaller.Dispose();
+                TryDelete(destination);
+                throw new InvalidDataException("Aggiornamento annullato: l'installer è firmato da un certificato diverso.");
             }
 
             // Le note vengono salvate prima del riavvio: dopo l'aggiornamento la

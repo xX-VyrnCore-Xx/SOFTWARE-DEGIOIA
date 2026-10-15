@@ -131,13 +131,11 @@ internal static class UpdateService
     {
         try
         {
-            if (File.Exists(TokenFilePath))
+            // Il file è cifrato con DPAPI (un token in chiaro delle versioni precedenti si riscrive cifrato).
+            var value = SanitizeToken(TokenStorage.Read(TokenFilePath));
+            if (value.Length > 0)
             {
-                var value = SanitizeToken(File.ReadAllText(TokenFilePath));
-                if (value.Length > 0)
-                {
-                    return value;
-                }
+                return value;
             }
         }
         catch (IOException)
@@ -180,7 +178,7 @@ internal static class UpdateService
         }
         try
         {
-            if (File.Exists(TokenFilePath) && SanitizeToken(File.ReadAllText(TokenFilePath)).Length > 0)
+            if (SanitizeToken(TokenStorage.Read(TokenFilePath)).Length > 0)
             {
                 return "file di configurazione locale";
             }
@@ -219,7 +217,7 @@ internal static class UpdateService
             {
                 Directory.CreateDirectory(directory);
             }
-            File.WriteAllText(TokenFilePath, token);
+            TokenStorage.Write(TokenFilePath, token);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -410,6 +408,13 @@ internal static class UpdateService
                     var name = ReadString(asset, "name") ?? string.Empty;
                     var url = ReadString(asset, "url");
                     if (string.IsNullOrWhiteSpace(url))
+                    {
+                        continue;
+                    }
+                    // Con l'indirizzo predefinito gli asset devono stare sul repository atteso, su api.github.com in
+                    // HTTPS: il token viaggia con la richiesta e non deve mai finire altrove.
+                    if (string.IsNullOrWhiteSpace(endpointOverride) &&
+                        !UpdateSecurity.IsTrustedAssetUrl(url, DefaultOwner, DefaultRepository))
                     {
                         continue;
                     }

@@ -36,12 +36,68 @@ internal static class ExecutableSignature
         try
         {
             using var certificate = new X509Certificate2(X509Certificate.CreateFromSignedFile(path));
-            return FormatSigner(certificate.Subject, certificate.NotAfter);
+            var text = FormatSigner(certificate.Subject, certificate.NotAfter);
+            var notice = ExpiryNotice(certificate.NotAfter, DateTime.Now);
+            return notice is null ? text : $"{text} — {notice}";
         }
         catch (Exception)
         {
             // Nessuna firma, file illeggibile o sistema che non sa leggerla.
             return NotSignedText;
+        }
+    }
+
+    /// <summary>Come <see cref="DescribeCurrentExecutable"/> ma per un file qualsiasi (per esempio l'installer scaricato).</summary>
+    public static string DescribeFile(string path)
+    {
+        try
+        {
+            using var certificate = new X509Certificate2(X509Certificate.CreateFromSignedFile(path));
+            return $"{FormatSigner(certificate.Subject, certificate.NotAfter)} · impronta {certificate.Thumbprint[..Math.Min(12, certificate.Thumbprint.Length)]}…";
+        }
+        catch (Exception)
+        {
+            return NotSignedText;
+        }
+    }
+
+    /// <summary>
+    /// Avviso quando il certificato di firma sta per scadere (o è scaduto): le firme già fatte restano valide
+    /// grazie alla marca temporale, ma i nuovi rilasci vanno firmati con un certificato rinnovato.
+    /// Null se la scadenza è lontana o ignota.
+    /// </summary>
+    internal static string? ExpiryNotice(DateTime? notAfter, DateTime now, int warnDays = 60)
+    {
+        if (notAfter is null)
+        {
+            return null;
+        }
+        var days = (int)Math.Floor((notAfter.Value - now).TotalDays);
+        if (days < 0)
+        {
+            return "Il certificato di firma è scaduto: le nuove versioni vanno firmate con un certificato rinnovato.";
+        }
+        return days <= warnDays
+            ? $"Il certificato di firma scade fra {days} giorni: va rinnovato prima del prossimo rilascio."
+            : null;
+    }
+
+    /// <summary>Scadenza del certificato con cui è firmato l'eseguibile in esecuzione (null se non firmato).</summary>
+    public static DateTime? CurrentCertificateExpiry()
+    {
+        var path = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return null;
+        }
+        try
+        {
+            using var certificate = new X509Certificate2(X509Certificate.CreateFromSignedFile(path));
+            return certificate.NotAfter;
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
