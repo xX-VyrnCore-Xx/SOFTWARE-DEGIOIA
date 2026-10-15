@@ -101,6 +101,7 @@ internal sealed partial class MainForm
 
         _dashDropZone.Click += async (_, _) => await ImportWorkbookAsync();
         _dashDropZone.FileDropped += async path => await LoadWorkbookAsync(path);
+        _dashDropZone.RemoveRequested += RemoveWorkbook;
         RefreshDashboardCards();
         return page;
     }
@@ -137,7 +138,7 @@ internal sealed partial class MainForm
         Describe(
             _dashDropZone,
             "Scegli o trascina il foglio Excel",
-            "Apre un foglio .xlsx da convertire in XML TRRIPW: fai clic oppure trascina il file qui.");
+            "Apre un foglio .xlsx da convertire in XML TRRIPW: fai clic oppure trascina il file qui. Con la «×» (o Canc) rimuovi il file caricato.");
         layout.Controls.Add(_dashDropZone, 0, 1);
 
         _dashStepper.Dock = DockStyle.Fill;

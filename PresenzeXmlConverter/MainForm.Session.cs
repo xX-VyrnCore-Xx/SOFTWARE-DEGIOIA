@@ -68,6 +68,68 @@ internal sealed partial class MainForm
         _database.SaveSetting(SessionState.SettingKey, SessionState.Serialize(snapshot));
     }
 
+    /// <summary>
+    /// Toglie il file Excel caricato (importato per sbaglio o semplicemente da chiudere) e riporta il programma
+    /// allo stato iniziale. Se c'è un'anteprima non ancora esportata si chiede conferma: è l'unico lavoro che si perde.
+    /// Il database dei codici e le esportazioni già fatte non si toccano.
+    /// </summary>
+    private void RemoveWorkbook()
+    {
+        if (_isBusy || (_sourcePath is null && _inspection is null))
+        {
+            return;
+        }
+        var name = _sourcePath is null ? "il file" : $"«{Path.GetFileName(_sourcePath)}»";
+        var unsaved = _movements.Count > 0 && !HasExportedCurrentPreview();
+        var message = unsaved
+            ? $"Vuoi rimuovere {name}? L'anteprima generata non è ancora stata esportata in XML e andrà persa."
+            : $"Vuoi rimuovere {name}? I codici salvati e le esportazioni già fatte restano.";
+        if (MessageBox.Show(
+                this,
+                message,
+                "Rimuovi file",
+                MessageBoxButtons.YesNo,
+                unsaved ? MessageBoxIcon.Warning : MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+        {
+            return;
+        }
+
+        var removed = Path.GetFileName(_sourcePath ?? string.Empty);
+        _requests = Array.Empty<AttendanceRequest>();
+        _inspection = null;
+        _columns = null;
+        _sourcePath = null;
+        _sheetNames = Array.Empty<string>();
+        _movements = new List<DailyMovement>();
+        SetSourceProblems(Array.Empty<string>());
+        _fileLabel.Text = string.Empty;
+        ClearGeneratedPreview();
+        ResetReview();
+        _previewTitleLabel.Text = "Area di revisione";
+        _previewSubtitleLabel.Text = "Importa un foglio Excel per visualizzare e controllare i movimenti.";
+        _codesLoaded = false;
+        UpdateWorkflowSummary();
+        RefreshDashboard();
+        UpdateButtons();
+        MarkSessionDirty();
+        SetStatus("●   File rimosso: importa un altro foglio quando vuoi.", false);
+        Notify(ToastKind.Info, "File rimosso", removed.Length > 0 ? $"{removed} non è più caricato." : "Nessun file caricato.");
+    }
+
+    /// <summary>L'anteprima in uso è già nello storico delle esportazioni?</summary>
+    private bool HasExportedCurrentPreview()
+    {
+        try
+        {
+            return _database.FindExportByFingerprint(ExportHistory.Fingerprint(_companyCode.Value, _movements)) is not null;
+        }
+        catch (SqliteException)
+        {
+            return true;
+        }
+    }
+
     /// <summary>Dimentica il lavoro salvato: alla prossima apertura il programma parte pulito.</summary>
     private void ForgetSavedSession()
     {

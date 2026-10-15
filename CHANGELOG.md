@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.26.0] - Corrente
+## [1.27.0] - Corrente
+
+### 🗑️ Rimuovi il file Excel
+- Con un file caricato, l'area del file (in dashboard e nella scheda Conversione) mostra una **«×»**: un clic (o il tasto **Canc**) lo rimuove, per un file importato per sbaglio o che non serve più
+- Prima di rimuovere chiede conferma; se c'è un'anteprima non ancora esportata lo dice, perché è l'unico lavoro che si perde
+- Tornano allo stato iniziale anteprima, controlli, calendario e lavoro salvato; **codici salvati ed esportazioni già fatte non si toccano**
+- La conversione XML non è toccata
+
+## [1.26.0]
 
 ### 📊 Dashboard più ricca
 - Nuova card **«Analisi del mese»** accanto alle ultime esportazioni: una barra presenza/assenza, i **giustificativi che pesano di più** (con gli stessi colori del calendario, ore e barretta proporzionale) e i giorni **da controllare / da verificare**
