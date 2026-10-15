@@ -144,6 +144,8 @@ internal sealed partial class MainForm : Form
             LoadCompaniesQuietly();
             StartDatabaseMaintenance();
             Trace?.WriteTo(StartupLogPath);
+            // Il lavoro lasciato aperto l'ultima volta (file, anteprima e correzioni) torna com'era.
+            _ = RestoreSessionAsync();
         });
     }
 
@@ -238,6 +240,14 @@ internal sealed partial class MainForm : Form
         // Chiusura vera. Sono tutte operazioni "di cortesia" (posizione della finestra,
         // copia di sicurezza, icona del tray): se una fallisce, l'uscita non deve
         // fermarsi, altrimenti il programma sembra non rispondere al comando Esci.
+        try
+        {
+            SaveSession();
+        }
+        catch (Exception)
+        {
+            // Salvataggio di cortesia: non deve impedire la chiusura.
+        }
         // Codici scritti e non ancora salvati: si salvano a metà, così una chiusura per sbaglio non li butta.
         try
         {
@@ -329,6 +339,7 @@ internal sealed partial class MainForm : Form
             SetStatus(notifications.Checked ? "●   Notifiche di Windows attivate." : "●   Notifiche di Windows disattivate.", false);
         };
         menu.Items.Add(notifications);
+        menu.Items.Add("Dimentica il lavoro salvato", null, (_, _) => ForgetSavedSession());
         menu.Items.Add("Alla chiusura chiedi di nuovo", null, (_, _) =>
         {
             _database.SaveSetting("close-behavior", string.Empty);
@@ -478,7 +489,7 @@ internal sealed partial class MainForm : Form
     /// file trascinato sulla finestra, così le due strade si comportano allo
     /// stesso modo (stesso controllo dei codici, stesse segnalazioni).
     /// </summary>
-    private async Task LoadWorkbookAsync(string path)
+    private async Task<bool> LoadWorkbookAsync(string path, string? sheetName = null, bool restoring = false)
     {
         try
         {
@@ -486,7 +497,7 @@ internal sealed partial class MainForm : Form
             WorkbookInspection inspection;
             try
             {
-                inspection = await Task.Run(() => AttendanceWorkbookReader.Inspect(path));
+                inspection = await Task.Run(() => AttendanceWorkbookReader.Inspect(path, sheetName));
             }
             finally
             {
@@ -495,10 +506,15 @@ internal sealed partial class MainForm : Form
             var columns = inspection.SuggestedColumns;
             if (columns is null)
             {
+                // Ripristino all'avvio: niente finestre a sorpresa, il file si importa a mano.
+                if (restoring)
+                {
+                    return false;
+                }
                 using var mappingDialog = new ColumnMappingDialog(inspection.Headers, null);
                 if (mappingDialog.ShowDialog(this) != DialogResult.OK || mappingDialog.Selection is null)
                 {
-                    return;
+                    return false;
                 }
                 columns = mappingDialog.Selection;
             }
@@ -525,15 +541,24 @@ internal sealed partial class MainForm : Form
             // Un file appena importato porta l'utente dove si lavora, anche se era
             // sulla dashboard: i codici da verificare sono cambiati.
             _codesLoaded = false;
-            ShowSection(SectionConversion);
+            if (!restoring)
+            {
+                ShowSection(SectionConversion);
+            }
             RefreshDashboard();
             SetStatus("●   File importato correttamente", false);
             UpdateButtons();
+            MarkSessionDirty();
+            return true;
         }
         catch (Exception exception) when (IsExpectedInputError(exception) ||
                                           exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
-            ShowError("Importazione Excel non riuscita", exception);
+            if (!restoring)
+            {
+                ShowError("Importazione Excel non riuscita", exception);
+            }
+            return false;
         }
     }
 
@@ -655,6 +680,7 @@ internal sealed partial class MainForm : Form
             UpdateButtons();
             NotifyConversionCompleted(result.Movements.Count);
             NotifyCalendarAlerts();
+            MarkSessionDirty();
             if (ErrorCount > 0)
             {
                 _previewTabs.SelectedIndex = ReviewTabIndex;
@@ -1026,6 +1052,7 @@ internal sealed partial class MainForm : Form
             // Il calendario segue le modifiche alla griglia, prima dei controlli che ne aggiornano il riepilogo.
             RefreshCalendar(movements);
             RunDeterministicChecks(movements);
+            MarkSessionDirty();
             UpdatePreviewSummary(movements);
             UpdateButtons();
             SetStatus(ErrorCount > 0
@@ -1084,6 +1111,7 @@ internal sealed partial class MainForm : Form
     {
         _xml = null;
         _currentPreviewExported = false;
+        MarkSessionDirty();
         _xmlPreview.Clear();
         _movementsGrid.Rows.Clear();
         _calendarView.Clear();
