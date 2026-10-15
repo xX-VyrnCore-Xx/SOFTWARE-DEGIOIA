@@ -410,7 +410,7 @@ internal sealed partial class MainForm
             Font = Theme.Fonts.Tiny,
             AutoEllipsis = true,
             Margin = Padding.Empty,
-            Text = "I codici restano nel profilo Windows: le conversioni successive li ritrovano già pronti."
+            Text = "Codici salvati su questo PC."
         };
         bar.Controls.Add(hint, 0, 0);
 
