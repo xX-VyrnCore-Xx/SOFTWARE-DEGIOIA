@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.38.0] - Corrente
+## [1.39.0] - Corrente
+
+### ✨ Dashboard più curata
+- **Stato del sistema a pillole**: il valore di ogni riga è in una pillola colorata (verde = a posto, giallo = da controllare, rosso = problema), come nella grafica di riferimento
+- **Nuova riga «Certificato»**: dice se l'app è firmata e fino a quando è valido il certificato (giallo negli ultimi 60 giorni, rosso se scaduto)
+- **Anello animato** nell'area di rilascio mentre il foglio viene letto; fermo se in Windows hai spento gli effetti di animazione
+- Testata, ricerca, pillola di stato, passi Importa · Verifica · Esporta e barra di stato in fondo c'erano già e restano come sono
+- La conversione XML non è toccata
+
+## [1.38.0]
 
 ### 🔄 Schermata di aggiornamento
 - **Quattro passi ben visibili**: scaricamento, controllo del file, verifica della firma, installazione. Il passo in corso è evidenziato, quelli finiti hanno la spunta verde

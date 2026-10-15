@@ -428,7 +428,56 @@ internal sealed class DropZone : Control
     /// <summary>L'utente vuole togliere il file caricato (la «×» a destra o il tasto Canc).</summary>
     public event Action? RemoveRequested;
 
-    public bool Busy { get; set; }
+    private bool _busy;
+    private System.Windows.Forms.Timer? _spinTimer;
+    private readonly System.Diagnostics.Stopwatch _spinClock = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>Lettura in corso: al posto dell'icona gira un anello (fermo se Windows ha gli effetti spenti).</summary>
+    public bool Busy
+    {
+        get => _busy;
+        set
+        {
+            if (_busy == value)
+            {
+                return;
+            }
+            _busy = value;
+            UpdateSpinner();
+            Invalidate();
+        }
+    }
+
+    private void UpdateSpinner()
+    {
+        if (_busy && AnimationClock.EffectsEnabled)
+        {
+            _spinTimer ??= new System.Windows.Forms.Timer { Interval = 30 };
+            _spinTimer.Tick -= OnSpinTick;
+            _spinTimer.Tick += OnSpinTick;
+            _spinTimer.Start();
+        }
+        else
+        {
+            _spinTimer?.Stop();
+        }
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        UpdateSpinner();
+    }
+
+    private void OnSpinTick(object? sender, EventArgs e)
+    {
+        if (!_busy || !Visible)
+        {
+            _spinTimer?.Stop();
+            return;
+        }
+        Invalidate();
+    }
 
     /// <summary>Zona cliccabile della «×» che toglie il file: solo a file caricato.</summary>
     private Rectangle RemoveBounds
@@ -489,17 +538,35 @@ internal sealed class DropZone : Control
         var chip = Math.Min(44, bounds.Height - 20);
         var chipBox = new Rectangle(bounds.Left + 16, bounds.Top + ((bounds.Height - chip) / 2), chip, chip);
         using (var chipPath = Theme.RoundedRectangle(chipBox, 12))
-        using (var chipBrush = new SolidBrush(_loaded ? Theme.Success : Mix(Theme.BrandLite, Theme.Brand, blend)))
+        using (var chipBrush = new SolidBrush(_loaded ? Theme.Success : Busy ? Theme.Brand : Mix(Theme.BrandLite, Theme.Brand, blend)))
         {
             graphics.FillPath(chipBrush, chipPath);
         }
         var chipInk = _loaded ? Color.White : blend > 0.5f ? Color.White : Theme.BrandInk;
-        Glyphs.Draw(
-            graphics,
-            Rectangle.Inflate(chipBox, -(chip / 4), -(chip / 4)),
-            _loaded ? Glyph.Check : Glyph.Upload,
-            chipInk,
-            1.8f);
+        if (Busy)
+        {
+            // Anello che gira: l'arco si allunga e si accorcia, senza mai fermarsi mentre il foglio viene letto.
+            var ring = Rectangle.Inflate(chipBox, -(chip / 4), -(chip / 4));
+            var elapsed = _spinClock.Elapsed.TotalMilliseconds;
+            var animated = _spinTimer is { Enabled: true };
+            using var track = new Pen(Color.FromArgb(70, Color.White), 2.4f);
+            using var arc = new Pen(Color.White, 2.4f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+            graphics.DrawEllipse(track, ring);
+            graphics.DrawArc(
+                arc,
+                ring,
+                animated ? SpinnerMath.StartAngle(elapsed) : -90f,
+                animated ? SpinnerMath.Sweep(elapsed) : 120f);
+        }
+        else
+        {
+            Glyphs.Draw(
+                graphics,
+                Rectangle.Inflate(chipBox, -(chip / 4), -(chip / 4)),
+                _loaded ? Glyph.Check : Glyph.Upload,
+                chipInk,
+                1.8f);
+        }
 
         var textLeft = chipBox.Right + 14;
         var textWidth = Math.Max(10, bounds.Right - textLeft - (_loaded ? 12 + RemoveBounds.Width + 8 : 12));
@@ -618,6 +685,8 @@ internal sealed class DropZone : Control
         {
             _activeClock?.Dispose();
             _activeClock = null;
+            _spinTimer?.Dispose();
+            _spinTimer = null;
         }
         base.Dispose(disposing);
     }
@@ -914,13 +983,35 @@ internal sealed class StatusRow : Control
         var valueLeft = left + titleWidth + 12;
         if (valueLeft < Width - 20)
         {
-            TextRenderer.DrawText(
-                graphics,
-                _value,
-                Theme.Fonts.Small,
-                new Rectangle(valueLeft, 0, Width - valueLeft, Height),
-                ink,
-                ModernPalette.Single | TextFormatFlags.Right);
+            if (_tone == StatusTone.Neutral)
+            {
+                TextRenderer.DrawText(
+                    graphics,
+                    _value,
+                    Theme.Fonts.Small,
+                    new Rectangle(valueLeft, 0, Width - valueLeft, Height),
+                    ink,
+                    ModernPalette.Single | TextFormatFlags.Right);
+            }
+            else
+            {
+                // Stato buono, da controllare o in errore: il valore sta in una pillola colorata a destra.
+                var pillWidth = Math.Min(Width - valueLeft, ModernPalette.Measure(_value, Theme.Fonts.Small).Width + 20);
+                var pill = new Rectangle(Width - pillWidth, (Height - 22) / 2, pillWidth, 22);
+                using (var pillPath = Theme.RoundedRectangle(pill, 11))
+                using (var pillBrush = new SolidBrush(soft))
+                {
+                    graphics.FillPath(pillBrush, pillPath);
+                }
+                TextRenderer.DrawText(
+                    graphics,
+                    _value,
+                    Theme.Fonts.Small,
+                    Rectangle.Inflate(pill, -8, 0),
+                    ink,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding |
+                    TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+            }
         }
     }
 }
