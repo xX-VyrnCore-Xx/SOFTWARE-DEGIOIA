@@ -251,15 +251,15 @@ internal sealed partial class MainForm
     private void RefreshDashboardCards()
     {
         var summary = DashboardSummary.From(_requests, _movements, _exports.Count);
-        _kpiRequests.Value = summary.RequestsText;
+        _kpiRequests.AnimateTo(summary.RequestsText);
         _kpiRequests.Caption = _inspection is null ? "nessun foglio letto" : $"dal foglio «{_inspection.SheetName}»";
-        _kpiEmployees.Value = summary.EmployeesText;
+        _kpiEmployees.AnimateTo(summary.EmployeesText);
         _kpiEmployees.Caption = "dipendenti distinti";
-        _kpiMovements.Value = summary.MovementsText;
+        _kpiMovements.AnimateTo(summary.MovementsText);
         _kpiMovements.Caption = summary.HasMovements
             ? $"su {summary.DaysText} giorni lavorativi"
             : "genera l'anteprima";
-        _kpiHours.Value = summary.CompactTotalText;
+        _kpiHours.AnimateTo(summary.CompactTotalText);
         _kpiHours.Caption = "nell'anteprima corrente";
 
         _dashInsights.Insights = _movements.Count == 0
