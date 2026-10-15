@@ -15,10 +15,10 @@ internal sealed class ThemedButton : Button
     private const int Radius = 8;
     private bool _hover;
     private bool _pressed;
-    // 0 = riposo, 1 = passaggio del mouse: il colore scorre fra i due in pochi fotogrammi
-    // invece di scattare, come nelle app curate.
+    // 0 = riposo, 1 = passaggio del mouse: il colore scorre fra i due con una curva a tempo
+    // (non a passi fissi) invece di scattare, come nelle app curate.
     private float _blend;
-    private System.Windows.Forms.Timer? _fade;
+    private AnimationClock? _clock;
 
     public ThemedButton()
     {
@@ -48,40 +48,35 @@ internal sealed class ThemedButton : Button
 
     private void StartFade()
     {
-        if (!IsHandleCreated || !Enabled)
+        _clock ??= CreateClock();
+        if (!Enabled)
         {
-            _blend = _hover && Enabled ? 1f : 0f;
+            _clock.Jump(0f);
+            _blend = 0f;
             Invalidate();
             return;
         }
-        _fade ??= CreateFadeTimer();
-        _fade.Start();
+        // Entra in fretta (il pulsante risponde al mouse), esce un po' più piano.
+        _clock.AnimateTo(_hover ? 1f : 0f, _hover ? Motion.Quick : Motion.Standard);
     }
 
-    private System.Windows.Forms.Timer CreateFadeTimer()
+    private AnimationClock CreateClock()
     {
-        var timer = new System.Windows.Forms.Timer { Interval = 16 };
-        timer.Tick += (_, _) =>
+        var clock = new AnimationClock(this);
+        clock.Frame += (_, _) =>
         {
-            var target = _hover ? 1f : 0f;
-            var step = target > _blend ? 0.25f : -0.2f;
-            _blend = Math.Clamp(_blend + step, 0f, 1f);
-            if (Math.Abs(_blend - target) < 0.01f)
-            {
-                _blend = target;
-                timer.Stop();
-            }
+            _blend = clock.Value;
             Invalidate();
         };
-        return timer;
+        return clock;
     }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            _fade?.Dispose();
-            _fade = null;
+            _clock?.Dispose();
+            _clock = null;
         }
         base.Dispose(disposing);
     }
@@ -114,6 +109,7 @@ internal sealed class ThemedButton : Button
         _hover = false;
         _pressed = false;
         _blend = 0f;
+        _clock?.Jump(0f);
         base.OnEnabledChanged(e);
         Invalidate();
     }

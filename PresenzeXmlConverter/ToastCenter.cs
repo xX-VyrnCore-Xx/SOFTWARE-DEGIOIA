@@ -29,13 +29,22 @@ internal sealed class ToastCenter : IDisposable
 
     private readonly Form _owner;
     private readonly List<ToastCard> _cards = [];
+    private readonly List<ToastCard> _closing = [];
     private readonly System.Windows.Forms.Timer _clock = new() { Interval = 80 };
+    // Animazione dei cartellini: entrano scorrendo da destra, escono nello stesso modo e gli altri si ricompongono
+    // con un movimento morbido invece di scattare. Il timer resta acceso solo finché qualcosa si muove.
+    private readonly System.Windows.Forms.Timer _motion = new() { Interval = 15 };
+    private readonly System.Diagnostics.Stopwatch _watch = System.Diagnostics.Stopwatch.StartNew();
+    private int _right;
     private bool _disposed;
+
+    private double NowMs => _watch.Elapsed.TotalMilliseconds;
 
     public ToastCenter(Form owner)
     {
         _owner = owner;
         _clock.Tick += (_, _) => Tick();
+        _motion.Tick += (_, _) => Step();
         _owner.Resize += (_, _) => Arrange();
         _owner.Disposed += (_, _) => Dispose();
     }
@@ -63,9 +72,17 @@ internal sealed class ToastCenter : IDisposable
         }
         _owner.Controls.Add(card);
         card.BringToFront();
+        if (AnimationClock.EffectsEnabled)
+        {
+            card.Slide.Jump(SlideDistance(card));
+            card.Slide.MoveTo(0f, NowMs, Motion.Standard);
+        }
         Arrange();
         _clock.Start();
+        _motion.Start();
     }
+
+    private static float SlideDistance(ToastCard card) => card.Width * 0.35f;
 
     private void Remove(ToastCard card)
     {
@@ -73,12 +90,56 @@ internal sealed class ToastCenter : IDisposable
         {
             return;
         }
-        _owner.Controls.Remove(card);
-        card.Dispose();
+        if (AnimationClock.EffectsEnabled && !_disposed && !_owner.IsDisposed)
+        {
+            // Esce scorrendo verso destra; il controllo si elimina a fine corsa.
+            card.Closing = true;
+            card.Slide.MoveTo(SlideDistance(card), NowMs, Motion.Quick);
+            _closing.Add(card);
+            _motion.Start();
+        }
+        else
+        {
+            Discard(card);
+        }
         Arrange();
         if (_cards.Count == 0)
         {
             _clock.Stop();
+        }
+    }
+
+    private void Discard(ToastCard card)
+    {
+        _closing.Remove(card);
+        _owner.Controls.Remove(card);
+        card.Dispose();
+    }
+
+    /// <summary>Un fotogramma: posiziona i cartellini, toglie quelli usciti, spegne il timer quando tutto è fermo.</summary>
+    private void Step()
+    {
+        if (_disposed || _owner.IsDisposed)
+        {
+            _motion.Stop();
+            return;
+        }
+        var now = NowMs;
+        var running = false;
+        foreach (var card in _cards.Concat(_closing).ToArray())
+        {
+            card.Location = new Point(
+                _right - card.Width + (int)Math.Round(card.Slide.ValueAt(now)),
+                (int)Math.Round(card.Lift.ValueAt(now)));
+            running |= card.Slide.IsRunning(now) || card.Lift.IsRunning(now);
+            if (card.Closing && !card.Slide.IsRunning(now))
+            {
+                Discard(card);
+            }
+        }
+        if (!running && _closing.Count == 0)
+        {
+            _motion.Stop();
         }
     }
 
@@ -106,14 +167,30 @@ internal sealed class ToastCenter : IDisposable
             return;
         }
         var scale = _owner.DeviceDpi / 96f;
-        var right = _owner.ClientSize.Width - (int)(RightMargin * scale);
+        _right = _owner.ClientSize.Width - (int)(RightMargin * scale);
         var y = _owner.ClientSize.Height - (int)(BottomMargin * scale);
+        var now = NowMs;
         for (var i = _cards.Count - 1; i >= 0; i--)
         {
             var card = _cards[i];
             y -= card.Height;
-            card.Location = new Point(right - card.Width, Math.Max(0, y));
+            var target = Math.Max(0, y);
+            if (!card.Placed)
+            {
+                // Il primo posto è subito quello giusto: a muoversi è solo l'ingresso da destra.
+                card.Placed = true;
+                card.Lift.Jump(target);
+            }
+            else if (Math.Abs(card.Lift.Target - target) > 0.5f)
+            {
+                card.Lift.MoveTo(target, now, AnimationClock.EffectsEnabled ? Motion.Standard : 0);
+            }
             y -= (int)(Gap * scale);
+        }
+        Step();
+        if (_cards.Concat(_closing).Any(card => card.Lift.IsRunning(now) || card.Slide.IsRunning(now)))
+        {
+            _motion.Start();
         }
     }
 
@@ -126,6 +203,8 @@ internal sealed class ToastCenter : IDisposable
         _disposed = true;
         _clock.Stop();
         _clock.Dispose();
+        _motion.Stop();
+        _motion.Dispose();
     }
 
     private sealed class ToastCard : Control
@@ -177,6 +256,16 @@ internal sealed class ToastCenter : IDisposable
         public int Remaining { get; set; }
 
         public bool IsHovered => _hovered;
+
+        /// <summary>Scostamento orizzontale dell'ingresso e dell'uscita (0 = al suo posto).</summary>
+        public Tween Slide { get; } = new();
+
+        /// <summary>Posizione verticale: segue quella di impilamento con un movimento morbido.</summary>
+        public Tween Lift { get; } = new();
+
+        public bool Placed { get; set; }
+
+        public bool Closing { get; set; }
 
         public event EventHandler? Dismissed;
 

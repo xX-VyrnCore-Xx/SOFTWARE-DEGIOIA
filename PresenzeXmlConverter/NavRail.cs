@@ -41,6 +41,8 @@ internal sealed class NavRail : Control
     private readonly List<Item> _items = new();
     private int _selectedIndex = -1;
     private int _hoverIndex = -1;
+    // Posizione (in pixel) della pillola della voce attiva: scorre da una voce all'altra invece di saltare.
+    private AnimationClock? _pillClock;
 
     public NavRail()
     {
@@ -136,12 +138,51 @@ internal sealed class NavRail : Control
         {
             return;
         }
+        var first = _selectedIndex < 0;
         _selectedIndex = clamped;
+        MovePill(animate: !first);
         Invalidate();
         if (raiseEvent)
         {
             SelectionChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    private void MovePill(bool animate)
+    {
+        var target = ItemBox(_selectedIndex).Top;
+        _pillClock ??= CreatePillClock(target);
+        if (animate)
+        {
+            _pillClock.AnimateTo(target, Motion.Standard);
+        }
+        else
+        {
+            _pillClock.Jump(target);
+        }
+    }
+
+    private AnimationClock CreatePillClock(float initial)
+    {
+        var clock = new AnimationClock(this, initial);
+        clock.Frame += (_, _) => Invalidate();
+        return clock;
+    }
+
+    private static Color Mix(Color from, Color to, float amount) => Color.FromArgb(
+        255,
+        (int)Math.Round(from.R + ((to.R - from.R) * amount)),
+        (int)Math.Round(from.G + ((to.G - from.G) * amount)),
+        (int)Math.Round(from.B + ((to.B - from.B) * amount)));
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _pillClock?.Dispose();
+            _pillClock = null;
+        }
+        base.Dispose(disposing);
     }
 
     /// <summary>Etichetta di una voce (per l'accessibilità e i test).</summary>
@@ -179,25 +220,41 @@ internal sealed class NavRail : Control
             e.Graphics.FillRectangle(background, ClientRectangle);
         }
 
+        // Stile barra laterale di macOS: la voce attiva è una pillola piena del colore di
+        // sistema con testo e icona bianchi, il passaggio del mouse un velo grigio. La pillola
+        // scorre fra le voci; il testo di ogni voce vira al bianco man mano che la pillola lo copre.
+        var pillTop = _selectedIndex < 0
+            ? 0f
+            : _pillClock?.Value ?? ItemBox(_selectedIndex).Top;
+        if (_selectedIndex >= 0)
+        {
+            var pillBox = ItemBox(_selectedIndex);
+            pillBox.Y = pillTop;
+            using var pillPath = Theme.RoundedRectangle(Rectangle.Round(pillBox), 8);
+            using var pillFill = new SolidBrush(Theme.Brand);
+            e.Graphics.FillPath(pillFill, pillPath);
+        }
+
         for (var index = 0; index < _items.Count; index++)
         {
             var item = _items[index];
             var box = ItemBox(index);
             var active = index == _selectedIndex;
-            var hovered = index == _hoverIndex && !active;
+            var covered = _selectedIndex < 0
+                ? 0f
+                : Math.Clamp(1f - (Math.Abs(pillTop - box.Top) / ItemHeight), 0f, 1f);
+            var hovered = index == _hoverIndex && !active && covered < 0.5f;
 
-            // Stile barra laterale di macOS: la voce attiva è una pillola piena del colore di
-            // sistema con testo e icona bianchi, il passaggio del mouse un velo grigio.
-            if (active || hovered)
+            if (hovered)
             {
                 using var path = Theme.RoundedRectangle(
                     Rectangle.Round(box),
                     8);
-                using var fill = new SolidBrush(active ? Theme.Brand : Theme.Sunken);
+                using var fill = new SolidBrush(Theme.Sunken);
                 e.Graphics.FillPath(fill, path);
             }
 
-            var ink = active ? Color.White : Theme.InkSecondary;
+            var ink = Mix(Theme.InkSecondary, Color.White, covered);
             var iconBox = new Rectangle(
                 (int)box.Left + 14,
                 (int)(box.Top + (box.Height - 18) / 2),
@@ -223,8 +280,8 @@ internal sealed class NavRail : Control
                     badgeWidth,
                     20);
                 using var pillPath = Theme.RoundedRectangle(pill, 10);
-                using var pillFill = new SolidBrush(active ? Color.FromArgb(70, Color.White) : Theme.Sunken);
-                e.Graphics.FillPath(pillFill, pillPath);
+                using var badgeFill = new SolidBrush(covered > 0.5f ? Color.FromArgb(70, Color.White) : Theme.Sunken);
+                e.Graphics.FillPath(badgeFill, pillPath);
                 TextRenderer.DrawText(
                     e.Graphics,
                     badge,

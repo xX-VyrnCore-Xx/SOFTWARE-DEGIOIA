@@ -74,4 +74,16 @@ public class DashboardInsightsTests
         Assert.Equal(1, insights.CheckDays);
         Assert.Equal(2, insights.NoticeDays);
     }
+
+    [Fact]
+    public void SameAsComparesNumbersAndAbsencesNotListReferences()
+    {
+        var shares = new[] { new AbsenceShare("FE", "Ferie", 480, 0) };
+        var first = new DashboardInsights(960, 480, shares, 1, 2);
+        var second = new DashboardInsights(960, 480, new[] { new AbsenceShare("FE", "Ferie", 480, 0) }, 1, 2);
+
+        Assert.True(first.SameAs(second));
+        Assert.False(first.SameAs(first with { CheckDays = 2 }));
+        Assert.False(first.SameAs(first with { Absences = [] }));
+    }
 }

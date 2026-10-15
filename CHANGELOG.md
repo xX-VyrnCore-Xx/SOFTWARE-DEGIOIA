@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.28.0] - Corrente
+## [1.29.0] - Corrente
+
+### ✨ Animazioni più fluide
+- **Barra laterale**: la pillola blu della sezione attiva **scorre** da una voce all'altra e il testo vira al bianco man mano che la copre, invece di saltare
+- **Notifiche**: i cartellini **entrano scorrendo da destra**, escono nello stesso modo e gli altri si ricompongono con un movimento morbido
+- **Pulsanti** e **area di rilascio del file**: il colore al passaggio del mouse scorre con una curva a tempo (veloce all'ingresso, più piano all'uscita) invece di avanzare a passi fissi; l'area del file cambia colore e bordo in modo graduale quando ci passi sopra o ci trascini un file
+- **Analisi del mese** (dashboard): le fasce colorate e le barrette **crescono** a ogni nuova anteprima; se i numeri non cambiano non si rianima
+- Le animazioni usano il tempo reale (stessa durata anche su un PC lento), durano meno di mezzo secondo e **si spengono da sole** se in Windows gli effetti di animazione sono disattivati (Impostazioni → Accessibilità)
+- La conversione XML non è toccata
+
+## [1.28.0]
 
 ### 🧳 Codici e aziende da portare su un altro PC
 - Nuovo pulsante **«Trasferisci ▾»** in Gestione codici (e nel menu dell'icona vicino all'orologio): **Esporta codici e aziende…** salva in un file `.json` gli abbinamenti dei dipendenti e dei giustificativi, le ore e il periodo dei dipendenti e le aziende con le loro regole proprie
