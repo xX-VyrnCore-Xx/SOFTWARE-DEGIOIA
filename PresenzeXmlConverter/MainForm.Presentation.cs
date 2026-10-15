@@ -178,10 +178,11 @@ internal sealed partial class MainForm
         _conversionDropZone = new DropZone { Dock = DockStyle.Fill, Margin = new Padding(0, 4, 0, 4) };
         _conversionDropZone.Click += async (_, _) => await ImportWorkbookAsync();
         _conversionDropZone.FileDropped += async path => await LoadWorkbookAsync(path);
+        _conversionDropZone.RemoveRequested += RemoveWorkbook;
         Describe(
             _conversionDropZone,
             "Seleziona file Excel",
-            "Apre un foglio .xlsx da convertire in XML TRRIPW. Puoi anche trascinare il file qui o sulla finestra.");
+            "Apre un foglio .xlsx da convertire in XML TRRIPW. Puoi anche trascinare il file qui o sulla finestra. Con la «×» (o Canc) rimuovi il file caricato.");
         fileLayout.Controls.Add(_conversionDropZone, 0, 1);
 
         // Foglio in uso: mostra il nome e, quando il file ne ha più di uno,

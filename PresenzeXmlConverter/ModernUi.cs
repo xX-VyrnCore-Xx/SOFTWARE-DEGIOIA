@@ -459,6 +459,7 @@ internal sealed class DropZone : Control
     private string _title = "Trascina qui il foglio Excel";
     private string _subtitle = "oppure fai clic per sceglierlo";
     private bool _loaded;
+    private bool _removeHot;
 
     public DropZone()
     {
@@ -481,7 +482,20 @@ internal sealed class DropZone : Control
     /// <summary>Un file è stato rilasciato sull'area (percorso del primo .xlsx valido).</summary>
     public event Action<string>? FileDropped;
 
+    /// <summary>L'utente vuole togliere il file caricato (la «×» a destra o il tasto Canc).</summary>
+    public event Action? RemoveRequested;
+
     public bool Busy { get; set; }
+
+    /// <summary>Zona cliccabile della «×» che toglie il file: solo a file caricato.</summary>
+    private Rectangle RemoveBounds
+    {
+        get
+        {
+            var size = Math.Min(24, Math.Max(0, Height - 16));
+            return new Rectangle(Width - 3 - 12 - size, (Height - size) / 2, size, size);
+        }
+    }
 
     /// <summary>Mostra il file caricato: nome, dettaglio (foglio, righe) e invito a cambiarlo.</summary>
     public void ShowLoaded(string fileName, string detail)
@@ -544,7 +558,7 @@ internal sealed class DropZone : Control
             1.8f);
 
         var textLeft = chipBox.Right + 14;
-        var textWidth = Math.Max(10, bounds.Right - textLeft - 12);
+        var textWidth = Math.Max(10, bounds.Right - textLeft - (_loaded ? 12 + RemoveBounds.Width + 8 : 12));
         var titleFont = Theme.Fonts.SmallBold;
         var subFont = Theme.Fonts.Small;
         var titleHeight = titleFont.Height;
@@ -565,6 +579,45 @@ internal sealed class DropZone : Control
             new Rectangle(textLeft, top + titleHeight + 2, textWidth, subHeight),
             Theme.MutedInk,
             ModernPalette.Single);
+
+        if (_loaded && !Busy)
+        {
+            var remove = RemoveBounds;
+            using (var back = new SolidBrush(_removeHot ? Theme.Danger : Color.FromArgb(40, Theme.SuccessInk)))
+            {
+                graphics.FillEllipse(back, remove);
+            }
+            var inset = remove.Width / 3;
+            using var cross = new Pen(_removeHot ? Color.White : Theme.SuccessInk, 1.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+            graphics.DrawLine(cross, remove.Left + inset, remove.Top + inset, remove.Right - inset, remove.Bottom - inset);
+            graphics.DrawLine(cross, remove.Right - inset, remove.Top + inset, remove.Left + inset, remove.Bottom - inset);
+        }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        SetRemoveHot(_loaded && !Busy && RemoveBounds.Contains(e.Location));
+    }
+
+    private void SetRemoveHot(bool hot)
+    {
+        if (_removeHot == hot)
+        {
+            return;
+        }
+        _removeHot = hot;
+        Invalidate();
+    }
+
+    protected override void OnClick(EventArgs e)
+    {
+        if (_removeHot)
+        {
+            RemoveRequested?.Invoke();
+            return;
+        }
+        base.OnClick(e);
     }
 
     protected override void OnMouseEnter(EventArgs e)
@@ -578,6 +631,7 @@ internal sealed class DropZone : Control
     {
         base.OnMouseLeave(e);
         _hover = false;
+        _removeHot = false;
         Invalidate();
     }
 
@@ -600,7 +654,13 @@ internal sealed class DropZone : Control
         base.OnKeyUp(e);
         if (e.KeyCode is Keys.Space or Keys.Enter)
         {
+            _removeHot = false;
             OnClick(EventArgs.Empty);
+            e.Handled = true;
+        }
+        else if (e.KeyCode == Keys.Delete && _loaded && !Busy)
+        {
+            RemoveRequested?.Invoke();
             e.Handled = true;
         }
     }
