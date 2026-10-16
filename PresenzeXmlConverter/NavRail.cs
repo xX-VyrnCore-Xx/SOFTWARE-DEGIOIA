@@ -9,7 +9,8 @@ internal enum NavIcon
     Convert,
     Company,
     Codes,
-    History
+    History,
+    Activity
 }
 
 /// <summary>
@@ -311,6 +312,7 @@ internal sealed class NavRail : Control
         NavIcon.Convert => Glyph.Sheet,
         NavIcon.Company => Glyph.Building,
         NavIcon.Codes => Glyph.List,
+        NavIcon.Activity => Glyph.File,
         _ => Glyph.Clock
     };
 

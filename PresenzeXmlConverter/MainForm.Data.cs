@@ -112,6 +112,7 @@ internal sealed partial class MainForm
             var health = _database.GetHealth().Describe(DateTime.UtcNow);
             RefreshRailStatus();
             SetStatus($"●   Backup creato: {Path.GetFileName(path)}", false);
+            Audit(ActivityKind.Backup, "Backup dei dati creato", Path.GetFileName(path));
             ShowInformation(
                 "Backup dei dati",
                 $"Backup creato in:{Environment.NewLine}{path}{Environment.NewLine}{Environment.NewLine}{health}");
@@ -198,6 +199,7 @@ internal sealed partial class MainForm
             }
             File.WriteAllText(picker.FileName, backup.ToJson(), new System.Text.UTF8Encoding(false));
             SetStatus($"●   Codici e aziende esportati: {Path.GetFileName(picker.FileName)}", false);
+            Audit(ActivityKind.Backup, "Codici e aziende esportati", $"{backup.Describe()} · {Path.GetFileName(picker.FileName)}");
             Notify(
                 ToastKind.Success,
                 "Codici e aziende esportati",
@@ -276,6 +278,7 @@ internal sealed partial class MainForm
             RefreshRailStatus();
             InvalidatePreview();
             SetStatus($"●   Codici e aziende importati: {report.Describe()}", report.Skipped.Count > 0);
+            Audit(ActivityKind.Backup, "Codici e aziende importati", report.Describe());
             var detail = report.Skipped.Count == 0
                 ? report.Describe()
                 : $"{report.Describe()}{Environment.NewLine}{Environment.NewLine}Scartati:{Environment.NewLine}" +

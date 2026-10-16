@@ -114,6 +114,7 @@ internal sealed partial class MainForm
         UpdateButtons();
         MarkSessionDirty();
         SetStatus("●   File rimosso: importa un altro foglio quando vuoi.", false);
+        Audit(ActivityKind.Import, removed.Length > 0 ? $"File rimosso «{removed}»" : "File rimosso");
         Notify(ToastKind.Info, "File rimosso", removed.Length > 0 ? $"{removed} non è più caricato." : "Nessun file caricato.");
     }
 

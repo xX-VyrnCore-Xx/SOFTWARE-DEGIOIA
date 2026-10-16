@@ -128,6 +128,7 @@ internal sealed partial class MainForm
             else
             {
                 SetStatus("●   Impostazioni salvate", false);
+                Audit(ActivityKind.Settings, "Impostazioni salvate", GenerationSettings.Describe(_globalOptions));
             }
 
             if (themeChanged)
@@ -163,6 +164,7 @@ internal sealed partial class MainForm
             Ctrl+4   Sezione Aziende
             Ctrl+5   Sezione Gestione codici
             Ctrl+6   Sezione Storico esportazioni
+            Ctrl+7   Sezione Registro attività
             Ctrl+,   Impostazioni
             F1       Questo elenco
             """;
@@ -217,6 +219,9 @@ internal sealed partial class MainForm
                 return true;
             case Keys.Control | Keys.D6:
                 ShowSection(SectionHistory);
+                return true;
+            case Keys.Control | Keys.D7:
+                ShowSection(SectionActivity);
                 return true;
             case Keys.Control | Keys.Oemcomma:
                 OpenSettings();
