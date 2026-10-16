@@ -840,6 +840,19 @@ internal sealed class MetricCard : Control
         }
     }
 
+    private Trend? _trend;
+
+    /// <summary>Confronto con la volta scorsa: se c'è, al posto della didascalia compare una pillola colorata.</summary>
+    public Trend? Trend
+    {
+        get => _trend;
+        set
+        {
+            _trend = value;
+            Invalidate();
+        }
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
@@ -891,7 +904,36 @@ internal sealed class MetricCard : Control
             new Rectangle(left, bounds.Top + 27, width, 32),
             _accent,
             ModernPalette.Single);
-        if (_caption.Length > 0)
+        if (_trend is { } trend)
+        {
+            var (chipFill, chipInk) = trend.Tone switch
+            {
+                TrendTone.Up => (Theme.SuccessSoft, Theme.SuccessInk),
+                TrendTone.Down => (Theme.WarningSoft, Theme.WarningInk),
+                _ => (Theme.BrandSoft, Theme.BrandInk)
+            };
+            var available = Math.Max(10, bounds.Width - 28);
+            var measured = TextRenderer.MeasureText(
+                trend.Text,
+                Theme.Fonts.Pill,
+                new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width + 18;
+            var pill = new Rectangle(bounds.Left + 14, bounds.Bottom - 28, Math.Min(measured, available), 20);
+            using (var pillPath = Theme.RoundedRectangle(pill, 10))
+            using (var pillBrush = new SolidBrush(chipFill))
+            {
+                graphics.FillPath(pillBrush, pillPath);
+            }
+            TextRenderer.DrawText(
+                graphics,
+                trend.Text,
+                Theme.Fonts.Pill,
+                pill,
+                chipInk,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
+            AccessibleDescription = $"{Label}: {_value}, {trend.Text}";
+        }
+        else if (_caption.Length > 0)
         {
             TextRenderer.DrawText(
                 graphics,

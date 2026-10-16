@@ -265,6 +265,9 @@ internal sealed partial class MainForm
             : "genera l'anteprima";
         _kpiHours.AnimateTo(summary.CompactTotalText);
         _kpiHours.Caption = "nell'anteprima corrente";
+        // Confronto con l'ultima esportazione (se l'anteprima è già stata esportata, con quella prima).
+        var previousExport = (_currentPreviewExported ? _exports.Skip(1) : _exports).FirstOrDefault();
+        _kpiHours.Trend = TrendChip.Compare(summary.TotalMinutes, previousExport?.TotalMinutes);
 
         _dashInsights.Insights = _movements.Count == 0
             ? DashboardInsights.Empty

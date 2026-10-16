@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.50.0] - Corrente
+## [1.51.0] - Corrente
+
+### 📊 Dashboard: confronto con l'ultima esportazione
+- La scheda **«Ore assegnate»** mostra una pillola colorata con la variazione sull'ultima esportazione, per esempio «+3,1% sull'ultima esportazione» (verde se aumentano, arancio se diminuiscono, azzurra se uguali). Se l'anteprima è già stata esportata si confronta con quella prima. Senza esportazioni precedenti resta la didascalia di sempre
+- Il calcolo è separato dal disegno e coperto da test (arrotondamento, segno, casi senza confronto)
+- La conversione XML non è toccata
+
+## [1.50.0]
 
 ### 🎨 Nuova grafica in stile Windows 11 (prima parte)
 - **Tavolozza rifatta** in tema chiaro e scuro: blu Windows 11 al posto del blu «iOS», grigi con una leggera tinta azzurra, verde, arancio e rosso più sobri. Tutti i contrasti restano verificati dai test (testi, pillole, pulsanti, bordi)
