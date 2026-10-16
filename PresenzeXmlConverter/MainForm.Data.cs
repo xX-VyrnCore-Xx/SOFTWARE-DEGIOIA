@@ -161,6 +161,7 @@ internal sealed partial class MainForm
             ShowInformation(
                 "Stato del database",
                 $"{_database.GetHealth().Describe(DateTime.UtcNow)}{Environment.NewLine}{Environment.NewLine}" +
+                $"Controllo dei backup: {_database.VerifyBackups().Describe()}{Environment.NewLine}{Environment.NewLine}" +
                 $"File: {_database.DatabasePath}{Environment.NewLine}Backup: {_database.BackupDirectory}");
         }
         catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
