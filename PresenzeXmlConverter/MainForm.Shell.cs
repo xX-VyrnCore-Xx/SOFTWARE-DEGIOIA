@@ -1347,10 +1347,10 @@ internal sealed partial class MainForm
         switch (e.KeyCode)
         {
             case Keys.Down:
-                _searchPopup.Move(1);
+                _searchPopup.MoveSelection(1);
                 break;
             case Keys.Up:
-                _searchPopup.Move(-1);
+                _searchPopup.MoveSelection(-1);
                 break;
             case Keys.Enter:
                 _searchPopup.ChooseCurrent();
