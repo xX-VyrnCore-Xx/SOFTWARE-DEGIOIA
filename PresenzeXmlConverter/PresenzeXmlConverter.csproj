@@ -11,10 +11,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>PresenzeFlow</AssemblyName>
     <RootNamespace>PresenzeXmlConverter</RootNamespace>
-    <Version>1.50.0</Version>
-    <AssemblyVersion>1.50.0.0</AssemblyVersion>
-    <FileVersion>1.50.0.0</FileVersion>
-    <InformationalVersion>1.50.0</InformationalVersion>
+    <Version>1.51.0</Version>
+    <AssemblyVersion>1.51.0.0</AssemblyVersion>
+    <FileVersion>1.51.0.0</FileVersion>
+    <InformationalVersion>1.51.0</InformationalVersion>
     <Company>DeGioia</Company>
     <Authors>DeGioia</Authors>
     <Copyright>© DeGioia</Copyright>
