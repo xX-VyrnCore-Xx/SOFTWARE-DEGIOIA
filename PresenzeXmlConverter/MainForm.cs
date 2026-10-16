@@ -10,6 +10,7 @@ internal sealed partial class MainForm : Form
     private readonly RoundedField _companyCode = new();
     private readonly Label _fileLabel = new();
     private readonly Label _statusLabel = new();
+    private readonly StatusBar _statusBar = new();
     private readonly Button _generateButton = new ThemedButton();
     private readonly Button _sheetButton = new ThemedButton();
     private readonly IconButton _exportButton = new("Scarica XML", Glyph.Download, Theme.ButtonTone.Primary);
@@ -1184,6 +1185,7 @@ internal sealed partial class MainForm : Form
     {
         _statusLabel.Text = text;
         _statusLabel.ForeColor = isWarning ? Theme.WarningInk : Theme.InkSecondary;
+        _statusBar.SetMessage(text, isWarning);
     }
 
     /// <summary>

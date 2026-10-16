@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.42.0] - Corrente
+## [1.43.0] - Corrente
+
+### 🧭 Parte bassa della finestra più curata
+- **Barra di stato a segmenti**: a sinistra il messaggio con un pallino disegnato (verde, giallo se è un avviso); a destra, separati da una linea sottile, **aggiornamenti**, **versione** e **ora**, ognuno con la sua icona. Un clic sul segmento degli aggiornamenti verifica subito se c'è una versione nuova. Con la finestra stretta spariscono prima l'ora e la versione; il messaggio ha sempre il suo spazio
+- **Blocco «Dati locali» a scheda**: stato del database con pallino, ultimo backup, azienda in uso e versione, ciascuno con un'icona, dentro una scheda con i bordi arrotondati come il resto dell'app
+- **Suggerimento a fine pagina** con l'icona «i» e la parola «Suggerimento» in evidenza, invece di una riga di testo isolata
+- Tipografia coerente: stesso carattere e stesse spaziature in tutta la parte bassa (prima il testo della barra era più grande del resto e i pallini erano caratteri di testo)
+- La conversione XML non è toccata
+
+## [1.42.0]
 
 ### 🌙 Tema scuro
 - **Nuovo tema scuro**, ispirato alla grafica di riferimento: fondo grafite, schede più chiare, azzurro luminoso per i pulsanti e le selezioni, verde/arancio/rosso schiariti per gli stati. La **barra del titolo di Windows** segue il tema
