@@ -24,6 +24,7 @@ internal sealed class SettingsDialog : Form
     private readonly CheckBox _autoDetect = new();
     private readonly CheckBox _fillPresence = new();
     private readonly CheckBox _autoCheck = new();
+    private readonly CheckBox _startWithWindows = new();
     private readonly RoundedField _token = new();
     private readonly Label _tokenStatus = new();
     private readonly Label _errorLabel = new();
@@ -661,8 +662,20 @@ internal sealed class SettingsDialog : Form
         _autoCheck.Margin = Padding.Empty;
         body.Controls.Add(_autoCheck, 0, 1);
 
+        _startWithWindows.Text = "Avvia con Windows nel tray: gli aggiornamenti arrivano subito, anche a programma chiuso";
+        _startWithWindows.Dock = DockStyle.Fill;
+        _startWithWindows.TextAlign = ContentAlignment.MiddleLeft;
+        _startWithWindows.ForeColor = Theme.InkSecondary;
+        _startWithWindows.Font = Theme.Fonts.Small;
+        _startWithWindows.Checked = StartupRegistration.IsEnabled();
+        _startWithWindows.AccessibleName = "Avvia con Windows";
+        _startWithWindows.AccessibleDescription =
+            "All'accesso a Windows il programma parte nel tray, senza aprire la finestra, e avvisa appena esce una nuova versione.";
+        _startWithWindows.Margin = Padding.Empty;
+        body.Controls.Add(_startWithWindows, 0, 2);
+
         body.Controls.Add(CreateFieldLabel(
-            "Token personale (facoltativo, se quello incluso è scaduto). Fine-grained, permesso Contents → Read-only."), 0, 2);
+            "Token personale (facoltativo, se quello incluso è scaduto). Fine-grained, permesso Contents → Read-only."), 0, 3);
         _token.MaxLength = 400;
         _token.Dock = DockStyle.Fill;
         _token.InputFont = Theme.Fonts.Field;
@@ -671,7 +684,7 @@ internal sealed class SettingsDialog : Form
         _token.Input.Text = UpdateService.ResolveUserToken() ?? string.Empty;
         _token.Input.AccessibleName = "Token GitHub delle Release";
         _token.Margin = new Padding(0, 2, 0, 8);
-        body.Controls.Add(_token, 0, 3);
+        body.Controls.Add(_token, 0, 4);
 
         var tokenActions = new FlowLayoutPanel
         {
@@ -689,7 +702,7 @@ internal sealed class SettingsDialog : Form
         _clearTokenButton.Click += (_, _) => ClearToken();
         tokenActions.Controls.Add(_verifyTokenButton);
         tokenActions.Controls.Add(_clearTokenButton);
-        body.Controls.Add(tokenActions, 0, 4);
+        body.Controls.Add(tokenActions, 0, 5);
 
         _tokenStatus.Dock = DockStyle.Fill;
         _tokenStatus.TextAlign = ContentAlignment.TopLeft;
@@ -699,14 +712,14 @@ internal sealed class SettingsDialog : Form
         SetTokenStatus(
             $"Stato attuale: {UpdateService.DescribeTokenSource()}. Il file del token è {UpdateService.TokenFilePath}",
             Theme.MutedInk);
-        body.Controls.Add(_tokenStatus, 0, 5);
+        body.Controls.Add(_tokenStatus, 0, 6);
 
         body.Controls.Add(CreateNote(
-            "Il token serve solo a leggere le Release. Se uno non vale, l'app prova gli altri (personale, file, incluso)."), 0, 6);
+            "Il token serve solo a leggere le Release. Se uno non vale, l'app prova gli altri (personale, file, incluso)."), 0, 7);
 
         // La firma dell'eseguibile riguarda l'aggiornamento (cioè se il file in uso
         // è quello pubblicato): sta qui, accanto alla versione delle Release.
-        body.Controls.Add(CreateNote(ExecutableSignature.DescribeCurrentExecutable()), 0, 7);
+        body.Controls.Add(CreateNote(ExecutableSignature.DescribeCurrentExecutable()), 0, 8);
         return page;
     }
 
@@ -856,6 +869,11 @@ internal sealed class SettingsDialog : Form
             FillPresence = _fillPresence.Checked
         };
         AutoUpdateCheck = _autoCheck.Checked;
+        if (_startWithWindows.Checked != StartupRegistration.IsEnabled() && !StartupRegistration.Set(_startWithWindows.Checked))
+        {
+            _errorLabel.Text = "Windows non ha permesso di cambiare l'avvio automatico: riprova o lascia la spunta com'era.";
+            return;
+        }
         InAppNotifications = _inAppNotifications.Checked;
         CloseBehavior = _closeTray.Checked ? "tray" : _closeExit.Checked ? "exit" : string.Empty;
         ThemeMode = _themeLight.Checked ? ThemeMode.Light : _themeDark.Checked ? ThemeMode.Dark : ThemeMode.System;

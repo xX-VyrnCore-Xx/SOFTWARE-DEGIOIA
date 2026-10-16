@@ -326,12 +326,13 @@ internal sealed partial class MainForm
 
     private void AddDataCommands(ContextMenuStrip menu)
     {
+        var dpi = DeviceDpi;
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Esporta codici e aziende…", null, (_, _) => ExportCodesBackup());
-        menu.Items.Add("Importa codici e aziende…", null, (_, _) => ImportCodesBackup());
-        menu.Items.Add("Stato del database…", null, (_, _) => ShowDatabaseStatus());
-        menu.Items.Add("Backup dei dati ora", null, (_, _) => BackupDatabaseNow());
-        menu.Items.Add("Apri cartella dei dati", null, (_, _) => OpenDataFolder());
-        menu.Items.Add("Apri cartella delle copie dei codici", null, (_, _) => OpenCodesBackupFolder());
+        ThemedMenus.Add(menu, "Esporta codici e aziende…", Glyph.Upload, (_, _) => ExportCodesBackup(), dpi);
+        ThemedMenus.Add(menu, "Importa codici e aziende…", Glyph.Download, (_, _) => ImportCodesBackup(), dpi);
+        ThemedMenus.Add(menu, "Stato del database…", Glyph.Database, (_, _) => ShowDatabaseStatus(), dpi);
+        ThemedMenus.Add(menu, "Backup dei dati ora", Glyph.Save, (_, _) => BackupDatabaseNow(), dpi);
+        ThemedMenus.Add(menu, "Apri cartella dei dati", Glyph.Folder, (_, _) => OpenDataFolder(), dpi);
+        ThemedMenus.Add(menu, "Apri cartella delle copie dei codici", Glyph.Folder, (_, _) => OpenCodesBackupFolder(), dpi);
     }
 }

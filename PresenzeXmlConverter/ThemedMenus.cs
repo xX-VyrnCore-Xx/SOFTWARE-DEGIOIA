@@ -66,6 +66,28 @@ internal sealed class ThemedMenuRenderer : ToolStripProfessionalRenderer
         e.Graphics.DrawLine(pen, 12, y, e.Item.Width - 12, y);
     }
 
+    protected override void OnRenderItemImage(ToolStripItemImageRenderEventArgs e)
+    {
+        // Voce disattivata: l'icona si attenua come il testo invece di restare piena.
+        if (e.Image is not null && !e.Item.Enabled)
+        {
+            using var attributes = new System.Drawing.Imaging.ImageAttributes();
+            var matrix = new System.Drawing.Imaging.ColorMatrix { Matrix33 = 0.4f };
+            attributes.SetColorMatrix(matrix);
+            e.Graphics.DrawImage(
+                e.Image,
+                e.ImageRectangle,
+                0,
+                0,
+                e.Image.Width,
+                e.Image.Height,
+                GraphicsUnit.Pixel,
+                attributes);
+            return;
+        }
+        base.OnRenderItemImage(e);
+    }
+
     protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
     {
         var box = e.ImageRectangle;
@@ -90,19 +112,38 @@ internal sealed class ThemedMenuRenderer : ToolStripProfessionalRenderer
 internal static class ThemedMenus
 {
     /// <summary>Un menù a comparsa nello stile dell'app. <paramref name="checks"/> riserva lo spazio delle spunte.</summary>
-    public static ContextMenuStrip Create(bool checks = false)
+    public static ContextMenuStrip Create(bool checks = false, bool icons = false)
     {
         var menu = new ContextMenuStrip();
-        Style(menu, checks);
+        Style(menu, checks, icons);
         return menu;
     }
 
+    /// <summary>L'icona di una voce: il disegno dell'app nel colore del testo secondario, alla scala dello schermo.</summary>
+    public static Bitmap Icon(Glyph glyph, int dpi, Color? ink = null)
+    {
+        var side = Math.Max(16, (int)Math.Round(16 * dpi / 96.0));
+        var bitmap = new Bitmap(side, side, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.Clear(Color.Transparent);
+        Glyphs.Draw(graphics, new Rectangle(0, 0, side, side), glyph, ink ?? Theme.MutedInk, 1.5f * side / 16f);
+        return bitmap;
+    }
+
+    /// <summary>Aggiunge una voce con la sua icona.</summary>
+    public static ToolStripMenuItem Add(ToolStripDropDown menu, string text, Glyph glyph, EventHandler click, int dpi, Color? ink = null)
+    {
+        var item = new ToolStripMenuItem(text, Icon(glyph, dpi, ink), click);
+        menu.Items.Add(item);
+        return item;
+    }
+
     /// <summary>Applica lo stile a un menù già creato; le voci aggiunte dopo sono sistemate all'apertura.</summary>
-    public static void Style(ContextMenuStrip menu, bool checks = false)
+    public static void Style(ContextMenuStrip menu, bool checks = false, bool icons = false)
     {
         menu.Renderer = new ThemedMenuRenderer();
         menu.Font = Theme.Fonts.Ui;
-        menu.ShowImageMargin = false;
+        menu.ShowImageMargin = icons;
         menu.ShowCheckMargin = checks;
         menu.Padding = new Padding(0, 4, 0, 4);
         menu.BackColor = Theme.Surface;

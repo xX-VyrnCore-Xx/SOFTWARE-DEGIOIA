@@ -42,8 +42,15 @@ internal sealed partial class MainForm : Form
     /// </summary>
     private GenerationOptions _generationOptions = GenerationOptions.Default;
 
-    public MainForm()
+    /// <summary>
+    /// Avvio con Windows: la finestra non si apre, resta solo l'icona nel tray. Così i controlli degli aggiornamenti
+    /// girano anche quando l'utente non ha aperto il programma, e l'avviso arriva appena la Release è pubblicata.
+    /// </summary>
+    private bool _startInBackground;
+
+    public MainForm(bool startInBackground = false)
     {
+        _startInBackground = startInBackground;
         // Il titolo dice a colpo d'occhio quale build è installata: con le Release
         // automatiche se ne succedono anche più d'una al giorno. Assegnato solo qui:
         // il layout non lo tocca più, altrimenti sovrascriverebbe la versione.
@@ -84,6 +91,7 @@ internal sealed partial class MainForm : Form
         XmlFormat.Active = XmlFormat.Load(_database);
         MeasureStartup("aggiornamenti", InitializeUpdates);
         SetupTrayIcon();
+        StartupRegistration.KeepCurrent();
         UpdateButtons();
     }
 
@@ -208,6 +216,30 @@ internal sealed partial class MainForm : Form
         WindowChrome.Apply(Handle);
     }
 
+    protected override void SetVisibleCore(bool value)
+    {
+        if (_startInBackground)
+        {
+            // Solo la prima volta (Application.Run chiede di mostrare la finestra): resta nascosta, con il tray attivo.
+            _startInBackground = false;
+            if (!IsHandleCreated)
+            {
+                CreateHandle();
+            }
+            _trayIcon.Visible = true;
+            base.SetVisibleCore(false);
+            return;
+        }
+        base.SetVisibleCore(value);
+    }
+
+    protected override void OnActivated(EventArgs e)
+    {
+        base.OnActivated(e);
+        // Tornando alla finestra dopo un po' si controlla subito se c'è una versione nuova.
+        RequestUpdateCheck(staleOnly: true);
+    }
+
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         if (e.CloseReason == CloseReason.UserClosing && !_forceClose)
@@ -269,6 +301,7 @@ internal sealed partial class MainForm : Form
         {
             // Salvataggio best-effort: niente deve impedire la chiusura.
         }
+        StopUpdateTriggers();
         try
         {
             _trayCleanup.Stop();
@@ -325,41 +358,54 @@ internal sealed partial class MainForm : Form
     {
         _trayIcon.Icon = _applicationIcon;
         _trayIcon.Text = WindowCaption;
-        var menu = ThemedMenus.Create(checks: true);
-        menu.Items.Add("Apri Vyrn Presence", null, (_, _) => RestoreFromTray());
+        var menu = ThemedMenus.Create(icons: true);
+        var dpi = DeviceDpi;
+        var open = ThemedMenus.Add(menu, "Apri Vyrn Presence", Glyph.Dashboard, (_, _) => RestoreFromTray(), dpi, Theme.Brand);
+        open.Font = new Font(menu.Font, FontStyle.Bold);
         // Compare in cima solo quando c'è un aggiornamento pronto: si installa senza aprire prima la finestra.
-        _trayUpdateItem = new ToolStripMenuItem("Installa aggiornamento")
-        {
-            Visible = false,
-            Font = new Font(menu.Font, FontStyle.Bold)
-        };
-        _trayUpdateItem.Click += (_, _) =>
+        _trayUpdateItem = ThemedMenus.Add(menu, "Installa aggiornamento", Glyph.Download, (_, _) =>
         {
             RestoreFromTray();
             _ = CheckForUpdatesAsync(userInitiated: true);
-        };
-        menu.Items.Add(_trayUpdateItem);
+        }, dpi, Theme.Success);
+        _trayUpdateItem.Visible = false;
+        _trayUpdateItem.Font = new Font(menu.Font, FontStyle.Bold);
         AddUpdateCommands(menu);
         AddDataCommands(menu);
         menu.Items.Add(new ToolStripSeparator());
-        var notifications = new ToolStripMenuItem("Notifiche di Windows")
+        ToolStripMenuItem? notifications = null;
+        notifications = ThemedMenus.Add(menu, NotificationsMenuText(), Glyph.Alert, (_, _) =>
         {
-            CheckOnClick = true,
-            Checked = NativeNotificationsEnabled()
-        };
-        notifications.CheckedChanged += (_, _) =>
+            var enable = !NativeNotificationsEnabled();
+            _database.SaveSetting(NativeNotificationsSetting, enable ? "true" : "false");
+            notifications!.Text = NotificationsMenuText();
+            SetStatus(enable ? "●   Notifiche di Windows attivate." : "●   Notifiche di Windows disattivate.", false);
+        }, dpi);
+        ToolStripMenuItem? startup = null;
+        startup = ThemedMenus.Add(menu, StartupMenuText(), Glyph.Clock, (_, _) =>
         {
-            _database.SaveSetting(NativeNotificationsSetting, notifications.Checked ? "true" : "false");
-            SetStatus(notifications.Checked ? "●   Notifiche di Windows attivate." : "●   Notifiche di Windows disattivate.", false);
-        };
-        menu.Items.Add(notifications);
-        menu.Items.Add("Dimentica il lavoro salvato", null, (_, _) => ForgetSavedSession());
-        menu.Items.Add("Alla chiusura chiedi di nuovo", null, (_, _) =>
+            var enable = !StartupRegistration.IsEnabled();
+            if (!StartupRegistration.Set(enable))
+            {
+                SetStatus("●   Windows non ha permesso di cambiare l'avvio automatico.", true);
+                return;
+            }
+            startup!.Text = StartupMenuText();
+            SetStatus(
+                enable
+                    ? "●   Si avvia con Windows nel tray: gli aggiornamenti arrivano anche a programma chiuso."
+                    : "●   Avvio con Windows disattivato.",
+                false);
+            Audit(ActivityKind.Settings, enable ? "Avvio con Windows attivato" : "Avvio con Windows disattivato");
+        }, dpi);
+        ThemedMenus.Add(menu, "Dimentica il lavoro salvato", Glyph.Trash, (_, _) => ForgetSavedSession(), dpi);
+        ThemedMenus.Add(menu, "Alla chiusura chiedi di nuovo", Glyph.Refresh, (_, _) =>
         {
             _database.SaveSetting("close-behavior", string.Empty);
             SetStatus("●   Alla chiusura della finestra il programma tornerà a chiedere come comportarsi.", false);
-        });
-        menu.Items.Add("Esci definitivamente", null, (_, _) => ExitApplication());
+        }, dpi);
+        menu.Items.Add(new ToolStripSeparator());
+        ThemedMenus.Add(menu, "Esci definitivamente", Glyph.Arrow, (_, _) => ExitApplication(), dpi, Theme.DangerInk);
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
         // Un clic sulla notifica riporta la finestra davanti e ne esegue l'azione (se ne ha una).
@@ -381,6 +427,12 @@ internal sealed partial class MainForm : Form
             }
         };
     }
+
+    private string NotificationsMenuText() =>
+        NativeNotificationsEnabled() ? "Notifiche di Windows · attive" : "Notifiche di Windows · spente";
+
+    private static string StartupMenuText() =>
+        StartupRegistration.IsEnabled() ? "Avvia con Windows · sì" : "Avvia con Windows · no";
 
     private readonly System.Windows.Forms.Timer _trayCleanup = new() { Interval = 20_000 };
 

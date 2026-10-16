@@ -4,7 +4,21 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.47.0] - Corrente
+## [1.48.0] - Corrente
+
+### 🔔 Aggiornamenti in tempo reale
+- **Controllo ogni 10 minuti** (prima ogni ora): una nuova Release arriva entro pochi minuti dalla pubblicazione. Sono 6 richieste all'ora, ben sotto il limite di GitHub
+- **Controlli anche negli istanti giusti**: appena la rete torna disponibile, dodici secondi dopo l'uscita dalla sospensione del PC e quando si torna alla finestra dopo almeno cinque minuti. Mai due controlli a meno di due minuti l'uno dall'altro
+- **L'avviso arriva anche a programma in uso**: dopo il primo controllo all'avvio, una versione nuova compare come cartellino nella finestra (clic per le novità e l'aggiornamento) invece di una finestra a sorpresa; a finestra nascosta o in secondo piano resta il fumetto di Windows con il lampeggio nella barra
+- **Controllo fallito per la rete**: si riprova dopo 2 minuti (prima 5)
+- **Avvia con Windows nel tray** (facoltativo): nelle Impostazioni → Aggiornamenti, dal menù dell'icona e come opzione dell'installer. Il programma parte senza aprire la finestra e controlla gli aggiornamenti anche quando non lo apri mai. Si disattiva dalle stesse voci e la disinstallazione toglie la voce
+
+### 🎨 Menù dell'icona nel tray
+- Voci con **icone** (aggiornamenti, impostazioni, dati, backup, cartelle), nello stile e nel tema dell'app; «Apri Vyrn Presence» in grassetto, aggiornamento disponibile in evidenza, «Esci» in rosso
+- Gli interruttori mostrano lo stato nel testo («Notifiche di Windows · attive», «Avvia con Windows · sì»)
+- La conversione XML non è toccata
+
+## [1.47.0]
 
 ### 🎨 Menù, tendine e suggerimenti nello stile dell'app
 - **Menù a comparsa rifatti** (tasto destro sul calendario, «Trasferisci», scelta del foglio, icona nell'area di notifica): sfondo e bordo del tema, voce evidenziata con angoli tondi, separatori leggeri, caratteri dell'app. Seguono il **tema scuro**, prima restavano grigio Windows
