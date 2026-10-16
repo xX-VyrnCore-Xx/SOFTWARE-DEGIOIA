@@ -909,7 +909,8 @@ internal sealed partial class MainForm : Form
         try
         {
             var companyCode = _companyCode.Value.Trim();
-            if (_movements.Count > 0 && companyCode.Length is > 0 and <= 6)
+            var fromMovements = _movements.Count > 0 && companyCode.Length is > 0 and <= 6;
+            if (fromMovements)
             {
                 // Scrittura in streaming: più veloce e senza duplicare il file in memoria.
                 TrriPwXmlWriter.SaveFile(picker.FileName, companyCode, _movements);
@@ -925,6 +926,19 @@ internal sealed partial class MainForm : Form
                 throw new InvalidDataException(
                     "Il file salvato non rispetta il tracciato TRRIPW e non va consegnato:" + Environment.NewLine +
                     string.Join(Environment.NewLine, problems.Take(6).Select(problem => "• " + problem)));
+            }
+            if (fromMovements)
+            {
+                // Secondo controllo: il file contiene esattamente le ore dei movimenti, né una di più né una di meno.
+                var differences = TrriPwXmlVerifier.Compare(
+                    TrriPwXmlWriter.Normalize(companyCode, _movements),
+                    File.ReadAllBytes(picker.FileName));
+                if (differences.Count > 0)
+                {
+                    throw new InvalidDataException(
+                        "Il file salvato non contiene le stesse ore dell'anteprima e non va consegnato:" + Environment.NewLine +
+                        string.Join(Environment.NewLine, differences.Take(6).Select(difference => "• " + difference)));
+                }
             }
             var directory = Path.GetDirectoryName(picker.FileName);
             if (!string.IsNullOrEmpty(directory))

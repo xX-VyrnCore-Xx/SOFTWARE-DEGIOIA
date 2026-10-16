@@ -53,6 +53,7 @@ internal sealed partial class MainForm
     private readonly Button _historyCopyButton = new ThemedButton();
     private readonly Button _historySaveCopyButton = new ThemedButton();
     private readonly Button _historyClearButton = new ThemedButton();
+    private readonly Button _historyVerifyButton = new ThemedButton();
     private IReadOnlyList<ExportRecord> _exports = Array.Empty<ExportRecord>();
     private bool _codesLoaded;
 
@@ -671,7 +672,7 @@ internal sealed partial class MainForm
             Font = Theme.Fonts.Tiny,
             AutoEllipsis = true,
             Margin = Padding.Empty,
-            Text = "Doppio clic su una riga per aprire la cartella. «Salva copia» risalva l'XML conservato."
+            Text = "Doppio clic su una riga: apre la cartella."
         };
         bar.Controls.Add(hint, 0, 0);
 
@@ -718,7 +719,18 @@ internal sealed partial class MainForm
             "Salva copia",
             "Risalva il file XML consegnato, conservato nel database: funziona anche se l'originale è stato spostato o cancellato.");
 
+        _historyVerifyButton.Text = "Verifica file";
+        Theme.StyleButton(_historyVerifyButton, Theme.ButtonTone.Neutral, compact: true);
+        _historyVerifyButton.Size = new Size(124, 34);
+        _historyVerifyButton.Margin = new Padding(8, 0, 0, 0);
+        _historyVerifyButton.Click += (_, _) => VerifyExportFile(SelectedHistoryExport());
+        Describe(
+            _historyVerifyButton,
+            "Verifica file",
+            "Controlla che il file XML sul disco sia identico a quello consegnato (copia conservata nello storico) e che rispetti ancora il tracciato.");
+
         actions.Controls.Add(_historyOpenButton);
+        actions.Controls.Add(_historyVerifyButton);
         actions.Controls.Add(_historySaveCopyButton);
         actions.Controls.Add(_historyCopyButton);
         actions.Controls.Add(_historyClearButton);
@@ -750,6 +762,7 @@ internal sealed partial class MainForm
         var hasSelection = _historyGrid.SelectedRows.Count > 0 && _exports.Count > 0;
         _historyOpenButton.Enabled = hasSelection;
         _historyCopyButton.Enabled = hasSelection;
+        _historyVerifyButton.Enabled = hasSelection;
         _historySaveCopyButton.Enabled = hasSelection && SelectedHistoryExport()?.HasStoredXml == true;
         _historyClearButton.Enabled = _exports.Count > 0;
     }
@@ -821,6 +834,38 @@ internal sealed partial class MainForm
     }
 
     /// <summary>Risalva il file XML conservato nel database per una consegna passata.</summary>
+    /// <summary>Confronta il file sul disco con la copia consegnata e lo ricontrolla contro il tracciato.</summary>
+    private void VerifyExportFile(ExportRecord? record)
+    {
+        if (record is null)
+        {
+            return;
+        }
+        try
+        {
+            var stored = record.HasStoredXml ? _database.GetExportXml(record.Id) : null;
+            var current = File.Exists(record.FilePath) ? File.ReadAllBytes(record.FilePath) : null;
+            var result = ExportIntegrity.Check(stored, current);
+            var message = ExportIntegrity.Describe(result, record.FileName, current);
+            if (current is not null)
+            {
+                var problems = TrriPwXmlValidator.Validate(current);
+                message += problems.Count == 0
+                    ? Environment.NewLine + "Il file rispetta il tracciato TRRIPW."
+                    : Environment.NewLine + "Il file NON rispetta il tracciato:" + Environment.NewLine +
+                      string.Join(Environment.NewLine, problems.Take(4).Select(problem => "• " + problem));
+            }
+            SetStatus(
+                result == FileIntegrity.Identical ? $"File {record.FileName}: identico a quello consegnato." : $"File {record.FileName}: da controllare.",
+                result != FileIntegrity.Identical);
+            ShowInformation("Verifica del file consegnato", message);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SqliteException)
+        {
+            ShowError("Verifica del file non riuscita", exception);
+        }
+    }
+
     private void SaveStoredXmlCopy(ExportRecord? record)
     {
         if (record is null || !record.HasStoredXml)

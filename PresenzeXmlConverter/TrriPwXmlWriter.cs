@@ -130,6 +130,10 @@ internal static class TrriPwXmlWriter
         return Encoding.UTF8.GetString(output.ToArray());
     }
 
+    /// <summary>I movimenti come finiranno nel file (puliti e con le richieste dello stesso giorno sommate): serve a controllare il file scritto.</summary>
+    internal static IReadOnlyList<DailyMovement> Normalize(string companyCode, IReadOnlyList<DailyMovement> movements) =>
+        Validate(companyCode, movements).Movements;
+
     private static (string Company, DailyMovement[] Movements) Validate(
         string companyCode,
         IReadOnlyList<DailyMovement> movements)
