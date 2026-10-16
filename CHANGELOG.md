@@ -4,7 +4,18 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.48.0] - Corrente
+## [1.49.0] - Corrente
+
+### 🗄️ Database più veloce, più sicuro e ordinato
+- **Passaggi di schema ordinati** (versione 6): ogni modifica allo schema è un passaggio numerato, applicato in una transazione insieme al nuovo numero di versione. Se qualcosa si interrompe il database resta com'era. Un test controlla che i numeri siano consecutivi. Prima di aggiornare un database con dati si continua a tenere una copia di sicurezza
+- **Indici per le liste** (storico delle esportazioni, registro attività, ricerche per azienda): aprire le sezioni resta rapido anche con anni di storico
+- **Ottimizzazione alla chiusura**: statistiche aggiornate per le ricerche e pulizia dei file XML rimasti senza esportazione; cache e tabelle temporanee in memoria
+- **Backup verificati**: ogni copia nuova viene controllata (si apre, integrità, schema noto) prima di prendere il suo nome; una copia illeggibile non viene conservata e non fa eliminare quelle buone
+- **«Stato del database» controlla tutti i backup** e dice quanti sono integri e quali sono danneggiati
+- I dati restano in chiaro nel tuo profilo Windows: i backup non sono cifrati di proposito, perché una chiave legata a questo utente li renderebbe illeggibili proprio dopo un guasto del disco o una reinstallazione di Windows
+- La conversione XML non è toccata
+
+## [1.48.0]
 
 ### 🔔 Aggiornamenti in tempo reale
 - **Controllo ogni 10 minuti** (prima ogni ora): una nuova Release arriva entro pochi minuti dalla pubblicazione. Sono 6 richieste all'ora, ben sotto il limite di GitHub

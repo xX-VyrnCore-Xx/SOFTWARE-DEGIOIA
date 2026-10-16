@@ -48,7 +48,7 @@ internal sealed class SearchResultsPopup : Control
         Invalidate();
     }
 
-    public void Move(int delta)
+    public void MoveSelection(int delta)
     {
         if (_hits.Count == 0)
         {

@@ -178,7 +178,7 @@ internal static class ThemedMenus
         var tip = new ToolTip { OwnerDraw = true, AutoPopDelay = 12000, InitialDelay = 450, ReshowDelay = 150 };
         tip.Popup += (_, e) =>
         {
-            var text = tip.GetToolTip(e.AssociatedControl);
+            var text = (e.AssociatedControl is { } owner ? tip.GetToolTip(owner) : null) ?? string.Empty;
             e.ToolTipSize = MeasureTip(text);
         };
         tip.Draw += (_, e) =>

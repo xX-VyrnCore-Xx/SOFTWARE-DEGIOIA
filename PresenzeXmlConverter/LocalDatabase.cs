@@ -5,6 +5,17 @@ namespace PresenzeXmlConverter;
 /// <summary>Un backup del database: file, momento di creazione (UTC) e dimensione.</summary>
 internal sealed record DatabaseBackup(string Path, DateTime CreatedUtc, long SizeBytes);
 
+/// <summary>Esito del controllo dei backup: quanti sono buoni e i nomi di quelli danneggiati.</summary>
+internal sealed record BackupVerification(int Good, IReadOnlyList<string> Damaged)
+{
+    public bool AllGood => Damaged.Count == 0;
+
+    public string Describe() =>
+        AllGood
+            ? (Good == 0 ? "Nessun backup da controllare." : $"{Good} backup controllati: tutti integri.")
+            : $"{Good} backup integri, {Damaged.Count} danneggiati: {string.Join(", ", Damaged)}.";
+}
+
 /// <summary>Database aperto e, se serviva, il racconto di che cosa è stato fatto per riaprirlo.</summary>
 internal sealed record LocalDatabaseOpenResult(LocalDatabase Database, string? Note);
 
@@ -61,10 +72,11 @@ internal sealed class LocalDatabase
     /// <summary>
     /// Versione dello schema: 1 = preferenze e abbinamenti, 2 = storico delle
     /// esportazioni, 3 = impronta e file sorgente di ogni esportazione e copia
-    /// dell'XML consegnato, 4 = anagrafica delle aziende, 5 = regole di conversione per azienda. Un database di versione superiore è stato scritto da
+    /// dell'XML consegnato, 4 = anagrafica delle aziende, 5 = regole di conversione per azienda, 6 = indici delle liste
+    /// (vedi <see cref="DatabaseMigrations"/>). Un database di versione superiore è stato scritto da
     /// una build più recente e non va aperto a metà.
     /// </summary>
-    public const int CurrentSchemaVersion = 5;
+    public const int CurrentSchemaVersion = DatabaseMigrations.Latest;
 
     /// <summary>Quanti backup restano: i più vecchi vengono eliminati.</summary>
     public const int MaximumBackups = 10;
@@ -387,9 +399,27 @@ internal sealed class LocalDatabase
             seedCompany.ExecuteNonQuery();
         }
 
-        using var updateVersion = connection.CreateCommand();
-        updateVersion.CommandText = $"PRAGMA user_version = {CurrentSchemaVersion};";
-        updateVersion.ExecuteNonQuery();
+        // Il blocco qui sopra porta qualunque database alla versione di base; poi ogni passaggio successivo gira in una
+        // transazione insieme al proprio numero di versione, così un'interruzione non lascia lo schema a metà.
+        var applied = Math.Max(schemaVersion, 0);
+        if (applied < DatabaseMigrations.BaselineVersion)
+        {
+            using var baseline = connection.CreateCommand();
+            baseline.CommandText = $"PRAGMA user_version = {DatabaseMigrations.BaselineVersion};";
+            baseline.ExecuteNonQuery();
+            applied = DatabaseMigrations.BaselineVersion;
+        }
+        foreach (var step in DatabaseMigrations.Pending(applied))
+        {
+            using var transaction = connection.BeginTransaction();
+            using var run = connection.CreateCommand();
+            run.Transaction = transaction;
+            run.CommandText = step.Sql;
+            run.ExecuteNonQuery();
+            run.CommandText = $"PRAGMA user_version = {step.Version};";
+            run.ExecuteNonQuery();
+            transaction.Commit();
+        }
 
         // Il controllo d'integrità è importante ma non serve a ogni avvio:
         // viene eseguito la prima volta e poi al massimo una volta a settimana,
@@ -476,6 +506,8 @@ internal sealed class LocalDatabase
             PRAGMA foreign_keys = ON;
             PRAGMA secure_delete = ON;
             PRAGMA synchronous = FULL;
+            PRAGMA temp_store = MEMORY;
+            PRAGMA cache_size = -8192;
             """;
         command.ExecuteNonQuery();
         return connection;
@@ -630,6 +662,12 @@ internal sealed class LocalDatabase
             command.Parameters.AddWithValue("$path", temporaryPath);
             command.ExecuteNonQuery();
         }
+        // Una copia illeggibile non vale come backup, e non deve far scartare quelle buone: si controlla prima di darle un nome.
+        if (!IsHealthyDatabaseFile(temporaryPath))
+        {
+            File.Delete(temporaryPath);
+            throw new IOException("La copia di sicurezza appena creata non ha superato il controllo e non è stata conservata.");
+        }
         File.Move(temporaryPath, finalPath);
         PruneBackups();
         return finalPath;
@@ -646,6 +684,40 @@ internal sealed class LocalDatabase
         {
             return null;
         }
+    }
+
+    /// <summary>Controlla ogni backup presente (si apre, integrità, schema noto): quanti sono buoni e quali no.</summary>
+    public BackupVerification VerifyBackups()
+    {
+        var good = 0;
+        var bad = new List<string>();
+        foreach (var backup in ListBackups())
+        {
+            if (IsHealthyDatabaseFile(backup.Path))
+            {
+                good++;
+            }
+            else
+            {
+                bad.Add(Path.GetFileName(backup.Path));
+            }
+        }
+        return new BackupVerification(good, bad);
+    }
+
+    /// <summary>
+    /// Ottimizzazione leggera: aggiorna le statistiche usate dalle ricerche e toglie dall'archivio dei file XML quelli
+    /// rimasti senza esportazione. Veloce, adatta alla chiusura del programma.
+    /// </summary>
+    public void Optimize()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            DELETE FROM ExportFiles WHERE ExportId NOT IN (SELECT Id FROM Exports);
+            PRAGMA optimize;
+            """;
+        command.ExecuteNonQuery();
     }
 
     /// <summary>Crea un backup solo se l'ultimo è più vecchio di <paramref name="minimumAge"/>.</summary>
@@ -706,6 +778,7 @@ internal sealed class LocalDatabase
         try
         {
             BackupIfDue(TimeSpan.FromHours(6));
+            Optimize();
             Checkpoint();
         }
         catch (Exception exception) when (exception is SqliteException or IOException or UnauthorizedAccessException)
