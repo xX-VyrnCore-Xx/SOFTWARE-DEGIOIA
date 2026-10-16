@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.43.0] - Corrente
+## [1.44.0] - Corrente
+
+### 🛡️ XML più robusti e sicuri (il file consegnato non cambia di un byte)
+- **Il file contiene esattamente le ore dell'anteprima**: dopo il salvataggio l'app rilegge il file e confronta, per dipendente, giorno e giustificativo, i minuti scritti con quelli attesi. Se una sola ora differisce, il salvataggio è segnalato come da non consegnare e dice quale riga. Si aggiunge al controllo del tracciato che c'era già
+- **Lettura protetta**: i file XML che l'app legge (il controllo del file scritto, l'esempio di Zucchetti per la forma) rifiutano le dichiarazioni DTD e non seguono riferimenti esterni, con un tetto alla dimensione: un file ostile non può far leggere risorse o riempire la memoria
+- **Controlli in più sul tracciato**: elementi inattesi sotto «Fornitura», lo stesso dipendente in due nodi (PAGHE potrebbe contare due volte le ore), codici con spazi, date con anni fuori da 2000–2100 (tipico errore di foglio)
+- **Storico → «Verifica file»**: confronta il file sul disco con la copia consegnata conservata nello storico e dice se è identico, modificato dopo l'esportazione o non si trova più; mostra l'**impronta SHA-256** e ricontrolla il tracciato
+- Scrittura già a prova di interruzione (file temporaneo e sostituzione atomica) e invariata
+- Test: il documento di riferimento accettato da Zucchetti è confrontato **byte per byte**, quindi un cambio involontario del formato farebbe fallire la CI
+
+## [1.43.0]
 
 ### 🧭 Parte bassa della finestra più curata
 - **Barra di stato a segmenti**: a sinistra il messaggio con un pallino disegnato (verde, giallo se è un avviso); a destra, separati da una linea sottile, **aggiornamenti**, **versione** e **ora**, ognuno con la sua icona. Un clic sul segmento degli aggiornamenti verifica subito se c'è una versione nuova. Con la finestra stretta spariscono prima l'ora e la versione; il messaggio ha sempre il suo spazio

@@ -38,7 +38,7 @@ internal static class TrriPwXmlValidator
         try
         {
             using var stream = new MemoryStream(bytes);
-            document = XDocument.Load(stream);
+            document = XmlSafety.Load(stream);
         }
         catch (XmlException exception)
         {
@@ -59,6 +59,10 @@ internal static class TrriPwXmlValidator
         }
 
         var ns = root.Name.Namespace;
+        foreach (var unexpected in root.Elements().Where(element => element.Name != ns + "Dipendente").Take(3))
+        {
+            issues.Add($"Elemento inatteso «{unexpected.Name.LocalName}» sotto «{root.Name.LocalName}»: il tracciato prevede solo nodi «Dipendente».");
+        }
         var employees = root.Elements(ns + "Dipendente").ToArray();
         if (employees.Length == 0)
         {
@@ -66,6 +70,7 @@ internal static class TrriPwXmlValidator
         }
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var employeeNodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var employee in employees)
         {
             // I codici sono attributi del nodo (come nel file accettato da Zucchetti); si
@@ -75,6 +80,14 @@ internal static class TrriPwXmlValidator
             var code = (string?)employee.Attribute("CodDipendenteUfficiale") ??
                        (string?)employee.Element(ns + "CodDipendenteUfficiale") ?? string.Empty;
             var who = code.Length == 0 ? "un dipendente" : $"il dipendente {code}";
+            if (company != company.Trim() || code != code.Trim())
+            {
+                issues.Add($"I codici di {who} hanno spazi all'inizio o alla fine.");
+            }
+            if (code.Length > 0 && !employeeNodes.Add($"{company}|{code}"))
+            {
+                issues.Add($"{char.ToUpperInvariant(who[0])}{who[1..]} compare in più nodi «Dipendente»: PAGHE potrebbe contare due volte le ore.");
+            }
             if (company.Length is 0 or > TrriPwXmlWriter.MaxCompanyCodeLength)
             {
                 issues.Add($"Codice azienda mancante o oltre {TrriPwXmlWriter.MaxCompanyCodeLength} caratteri per {who}.");
@@ -122,9 +135,13 @@ internal static class TrriPwXmlValidator
                         issues.Add($"Giustificativo mancante o oltre {TrriPwXmlWriter.MaxReasonCodeLength} caratteri per {who}.");
                     }
                     if (!DateTime.TryParseExact(
-                            dateText, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+                            dateText, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
                     {
                         issues.Add($"Data «{dateText}» non valida per {who}: il formato è aaaa-mm-gg.");
+                    }
+                    else if (parsedDate.Year is < 2000 or > 2100)
+                    {
+                        issues.Add($"Data {dateText} fuori dal periodo plausibile per {who}: controlla l'anno nel foglio.");
                     }
                     if (!TryNumber(movement.Element(ns + "NumOre"), TrriPwXmlWriter.MaxHoursPerMovement) ||
                         !TryOptionalNumber(movement.Element(ns + "NumMinuti"), TrriPwXmlWriter.MaxMinutesPerMovement))

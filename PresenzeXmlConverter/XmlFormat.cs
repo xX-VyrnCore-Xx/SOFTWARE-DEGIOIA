@@ -77,7 +77,7 @@ internal sealed record XmlFormat(string RootElement, string Namespace, bool Move
         XDocument document;
         try
         {
-            document = XDocument.Load(path);
+            document = XmlSafety.Load(path);
         }
         catch (Exception exception) when (exception is XmlException or IOException or UnauthorizedAccessException)
         {
