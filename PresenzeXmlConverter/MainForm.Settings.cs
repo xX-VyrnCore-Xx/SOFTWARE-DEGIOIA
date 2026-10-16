@@ -9,7 +9,7 @@ namespace PresenzeXmlConverter;
 internal sealed partial class MainForm
 {
     /// <summary>Suggerimenti condivisi dei comandi della finestra.</summary>
-    private readonly ToolTip _tooltips = new();
+    private readonly ToolTip _tooltips = ThemedMenus.CreateToolTip();
 
     /// <summary>
     /// Dà un nome e una descrizione al controllo per le utilità di accessibilità
@@ -288,7 +288,7 @@ internal sealed partial class MainForm
         {
             return;
         }
-        var menu = new ContextMenuStrip { ShowImageMargin = false };
+        var menu = ThemedMenus.Create(checks: true);
         foreach (var name in _sheetNames)
         {
             var item = new ToolStripMenuItem(name)

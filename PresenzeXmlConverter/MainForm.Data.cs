@@ -302,7 +302,7 @@ internal sealed partial class MainForm
     {
         if (_transferMenu is null)
         {
-            _transferMenu = new ContextMenuStrip { ShowImageMargin = false };
+            _transferMenu = ThemedMenus.Create();
             _transferMenu.Items.Add("Esporta codici e aziende…", null, (_, _) => ExportCodesBackup());
             _transferMenu.Items.Add("Importa codici e aziende…", null, (_, _) => ImportCodesBackup());
             _transferMenu.Items.Add(new ToolStripSeparator());
