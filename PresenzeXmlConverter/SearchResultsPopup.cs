@@ -86,6 +86,7 @@ internal sealed class SearchResultsPopup : Control
         SearchKind.Company => Glyph.Building,
         SearchKind.Employee => Glyph.Users,
         SearchKind.Policy => Glyph.Code,
+        SearchKind.Command => Glyph.Arrow,
         _ => Glyph.File
     };
 

@@ -6,7 +6,8 @@ internal enum SearchKind
     Company,
     Employee,
     Policy,
-    Export
+    Export,
+    Command
 }
 
 /// <summary>Un risultato della ricerca globale: cosa è, come si chiama, un dettaglio e la chiave per ritrovarlo.</summary>

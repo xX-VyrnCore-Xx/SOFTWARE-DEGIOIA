@@ -4,7 +4,18 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.45.0] - Corrente
+## [1.46.0] - Corrente
+
+### ⌨️ Palette comandi
+- **Ctrl+K apre la palette**: a campo vuoto propone i comandi più utili; scrivendo, accanto ai risultati (movimenti, aziende, dipendenti, giustificativi, esportazioni) compaiono i comandi pertinenti. Scrivendo **«>»** all'inizio si vedono **solo i comandi**
+- **19 comandi**: apri un file Excel, genera anteprima e XML, salva l'XML, rimuovi il file caricato, vai a ogni sezione (Dashboard, Nuova conversione, Aziende, Gestione codici, Storico, Registro attività), apri le Impostazioni, cambia tema (scuro, chiaro, come Windows), crea un backup, apri la cartella dei dati o delle copie dei codici, cerca aggiornamenti, mostra le scorciatoie
+- Ogni comando mostra la **scorciatoia** che lo richiama direttamente; si offrono solo i comandi eseguibili adesso (per esempio «Salva l'XML» solo con un'anteprima pronta)
+- Su e Giù per scegliere, Invio per eseguire, Esc per chiudere; le parole si scrivono in qualsiasi ordine, senza accenti né maiuscole
+- Se un testo non trova altro che movimenti, la ricerca fa quello di sempre
+- Ogni cambio di tema dalla palette finisce nel Registro attività
+- La conversione XML non è toccata
+
+## [1.45.0]
 
 ### 🗂️ Registro delle attività
 - **Nuova sezione «Registro attività»** nella barra laterale (scorciatoia **Ctrl+7**): cosa è stato fatto con il programma, con data e ora — importazioni e rimozioni del foglio, anteprime generate, XML esportati, verifiche dei file consegnati, codici eliminati, aziende salvate / eliminate / regole cambiate, backup, esportazioni e importazioni di codici, impostazioni salvate, aggiornamenti avviati
