@@ -39,6 +39,41 @@ public class MenuLifetimeTests
         Assert.Contains("CreateTransferButton(", File.ReadAllText(Path.Combine(folder, "MainForm.Companies.cs")), StringComparison.Ordinal);
     }
 
+    public static IEnumerable<object[]> Palettes() => [[false], [true]];
+
+    [Theory]
+    [MemberData(nameof(Palettes))]
+    public void MenuTextIsReadableOnEveryMenuBackground(bool dark)
+    {
+        var p = dark ? ThemePalette.Dark : ThemePalette.Light;
+        Assert.True(ColorContrast.Ratio(MenuPalette.Text(p, true, false), MenuPalette.Back(p)) >= 7, "voce normale");
+        Assert.True(ColorContrast.Ratio(MenuPalette.Text(p, true, true), MenuPalette.HoverFill(p)) >= 4.5, "voce evidenziata");
+        Assert.True(ColorContrast.Ratio(MenuPalette.Text(p, false, false), MenuPalette.Back(p)) >= 1.8, "voce disattivata");
+        Assert.True(ColorContrast.Ratio(MenuPalette.Border(p), MenuPalette.Back(p)) >= 1.15, "bordo visibile");
+    }
+
+    [Fact]
+    public void MenusComboBoxesAndTooltipsUseTheThemedVersions()
+    {
+        var folder = SourceFolder();
+        if (folder is null)
+        {
+            return;
+        }
+        foreach (var file in Directory.EnumerateFiles(folder, "*.cs"))
+        {
+            var name = Path.GetFileName(file);
+            if (name == "ThemedMenus.cs")
+            {
+                continue;
+            }
+            var text = File.ReadAllText(file);
+            Assert.False(Regex.IsMatch(text, @"new\s+ContextMenuStrip\s*\("), $"{name}: usa ThemedMenus.Create().");
+            Assert.False(Regex.IsMatch(text, @"new\s+ToolTip\s*\("), $"{name}: usa ThemedMenus.CreateToolTip().");
+            Assert.False(Regex.IsMatch(text, @"ComboBox\s+\w+\s*=\s*new\s*(ComboBox)?\s*(\(\))?\s*;"), $"{name}: usa ThemedComboBox.");
+        }
+    }
+
     private static string? SourceFolder()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

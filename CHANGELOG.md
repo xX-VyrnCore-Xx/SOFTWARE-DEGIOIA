@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.46.0] - Corrente
+## [1.47.0] - Corrente
+
+### 🎨 Menù, tendine e suggerimenti nello stile dell'app
+- **Menù a comparsa rifatti** (tasto destro sul calendario, «Trasferisci», scelta del foglio, icona nell'area di notifica): sfondo e bordo del tema, voce evidenziata con angoli tondi, separatori leggeri, caratteri dell'app. Seguono il **tema scuro**, prima restavano grigio Windows
+- **Spunta visibile** sul foglio scelto e sulle notifiche di Windows: prima lo spazio della spunta non c'era e la voce attiva non si distingueva
+- **Tendine nuove** (mappatura colonne, filtro del Registro attività): campo con angoli tondi, bordo che si accende al passaggio e alla selezione, freccia disegnata che si capovolge ad elenco aperto, elenco con la stessa evidenziazione dei menù e barra di scorrimento scura nel tema scuro. L'elenco si allarga alla voce più lunga invece di tagliarla
+- **Suggerimenti (tooltip)** con i colori del tema, testo a capo ordinato e margini regolari
+- Test sul contrasto di menù e tendine in tema chiaro e scuro e controllo che nessun menù, tendina o suggerimento torni a quello di sistema
+- La conversione XML non è toccata
+
+## [1.46.0]
 
 ### ⌨️ Palette comandi
 - **Ctrl+K apre la palette**: a campo vuoto propone i comandi più utili; scrivendo, accanto ai risultati (movimenti, aziende, dipendenti, giustificativi, esportazioni) compaiono i comandi pertinenti. Scrivendo **«>»** all'inizio si vedono **solo i comandi**

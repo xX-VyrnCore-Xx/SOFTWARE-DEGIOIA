@@ -325,7 +325,7 @@ internal sealed partial class MainForm : Form
     {
         _trayIcon.Icon = _applicationIcon;
         _trayIcon.Text = WindowCaption;
-        var menu = new ContextMenuStrip();
+        var menu = ThemedMenus.Create(checks: true);
         menu.Items.Add("Apri Vyrn Presence", null, (_, _) => RestoreFromTray());
         // Compare in cima solo quando c'è un aggiornamento pronto: si installa senza aprire prima la finestra.
         _trayUpdateItem = new ToolStripMenuItem("Installa aggiornamento")

@@ -44,7 +44,7 @@ internal sealed class MonthCalendarView : Panel
     private int _reviewWarnings;
     private Action? _openChecks;
     private readonly Legend _legend = new();
-    private readonly ToolTip _tip = new();
+    private readonly ToolTip _tip = ThemedMenus.CreateToolTip();
 
     private readonly List<(int Year, int Month)> _months = new();
     private readonly List<string> _employees = new();
@@ -555,7 +555,7 @@ internal sealed class MonthCalendarView : Panel
 
     private void ShowExportMenu()
     {
-        var menu = new ContextMenuStrip { ShowImageMargin = false };
+        var menu = ThemedMenus.Create();
         menu.Items.Add("Report del mese (PDF)", null, (_, _) => SaveReport());
         menu.Items.Add("Riepilogo ore (CSV per Excel)", null, (_, _) => SaveSummary());
         menu.Items.Add("Immagine del mese (PNG)", null, (_, _) => SaveImage());

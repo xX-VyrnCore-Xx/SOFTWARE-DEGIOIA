@@ -11,7 +11,7 @@ internal sealed partial class MainForm
     private readonly TableLayoutPanel _activitySection = NewSection();
     private readonly ThemedGrid _activityGrid = new();
     private readonly RoundedField _activitySearch = new();
-    private readonly ComboBox _activityKindFilter = new();
+    private readonly ComboBox _activityKindFilter = new ThemedComboBox();
     private readonly Label _activitySummaryLabel = new();
     private readonly Button _activityExportButton = new ThemedButton();
     private readonly Button _activityClearButton = new ThemedButton();

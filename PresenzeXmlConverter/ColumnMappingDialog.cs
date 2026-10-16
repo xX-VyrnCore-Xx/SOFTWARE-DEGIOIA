@@ -7,11 +7,11 @@ internal sealed class ColumnMappingDialog : Form
         public override string ToString() => Index < 0 ? Header : $"Colonna {Index + 1}: {Header}";
     }
 
-    private readonly ComboBox _employee = new();
-    private readonly ComboBox _policy = new();
-    private readonly ComboBox _start = new();
-    private readonly ComboBox _end = new();
-    private readonly ComboBox _duration = new();
+    private readonly ComboBox _employee = new ThemedComboBox();
+    private readonly ComboBox _policy = new ThemedComboBox();
+    private readonly ComboBox _start = new ThemedComboBox();
+    private readonly ComboBox _end = new ThemedComboBox();
+    private readonly ComboBox _duration = new ThemedComboBox();
 
     public ColumnMappingDialog(IReadOnlyList<string> headers, ColumnSelection? suggested)
     {
