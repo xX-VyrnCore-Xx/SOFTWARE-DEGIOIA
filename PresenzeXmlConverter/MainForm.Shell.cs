@@ -867,6 +867,16 @@ internal sealed partial class MainForm
             SetStatus(
                 result == FileIntegrity.Identical ? $"File {record.FileName}: identico a quello consegnato." : $"File {record.FileName}: da controllare.",
                 result != FileIntegrity.Identical);
+            Audit(
+                ActivityKind.Check,
+                $"Verifica del file «{record.FileName}»",
+                result switch
+                {
+                    FileIntegrity.Identical => "identico a quello consegnato",
+                    FileIntegrity.Modified => "modificato dopo l'esportazione",
+                    FileIntegrity.Missing => "file non trovato",
+                    _ => "copia non conservata"
+                });
             ShowInformation("Verifica del file consegnato", message);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SqliteException)

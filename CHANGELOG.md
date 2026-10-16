@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.44.0] - Corrente
+## [1.45.0] - Corrente
+
+### 🗂️ Registro delle attività
+- **Nuova sezione «Registro attività»** nella barra laterale (scorciatoia **Ctrl+7**): cosa è stato fatto con il programma, con data e ora — importazioni e rimozioni del foglio, anteprime generate, XML esportati, verifiche dei file consegnati, codici eliminati, aziende salvate / eliminate / regole cambiate, backup, esportazioni e importazioni di codici, impostazioni salvate, aggiornamenti avviati
+- **Ricerca** (parole in qualsiasi ordine, senza accenti) e **filtro per tipo** (Importazione, Anteprima, Esportazione, Codici, Aziende, Backup, Aggiornamento, Impostazioni, Controllo)
+- **Esporta CSV** delle voci mostrate, pronto per Excel italiano (separatore «;», con BOM); le celle che sembrano formule sono neutralizzate
+- Si conservano le **ultime 5.000 voci**; «Svuota registro» le elimina senza toccare codici, aziende ed esportazioni
+- Il registro è un di più: se il database non risponde, l'operazione che stavi facendo non fallisce
+- La conversione XML non è toccata
+
+## [1.44.0]
 
 ### 🛡️ XML più robusti e sicuri (il file consegnato non cambia di un byte)
 - **Il file contiene esattamente le ore dell'anteprima**: dopo il salvataggio l'app rilegge il file e confronta, per dipendente, giorno e giustificativo, i minuti scritti con quelli attesi. Se una sola ora differisce, il salvataggio è segnalato come da non consegnare e dice quale riga. Si aggiunge al controllo del tracciato che c'era già
