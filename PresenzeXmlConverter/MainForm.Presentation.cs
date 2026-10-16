@@ -775,9 +775,9 @@ internal sealed partial class MainForm
 
     private Control BuildFooter()
     {
-        // Regola sottile in alto e due colonne separate: lo stato occupa tutto
-        // lo spazio a sinistra con ellissi, lo stato degli aggiornamenti resta a destra e i
-        // due testi non si sovrappongono mai.
+        // Regola sottile in alto e la barra di stato disegnata a segmenti: messaggio a sinistra, a destra
+        // aggiornamenti, versione e ora. Le due etichette restano il punto in cui il resto del codice scrive lo
+        // stato; la barra le rispecchia (SetStatus e RefreshUpdateStatus).
         var footer = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -790,37 +790,12 @@ internal sealed partial class MainForm
         footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         footer.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Theme.Divider }, 0, 0);
 
-        var content = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            BackColor = Theme.Canvas,
-            Padding = new Padding(2, 0, 2, 0),
-            Margin = Padding.Empty
-        };
-        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        content.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        _statusLabel.Dock = DockStyle.Fill;
-        _statusLabel.AutoEllipsis = true;
-        _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _statusLabel.Text = "●   Pronto  ·  Formato di esportazione: XML TRRIPW";
-        _statusLabel.Font = Theme.Fonts.Small;
-        _statusLabel.ForeColor = Theme.MutedInk;
-        content.Controls.Add(_statusLabel, 0, 0);
-
-        // Stato degli aggiornamenti sempre visibile: si vede a colpo d'occhio se
-        // il collegamento alle Release è attivo.
-        _updateStatusLabel.AutoSize = true;
-        _updateStatusLabel.Dock = DockStyle.Right;
-        _updateStatusLabel.TextAlign = ContentAlignment.MiddleRight;
-        _updateStatusLabel.Text = "Aggiornamenti · verifica in corso";
-        _updateStatusLabel.Font = Theme.Fonts.Small;
-        _updateStatusLabel.ForeColor = Theme.MutedInk;
-        content.Controls.Add(_updateStatusLabel, 1, 0);
-        footer.Controls.Add(content, 0, 1);
+        _statusBar.Dock = DockStyle.Fill;
+        _statusBar.Margin = Padding.Empty;
+        _statusBar.SetVersion(StatusBarModel.VersionText(RunningVersion));
+        _statusBar.SetMessage("Pronto  ·  Formato di esportazione: XML TRRIPW", false);
+        _statusBar.UpdatesClicked += async (_, _) => await CheckForUpdatesAsync(userInitiated: true);
+        footer.Controls.Add(_statusBar, 0, 1);
         return footer;
     }
 

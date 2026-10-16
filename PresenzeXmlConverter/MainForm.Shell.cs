@@ -148,63 +148,18 @@ internal sealed partial class MainForm
     /// </summary>
     private Control BuildRailFooter()
     {
-        var footer = new TableLayoutPanel
+        // Le tre etichette restano il punto in cui il resto del codice aggiorna lo stato; non sono mostrate:
+        // le legge e le disegna il blocco, che si ridisegna a ogni loro cambiamento.
+        _railDataLabel.ForeColor = Theme.SuccessInk;
+        _railDataLabel.Text = "●  Database collegato";
+        _railBackupLabel.Text = "backup automatici";
+        _railCompanyLabel.Text = "nessuna azienda";
+        return new RailStatusCard(_railDataLabel, _railBackupLabel, _railCompanyLabel, RunningVersion.ToString(3))
         {
             Dock = DockStyle.Bottom,
-            Height = 110,
-            ColumnCount = 1,
-            RowCount = 5,
-            BackColor = Theme.Canvas,
-            Padding = new Padding(16, 8, 8, 10),
+            Height = 132,
             Margin = Padding.Empty
         };
-        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var row = 0; row < 5; row++)
-        {
-            footer.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
-        }
-
-        footer.Controls.Add(CreateCardTitle("DATI LOCALI"), 0, 0);
-
-        _railDataLabel.Dock = DockStyle.Fill;
-        _railDataLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _railDataLabel.ForeColor = Theme.SuccessInk;
-        _railDataLabel.Font = Theme.Fonts.SmallBold;
-        _railDataLabel.AutoEllipsis = true;
-        _railDataLabel.Margin = Padding.Empty;
-        _railDataLabel.Text = "●  Database collegato";
-        footer.Controls.Add(_railDataLabel, 0, 1);
-
-        _railBackupLabel.Dock = DockStyle.Fill;
-        _railBackupLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _railBackupLabel.ForeColor = Theme.MutedInk;
-        _railBackupLabel.Font = Theme.Fonts.Tiny;
-        _railBackupLabel.AutoEllipsis = true;
-        _railBackupLabel.Margin = Padding.Empty;
-        _railBackupLabel.Text = "backup automatici";
-        footer.Controls.Add(_railBackupLabel, 0, 2);
-
-        _railCompanyLabel.Dock = DockStyle.Fill;
-        _railCompanyLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _railCompanyLabel.ForeColor = Theme.MutedInk;
-        _railCompanyLabel.Font = Theme.Fonts.Tiny;
-        _railCompanyLabel.AutoEllipsis = true;
-        _railCompanyLabel.Margin = Padding.Empty;
-        _railCompanyLabel.Text = "nessuna azienda";
-        footer.Controls.Add(_railCompanyLabel, 0, 3);
-
-        var version = new Label
-        {
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Theme.MutedInk,
-            Font = Theme.Fonts.Tiny,
-            AutoEllipsis = true,
-            Margin = Padding.Empty,
-            Text = $"Versione {RunningVersion.ToString(3)}"
-        };
-        footer.Controls.Add(version, 0, 4);
-        return footer;
     }
 
     /// <summary>
@@ -1050,15 +1005,10 @@ internal sealed partial class MainForm
         Margin = Padding.Empty
     };
 
-    private static Control BuildSectionHint(string text) => new Label
+    private static Control BuildSectionHint(string text) => new HintLine(text)
     {
-        Text = text,
         Dock = DockStyle.Fill,
-        TextAlign = ContentAlignment.MiddleLeft,
-        ForeColor = Theme.FaintInk,
-        Font = Theme.Fonts.Tiny,
-        AutoEllipsis = true,
-        Margin = new Padding(2, 4, 0, 0)
+        Margin = new Padding(2, 2, 0, 0)
     };
 
     /* --------------------- Ricerca, avvio e dati differiti --------------- */

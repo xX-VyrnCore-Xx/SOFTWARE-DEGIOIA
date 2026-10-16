@@ -31,7 +31,8 @@ internal enum Glyph
     Dashboard,
     Sheet,
     Building,
-    List
+    List,
+    Info
 }
 
 /// <summary>Un segmento di tracciato: M = sposta, L = linea, C = curva di Bézier cubica (tre punti), Z = chiudi.</summary>
@@ -126,6 +127,7 @@ internal static class IconGeometry
         Glyph.Alert => [Poly(true, 12f, 3.5f, 21.5f, 20f, 2.5f, 20f), Line(12f, 10f, 12f, 14.5f), Dot(12f, 17.3f, 1.15f)],
         Glyph.Table => [RoundRect(3f, 4f, 18f, 16f, 2f), Line(3f, 10f, 21f, 10f), Line(9.5f, 10f, 9.5f, 20f)],
         Glyph.Code => [Poly(false, 8f, 7f, 3f, 12f, 8f, 17f), Poly(false, 16f, 7f, 21f, 12f, 16f, 17f), Line(13.5f, 5f, 10.5f, 19f)],
+        Glyph.Info => [Circle(12f, 12f, 9f), Line(12f, 11f, 12f, 16.5f), Dot(12f, 7.8f, 1.15f)],
         Glyph.Chip => ChipIcon(),
         Glyph.Users =>
         [

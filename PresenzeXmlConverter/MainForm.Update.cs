@@ -533,6 +533,7 @@ internal sealed partial class MainForm
     {
         _updateStatusLabel.Text = text;
         _updateStatusLabel.ForeColor = isWarning ? Theme.WarningInk : Theme.MutedInk;
+        _statusBar.SetUpdates(text, isWarning);
         RefreshUpdatesStatusRow();
         // Il pallino sull'icona dell'intestazione compare solo quando c'è una versione nuova.
         if (_headerUpdatesButton is not null)
