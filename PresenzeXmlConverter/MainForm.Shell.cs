@@ -1121,8 +1121,8 @@ internal sealed partial class MainForm
         // spazio ma resta usabile.
         _headerSearch.Dock = DockStyle.None;
         _headerSearch.OnDark = true;
-        _headerSearch.Placeholder = "Cerca ovunque…  (Ctrl+K)";
-        _headerSearch.Input.AccessibleName = "Cerca nei movimenti, aziende, codici ed esportazioni";
+        _headerSearch.Placeholder = "Cerca o scrivi > per i comandi  (Ctrl+K)";
+        _headerSearch.Input.AccessibleName = "Cerca nei movimenti, aziende, codici ed esportazioni, oppure scrivi > per i comandi";
         _headerSearch.TextChanged += (_, _) => SearchFromHeader();
         _headerSearch.Input.GotFocus += (_, _) =>
         {
@@ -1164,16 +1164,18 @@ internal sealed partial class MainForm
         {
             var value = _headerSearch.Value;
             ComputeSearchHits(value);
+            var commandsOnly = CommandCatalog.IsCommandQuery(value);
             // Se oltre ai movimenti non c'è altro da proporre la ricerca fa quello che ha sempre fatto:
-            // porta ai movimenti filtrati. Se ci sono aziende, codici o esportazioni, scegli tu.
-            if (value.Length > 0 && !_searchHasOthers)
+            // porta ai movimenti filtrati. Se ci sono aziende, codici, esportazioni o comandi, scegli tu.
+            if (value.Length > 0 && !commandsOnly && !_searchHasOthers)
             {
                 ShowSection(SectionConversion);
                 _previewTabs.SelectedIndex = 0;
             }
             // Il filtro vero resta quello dell'area di revisione: qui si scrive
             // nello stesso campo, così la ricerca si comporta in un modo solo.
-            _previewSearch.Value = value;
+            // Con «>» si cercano comandi: i movimenti non vanno filtrati con quel testo.
+            _previewSearch.Value = commandsOnly ? string.Empty : value;
             UpdateSearchPopup();
         }
         finally
@@ -1198,11 +1200,110 @@ internal sealed partial class MainForm
 
     private bool _searchHasOthers;
 
+    /// <summary>
+    /// Risultati della ricerca e comandi per il testo scritto. Con «&gt;» in testa solo comandi; a campo vuoto i comandi
+    /// suggeriti (la palette di Ctrl+K); altrimenti i dati trovati con, in fondo, qualche comando pertinente.
+    /// </summary>
     private void ComputeSearchHits(string value)
     {
-        var hits = GlobalSearch.Find(value, _movements.Count, _companies, _searchEmployees, _searchPolicies, _exports);
+        var commandsOnly = CommandCatalog.IsCommandQuery(value);
+        var trimmed = value.Trim();
+        IReadOnlyList<SearchHit> data = commandsOnly
+            ? []
+            : GlobalSearch.Find(value, _movements.Count, _companies, _searchEmployees, _searchPolicies, _exports);
+        var wantsCommands = commandsOnly || trimmed.Length == 0 || trimmed.Length >= GlobalSearch.MinimumLength;
+        var commands = wantsCommands
+            ? CommandCatalog.Find(value, IsCommandAvailable)
+            : (IReadOnlyList<AppCommand>)[];
+        var hits = CommandCatalog.Compose(data, commands, commandsOnly);
         _searchPopup.SetHits(hits);
         _searchHasOthers = hits.Any(hit => hit.Kind != SearchKind.Movements);
+    }
+
+    /// <summary>Un comando è offerto solo se si può eseguire adesso (per esempio «Salva l'XML» solo con un'anteprima pronta).</summary>
+    private bool IsCommandAvailable(AppCommand command) => command.Id switch
+    {
+        "preview" => _generateButton.Enabled,
+        "export" => _exportButton.Enabled,
+        "remove-file" => _sourcePath is not null,
+        "theme-dark" => ThemePreference.Load() != ThemeMode.Dark,
+        "theme-light" => ThemePreference.Load() != ThemeMode.Light,
+        "theme-system" => ThemePreference.Load() != ThemeMode.System,
+        _ => true
+    };
+
+    /// <summary>Esegue il comando scelto dalla palette.</summary>
+    private void RunCommand(string id)
+    {
+        switch (id)
+        {
+            case "import":
+                _ = ImportWorkbookAsync();
+                break;
+            case "preview":
+                GeneratePreview();
+                break;
+            case "export":
+                ExportXml();
+                break;
+            case "remove-file":
+                RemoveWorkbook();
+                break;
+            case "go-dashboard":
+                ShowSection(SectionDashboard);
+                break;
+            case "go-convert":
+                ShowSection(SectionConversion);
+                break;
+            case "go-companies":
+                ShowSection(SectionCompanies);
+                break;
+            case "go-codes":
+                ShowSection(SectionCodes);
+                break;
+            case "go-history":
+                ShowSection(SectionHistory);
+                break;
+            case "settings":
+                OpenSettings();
+                break;
+            case "theme-dark":
+                ChangeThemeFromCommand(ThemeMode.Dark);
+                break;
+            case "theme-light":
+                ChangeThemeFromCommand(ThemeMode.Light);
+                break;
+            case "theme-system":
+                ChangeThemeFromCommand(ThemeMode.System);
+                break;
+            case "backup":
+                BackupDatabaseNow();
+                break;
+            case "open-data":
+                OpenDataFolder();
+                break;
+            case "open-codes-backup":
+                OpenCodesBackupFolder();
+                break;
+            case "updates":
+                _ = CheckForUpdatesAsync(userInitiated: true);
+                break;
+            case "shortcuts":
+                ShowShortcuts();
+                break;
+        }
+    }
+
+    private void ChangeThemeFromCommand(ThemeMode mode)
+    {
+        if (ThemePreference.Save(mode))
+        {
+            SetStatus("●   Tema salvato: chiudi e riapri il programma per vederlo.", false);
+        }
+        else
+        {
+            SetStatus("Impossibile salvare la scelta del tema: resta quello di prima.", true);
+        }
     }
 
     private void UpdateSearchPopup()
@@ -1264,6 +1365,23 @@ internal sealed partial class MainForm
     private void OnSearchHitChosen(SearchHit hit)
     {
         _searchPopup.Visible = false;
+        if (hit.Kind == SearchKind.Command)
+        {
+            // Il testo cercato ha fatto il suo lavoro: si svuota il campo (e il filtro dei movimenti) prima di agire.
+            _searchSyncing = true;
+            try
+            {
+                _headerSearch.Value = string.Empty;
+                _previewSearch.Value = string.Empty;
+            }
+            finally
+            {
+                _searchSyncing = false;
+            }
+            Focus();
+            RunCommand(hit.Key);
+            return;
+        }
         switch (hit.Kind)
         {
             case SearchKind.Movements:
