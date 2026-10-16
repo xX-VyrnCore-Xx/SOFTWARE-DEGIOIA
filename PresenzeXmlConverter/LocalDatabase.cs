@@ -351,6 +351,14 @@ internal sealed class LocalDatabase
                 XmlGz BLOB NOT NULL,
                 RawBytes INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS Activity (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                AtUtc TEXT NOT NULL,
+                Kind TEXT NOT NULL,
+                Title TEXT NOT NULL,
+                Detail TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS Activity_AtUtc ON Activity (AtUtc DESC);
             """;
         command.ExecuteNonQuery();
 
@@ -909,6 +917,74 @@ internal sealed class LocalDatabase
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM Exports;";
         return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Aggiunge una voce al registro delle attività e tiene solo le ultime <see cref="ActivityLog.MaximumEntries"/>.</summary>
+    public void AddActivity(ActivityKind kind, string title, string detail = "", DateTime? atUtc = null)
+    {
+        var cleanTitle = ActivityLog.CleanTitle(title);
+        if (cleanTitle.Length == 0)
+        {
+            return;
+        }
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        using (var insert = connection.CreateCommand())
+        {
+            insert.Transaction = transaction;
+            insert.CommandText = "INSERT INTO Activity (AtUtc, Kind, Title, Detail) VALUES ($at, $kind, $title, $detail);";
+            insert.Parameters.AddWithValue("$at", (atUtc ?? DateTime.UtcNow).ToUniversalTime().ToString("O"));
+            insert.Parameters.AddWithValue("$kind", kind.ToString());
+            insert.Parameters.AddWithValue("$title", cleanTitle);
+            insert.Parameters.AddWithValue("$detail", ActivityLog.CleanDetail(detail));
+            insert.ExecuteNonQuery();
+        }
+        using (var trim = connection.CreateCommand())
+        {
+            trim.Transaction = transaction;
+            trim.CommandText = """
+                DELETE FROM Activity
+                WHERE Id <= (SELECT MAX(Id) FROM Activity) - $keep;
+                """;
+            trim.Parameters.AddWithValue("$keep", ActivityLog.MaximumEntries);
+            trim.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    /// <summary>Le attività registrate, dalla più recente alla più vecchia.</summary>
+    public IReadOnlyList<ActivityEntry> GetActivities(int limit = ActivityLog.MaximumEntries)
+    {
+        var take = Math.Clamp(limit, 1, ActivityLog.MaximumEntries);
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT Id, AtUtc, Kind, Title, Detail
+            FROM Activity
+            ORDER BY AtUtc DESC, Id DESC
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$limit", take);
+        var entries = new List<ActivityEntry>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            entries.Add(new ActivityEntry(
+                reader.GetInt64(0),
+                ParseTimestamp(reader.GetString(1)),
+                ActivityLog.ParseKind(reader.GetString(2)),
+                reader.GetString(3),
+                reader.GetString(4)));
+        }
+        return entries;
+    }
+
+    public void ClearActivities()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM Activity;";
+        command.ExecuteNonQuery();
     }
 
     /// <summary>Svuota lo storico (i file XML su disco non vengono toccati).</summary>

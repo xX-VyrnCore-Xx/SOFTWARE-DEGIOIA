@@ -393,6 +393,10 @@ internal sealed partial class MainForm
         }
         RefreshCompanies();
         SelectCompanyRow(company.Code);
+        Audit(
+            ActivityKind.Company,
+            $"Regole dell'azienda {company.Code} " + (dialog.Rules is null ? "tolte: usa le generali" : "salvate"),
+            dialog.Rules is null ? string.Empty : GenerationSettings.Describe(dialog.Rules.ToOptions(DateTime.Today.Year)));
         SetStatus(
             dialog.Rules is null
                 ? $"●   L'azienda {company.Code} usa le regole generali."
@@ -478,6 +482,7 @@ internal sealed partial class MainForm
         RefreshCompanies();
         SelectCompanyRow(code);
         SetStatus($"●   Azienda {code} salvata.", false);
+        Audit(ActivityKind.Company, $"Azienda {code} salvata");
     }
 
     private void SelectCompanyRow(string code)
@@ -505,6 +510,7 @@ internal sealed partial class MainForm
         SaveCompanyCode();
         RefreshCompanies();
         SetStatus($"●   Azienda {company.Label} in uso per la conversione.", false);
+        Audit(ActivityKind.Company, $"Azienda in uso: {company.Label}");
     }
 
     private void DeleteSelectedCompany()
@@ -538,5 +544,6 @@ internal sealed partial class MainForm
         ClearCompanyForm();
         RefreshCompanies();
         SetStatus($"●   Azienda {company.Code} eliminata dall'elenco.", false);
+        Audit(ActivityKind.Company, $"Azienda {company.Label} eliminata");
     }
 }

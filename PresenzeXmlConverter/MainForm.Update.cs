@@ -433,6 +433,7 @@ internal sealed partial class MainForm
             _database.SaveSetting(PendingUpdateNotesSetting, update.Notes);
 
             progress.SetStep(UpdateStep.Install);
+            Audit(ActivityKind.Update, $"Aggiornamento alla {update.Version.ToString(3)} avviato", "Firma e checksum verificati");
             StartInstaller(destination);
             progress.Close();
             SetStatus("●   Aggiornamento avviato: Vyrn Presence si chiude per completarlo.", false);

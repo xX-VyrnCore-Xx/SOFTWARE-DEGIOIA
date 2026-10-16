@@ -575,6 +575,13 @@ internal sealed partial class MainForm : Form
             }
             RefreshDashboard();
             SetStatus("●   File importato correttamente", false);
+            if (!restoring)
+            {
+                Audit(
+                    ActivityKind.Import,
+                    $"Importato «{Path.GetFileName(path)}»",
+                    $"{_requests.Count:N0} richieste · foglio «{_inspection?.SheetName}»");
+            }
             UpdateButtons();
             MarkSessionDirty();
             return true;
@@ -709,6 +716,10 @@ internal sealed partial class MainForm : Form
             NotifyConversionCompleted(result.Movements.Count);
             NotifyCalendarAlerts();
             MarkSessionDirty();
+            Audit(
+                ActivityKind.Preview,
+                "Anteprima generata",
+                $"{result.Movements.Count:N0} movimenti · {ErrorCount:N0} errori · {WarningCount:N0} attenzioni");
             if (ErrorCount > 0)
             {
                 _previewTabs.SelectedIndex = ReviewTabIndex;
@@ -948,6 +959,10 @@ internal sealed partial class MainForm : Form
             }
             RecordExport(picker.FileName, companyCode);
             SetStatus($"XML salvato: {picker.FileName}", false);
+            Audit(
+                ActivityKind.Export,
+                $"XML esportato «{Path.GetFileName(picker.FileName)}»",
+                $"azienda {companyCode} · {_movements.Count:N0} movimenti");
             var savedPath = picker.FileName;
             Notify(
                 ToastKind.Success,

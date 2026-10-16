@@ -30,6 +30,7 @@ internal sealed partial class MainForm
     private const int SectionCompanies = 2;
     private const int SectionCodes = 3;
     private const int SectionHistory = 4;
+    private const int SectionActivity = 5;
 
     private readonly NavRail _navRail = new();
     private readonly Panel _sectionHost = new();
@@ -84,6 +85,7 @@ internal sealed partial class MainForm
         _navRail.AddItem("Aziende", NavIcon.Company);
         _navRail.AddItem("Gestione codici", NavIcon.Codes, "Codici");
         _navRail.AddItem("Storico esportazioni", NavIcon.History, "Storico");
+        _navRail.AddItem("Registro attività", NavIcon.Activity, "Registro");
         _navRail.Dock = DockStyle.Top;
         _navRail.Height = _navRail.PreferredRailHeight;
         _navRail.Margin = Padding.Empty;
@@ -106,6 +108,7 @@ internal sealed partial class MainForm
         _sectionHost.Controls.Add(BuildCompaniesSection());
         _sectionHost.Controls.Add(BuildCodesSection());
         _sectionHost.Controls.Add(BuildHistorySection());
+        _sectionHost.Controls.Add(BuildActivitySection());
         _sectionHost.Controls.Add(conversionSection);
 
         var body = new TableLayoutPanel
@@ -212,6 +215,7 @@ internal sealed partial class MainForm
         _companiesSection.Visible = index == SectionCompanies;
         _codesSection.Visible = index == SectionCodes;
         _historySection.Visible = index == SectionHistory;
+        _activitySection.Visible = index == SectionActivity;
 
         switch (index)
         {
@@ -227,6 +231,9 @@ internal sealed partial class MainForm
             case SectionHistory:
                 RefreshHistory();
                 break;
+            case SectionActivity:
+                RefreshActivity();
+                break;
         }
 
         // Dissolvenza in entrata della sezione nuova (solo quando si cambia davvero sezione).
@@ -239,6 +246,7 @@ internal sealed partial class MainForm
                 SectionConversion => _conversionSection,
                 SectionCompanies => _companiesSection,
                 SectionCodes => _codesSection,
+                SectionActivity => _activitySection,
                 _ => _historySection
             });
         }
@@ -490,6 +498,7 @@ internal sealed partial class MainForm
         _mappingPanel.RemoveEntry(entry.Name, entry.IsPolicy);
         InvalidatePreview();
         SetStatus($"●   {(entry.IsPolicy ? "Giustificativo" : "Dipendente")} «{entry.Name}» eliminato dagli abbinamenti.", false);
+        Audit(ActivityKind.Codes, $"{(entry.IsPolicy ? "Giustificativo" : "Dipendente")} «{entry.Name}» eliminato dagli abbinamenti");
     }
 
     private void SaveCodesPage()
@@ -948,6 +957,7 @@ internal sealed partial class MainForm
             RefreshHistory();
             RefreshDashboard();
             SetStatus("●   Storico delle esportazioni svuotato.", false);
+            Audit(ActivityKind.Export, "Storico delle esportazioni svuotato", "I file XML su disco non sono stati toccati");
         }
         catch (SqliteException exception)
         {
