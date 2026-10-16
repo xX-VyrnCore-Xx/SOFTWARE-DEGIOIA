@@ -1264,6 +1264,9 @@ internal sealed partial class MainForm
             case "go-history":
                 ShowSection(SectionHistory);
                 break;
+            case "go-activity":
+                ShowSection(SectionActivity);
+                break;
             case "settings":
                 OpenSettings();
                 break;
@@ -1299,6 +1302,7 @@ internal sealed partial class MainForm
         if (ThemePreference.Save(mode))
         {
             SetStatus("●   Tema salvato: chiudi e riapri il programma per vederlo.", false);
+            Audit(ActivityKind.Settings, "Tema cambiato dalla palette comandi", ThemeChoice.Serialize(mode));
         }
         else
         {
