@@ -221,9 +221,9 @@ internal sealed class NavRail : Control
             e.Graphics.FillRectangle(background, ClientRectangle);
         }
 
-        // Stile barra laterale di macOS: la voce attiva è una pillola piena del colore di
-        // sistema con testo e icona bianchi, il passaggio del mouse un velo grigio. La pillola
-        // scorre fra le voci; il testo di ogni voce vira al bianco man mano che la pillola lo copre.
+        // Stile Windows 11: la voce attiva è una pillola tenue del colore di marca, con una barretta
+        // sul bordo sinistro e testo e icona nel colore di marca; il passaggio del mouse un velo grigio.
+        // La pillola scorre fra le voci; il testo di ogni voce vira al colore di marca man mano che la copre.
         var pillTop = _selectedIndex < 0
             ? 0f
             : _pillClock?.Value ?? ItemBox(_selectedIndex).Top;
@@ -232,8 +232,17 @@ internal sealed class NavRail : Control
             var pillBox = ItemBox(_selectedIndex);
             pillBox.Y = pillTop;
             using var pillPath = Theme.RoundedRectangle(Rectangle.Round(pillBox), 8);
-            using var pillFill = new SolidBrush(Theme.Brand);
+            using var pillFill = new SolidBrush(Theme.BrandSoft);
             e.Graphics.FillPath(pillFill, pillPath);
+            var barHeight = Math.Max(16, (int)Math.Round(pillBox.Height * 0.42f));
+            var bar = new Rectangle(
+                (int)pillBox.Left + 2,
+                (int)Math.Round(pillBox.Top + ((pillBox.Height - barHeight) / 2f)),
+                AccentWidth,
+                barHeight);
+            using var barPath = Theme.RoundedRectangle(bar, 2);
+            using var barFill = new SolidBrush(Theme.Brand);
+            e.Graphics.FillPath(barFill, barPath);
         }
 
         for (var index = 0; index < _items.Count; index++)
@@ -255,7 +264,7 @@ internal sealed class NavRail : Control
                 e.Graphics.FillPath(fill, path);
             }
 
-            var ink = Mix(Theme.InkSecondary, Color.White, covered);
+            var ink = Mix(Theme.InkSecondary, Theme.BrandInk, covered);
             var iconBox = new Rectangle(
                 (int)box.Left + 14,
                 (int)(box.Top + (box.Height - 18) / 2),
@@ -278,7 +287,7 @@ internal sealed class NavRail : Control
                     badgeWidth,
                     20);
                 using var pillPath = Theme.RoundedRectangle(pill, 10);
-                using var badgeFill = new SolidBrush(covered > 0.5f ? Color.FromArgb(70, Color.White) : Theme.Sunken);
+                using var badgeFill = new SolidBrush(covered > 0.5f ? Theme.BrandLite : Theme.Sunken);
                 e.Graphics.FillPath(badgeFill, pillPath);
                 TextRenderer.DrawText(
                     e.Graphics,

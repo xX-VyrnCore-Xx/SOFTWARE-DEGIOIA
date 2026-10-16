@@ -299,7 +299,7 @@ internal static class Theme
     {
         ButtonTone.Primary => new ButtonPalette(Brand, BrandHover, BrandPressed, Brand, Color.White, 0),
         ButtonTone.Positive => new ButtonPalette(Success, SuccessHover, SuccessPressed, Success, Color.White, 0),
-        ButtonTone.Danger => new ButtonPalette(Danger, Color.FromArgb(230, 50, 40), Color.FromArgb(200, 40, 32), Danger, Color.White, 0),
+        ButtonTone.Danger => new ButtonPalette(Danger, Shade(Danger, 0.10f), Shade(Danger, 0.20f), Danger, Color.White, 0),
         ButtonTone.OnDark => new ButtonPalette(
             HeaderButtonFill, HeaderButtonHover, HeaderButtonPressed,
             HeaderButtonBorder, Ink, 1),
@@ -307,6 +307,13 @@ internal static class Theme
     };
 
     /* ------------------------- Controlli di base ----------------------- */
+
+    /// <summary>Lo stesso colore più scuro di <paramref name="amount"/> (0–1): per gli stati sotto il mouse e premuto.</summary>
+    public static Color Shade(Color color, float amount)
+    {
+        var factor = 1f - Math.Clamp(amount, 0f, 1f);
+        return Color.FromArgb(color.A, (int)(color.R * factor), (int)(color.G * factor), (int)(color.B * factor));
+    }
 
     /// <summary>Uniforma l'aspetto delle caselle combinate dei dialoghi.</summary>
     public static void StyleCombo(ComboBox combo)
