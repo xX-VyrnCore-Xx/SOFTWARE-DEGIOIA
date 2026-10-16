@@ -82,7 +82,7 @@ internal static class ModernPalette
     {
         Theme.ButtonTone.Primary => (Theme.Brand, Theme.BrandHover, Theme.BrandPressed, Theme.Brand, Color.White),
         Theme.ButtonTone.Positive => (Theme.Success, Theme.SuccessHover, Theme.SuccessPressed, Theme.Success, Color.White),
-        Theme.ButtonTone.Danger => (Theme.Danger, Color.FromArgb(230, 50, 40), Color.FromArgb(200, 40, 32), Theme.Danger, Color.White),
+        Theme.ButtonTone.Danger => (Theme.Danger, Theme.Shade(Theme.Danger, 0.10f), Theme.Shade(Theme.Danger, 0.20f), Theme.Danger, Color.White),
         Theme.ButtonTone.OnDark => (
             Theme.HeaderButtonFill, Theme.HeaderButtonHover, Theme.HeaderButtonPressed,
             Theme.HeaderButtonBorder, Theme.Ink),

@@ -15,7 +15,7 @@ internal sealed class DashboardInsightsView : Control
     private const int ChartHeight = 64;
     private const int ChartCaptionHeight = 16;
 
-    private static readonly Color AbsenceBar = Color.FromArgb(255, 159, 10);
+    private static Color AbsenceBar => Theme.Warning;
 
     private static Color DangerSoft => Theme.DangerSoft;
     private static Color WarningSoft => Theme.WarningSoft;

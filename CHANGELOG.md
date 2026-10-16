@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.49.0] - Corrente
+## [1.50.0] - Corrente
+
+### 🎨 Nuova grafica in stile Windows 11 (prima parte)
+- **Tavolozza rifatta** in tema chiaro e scuro: blu Windows 11 al posto del blu «iOS», grigi con una leggera tinta azzurra, verde, arancio e rosso più sobri. Tutti i contrasti restano verificati dai test (testi, pillole, pulsanti, bordi)
+- **Barra laterale**: la voce attiva è una pillola tenue del colore di marca con una barretta sul bordo sinistro, al posto della pillola piena; scorre fra le voci come prima
+- **Card più morbide**: angoli di 14 px e un rilievo a tre strati sul bordo inferiore (nel tema scuro un filo di luce in alto)
+- Pulsanti di pericolo e barre delle assenze seguono i colori del tema invece di colori fissi
+- La conversione XML non è toccata
+
+## [1.49.0]
 
 ### 🗄️ Database più veloce, più sicuro e ordinato
 - **Passaggi di schema ordinati** (versione 6): ogni modifica allo schema è un passaggio numerato, applicato in una transazione insieme al nuovo numero di versione. Se qualcosa si interrompe il database resta com'era. Un test controlla che i numeri siano consecutivi. Prima di aggiornare un database con dati si continua a tenere una copia di sicurezza
