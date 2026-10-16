@@ -5,7 +5,7 @@ namespace PresenzeXmlConverter;
 static class Program
 {
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
 
@@ -37,7 +37,7 @@ static class Program
 
         try
         {
-            var window = new MainForm();
+            var window = new MainForm(StartupLaunch.IsBackgroundStart(args));
             instance.OnActivationRequested(window.ActivateFromAnotherInstance);
             Application.Run(window);
         }

@@ -56,7 +56,7 @@ internal static class SettingsPageLayout
     /// <summary>Scheda "Aggiornamenti": ricerca automatica, token e firma.</summary>
     public static readonly int[] UpdateRows =
     {
-        HintRow, CheckRow, FieldLabelRow, FieldRow, ActionRow, StatusRow, NoteRow, SignatureRow
+        HintRow, CheckRow, CheckRow, FieldLabelRow, FieldRow, ActionRow, StatusRow, NoteRow, SignatureRow
     };
 
     /// <summary>Scheda "Formato XML": radice, spazio dei nomi, disposizione dei movimenti.</summary>

@@ -24,12 +24,16 @@ internal sealed partial class MainForm
     /// Controllo periodico: il collegamento alle Release resta attivo anche con
     /// il programma aperto per ore, non solo all'avvio.
     /// </summary>
-    private readonly System.Windows.Forms.Timer _updatePeriodic = new() { Interval = 60 * 60 * 1000 };
+    private readonly System.Windows.Forms.Timer _updatePeriodic = new() { Interval = (int)UpdateCadence.PollInterval.TotalMilliseconds };
     /// <summary>
     /// Dopo un controllo fallito per la rete si riprova dopo pochi minuti invece
     /// di aspettare l'ora piena del controllo periodico.
     /// </summary>
-    private readonly System.Windows.Forms.Timer _updateRetry = new() { Interval = 5 * 60 * 1000 };
+    private readonly System.Windows.Forms.Timer _updateRetry = new() { Interval = (int)UpdateCadence.RetryInterval.TotalMilliseconds };
+    /// <summary>Attesa dopo il ritorno della rete o la fine della sospensione, prima del controllo.</summary>
+    private readonly System.Windows.Forms.Timer _updateSettle = new() { Interval = (int)UpdateCadence.SettleDelay.TotalMilliseconds };
+    private DateTime? _lastUpdateCheckUtc;
+    private bool _startupUpdateCheckDone;
     private readonly Label _updateStatusLabel = new();
     private bool _updateBusy;
     private bool _isFirstRun;
@@ -93,6 +97,14 @@ internal sealed partial class MainForm
         };
         _updatePeriodic.Start();
 
+        _updateSettle.Tick += (_, _) =>
+        {
+            _updateSettle.Stop();
+            RequestUpdateCheck(staleOnly: false);
+        };
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
+
         _updateRetry.Tick += async (_, _) =>
         {
             _updateRetry.Stop();
@@ -108,17 +120,76 @@ internal sealed partial class MainForm
 
     private void AddUpdateCommands(ContextMenuStrip menu)
     {
+        var dpi = DeviceDpi;
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(
-            "Cerca aggiornamenti…",
-            null,
-            async (_, _) => await CheckForUpdatesAsync(userInitiated: true));
-        menu.Items.Add(
-            "Novità di questa versione",
-            null,
-            (_, _) => ShowVersionNotes());
-        menu.Items.Add("Impostazioni…", null, (_, _) => OpenSettings());
-        menu.Items.Add("Scorciatoie da tastiera", null, (_, _) => ShowShortcuts());
+        ThemedMenus.Add(menu, "Cerca aggiornamenti…", Glyph.Refresh, async (_, _) => await CheckForUpdatesAsync(userInitiated: true), dpi);
+        ThemedMenus.Add(menu, "Novità di questa versione", Glyph.Info, (_, _) => ShowVersionNotes(), dpi);
+        ThemedMenus.Add(menu, "Impostazioni…", Glyph.Gear, (_, _) => OpenSettings(), dpi);
+        ThemedMenus.Add(menu, "Scorciatoie da tastiera", Glyph.List, (_, _) => ShowShortcuts(), dpi);
+    }
+
+    /// <summary>
+    /// Cerca un aggiornamento se è ora di farlo: mai a ridosso del controllo precedente, mai con il controllo spento
+    /// o già in corso. Lo chiamano il timer, il ritorno della rete, la fine della sospensione e la riattivazione della finestra.
+    /// </summary>
+    private void RequestUpdateCheck(bool staleOnly)
+    {
+        if (IsDisposed || _updateBusy || !AutoUpdateEnabled())
+        {
+            return;
+        }
+        if (!UpdateCadence.ShouldCheck(_lastUpdateCheckUtc, DateTime.UtcNow, staleOnly))
+        {
+            return;
+        }
+        _ = CheckForUpdatesAsync(userInitiated: false);
+    }
+
+    private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == Microsoft.Win32.PowerModes.Resume)
+        {
+            ScheduleSettledUpdateCheck();
+        }
+    }
+
+    private void OnNetworkAvailabilityChanged(object? sender, System.Net.NetworkInformation.NetworkAvailabilityEventArgs e)
+    {
+        if (e.IsAvailable)
+        {
+            ScheduleSettledUpdateCheck();
+        }
+    }
+
+    /// <summary>Arriva da un thread di sistema: si passa al thread della finestra e si lascia alla rete un istante per assestarsi.</summary>
+    private void ScheduleSettledUpdateCheck()
+    {
+        if (IsDisposed || !IsHandleCreated)
+        {
+            return;
+        }
+        try
+        {
+            BeginInvoke(() =>
+            {
+                if (!IsDisposed)
+                {
+                    _updateSettle.Stop();
+                    _updateSettle.Start();
+                }
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            // La finestra si sta chiudendo.
+        }
+    }
+
+    private void StopUpdateTriggers()
+    {
+        Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
+        _updateSettle.Stop();
     }
 
     private bool AutoUpdateEnabled()
@@ -154,6 +225,7 @@ internal sealed partial class MainForm
         }
 
         _updateBusy = true;
+        _lastUpdateCheckUtc = DateTime.UtcNow;
         try
         {
             var result = await UpdateService.CheckAsync(
@@ -209,11 +281,11 @@ internal sealed partial class MainForm
                 return;
             }
 
-            if (!userInitiated && !IsWindowInUse)
+            if (!userInitiated && (!IsWindowInUse || _startupUpdateCheckDone))
             {
-                // Finestra nascosta in tray: niente dialoghi a sorpresa, solo una
-                // notifica. La proposta con le novità comparirà al controllo
-                // successivo, a finestra visibile.
+                // Finestra nascosta o in secondo piano: niente dialoghi a sorpresa, solo l'avviso (cartellino nella
+                // finestra, fumetto di Windows, lampeggio). Lo stesso a programma in uso dopo il primo controllo:
+                // la finestra con le novità non interrompe il lavoro, si apre con un clic sull'avviso.
                 NotifyUpdateAvailable(update);
                 return;
             }
@@ -254,6 +326,10 @@ internal sealed partial class MainForm
         finally
         {
             _updateBusy = false;
+            if (!userInitiated)
+            {
+                _startupUpdateCheckDone = true;
+            }
         }
     }
 

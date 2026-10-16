@@ -1,5 +1,5 @@
 #define AppName "Vyrn Presence"
-#define AppVersion "1.47.0"
+#define AppVersion "1.48.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 
@@ -109,6 +109,8 @@ Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 Name: "trustcert"; Description: "Considera attendibile il certificato di firma di Vyrn Presence (solo per il tuo utente, evita gli avvisi di Windows)"; GroupDescription: "Sicurezza:"
 #endif
 Name: "desktopicon"; Description: "Crea un collegamento sul desktop"; GroupDescription: "Collegamenti aggiuntivi:"; Flags: unchecked
+; Avvio nel tray all'accesso a Windows: senza il programma aperto non può controllare gli aggiornamenti.
+Name: "startup"; Description: "Avvia {#AppName} con Windows, nel tray (gli avvisi di aggiornamento arrivano subito, anche senza aprire il programma)"; GroupDescription: "Avvio:"; Flags: unchecked
 
 [Messages]
 WelcomeLabel2=Questa procedura installa [name/ver] sul tuo computer.%n%nIl programma converte i fogli presenze Excel in file XML TRRIPW per Zucchetti, con controlli prima dell'esportazione. Tutto avviene sul tuo PC: nessun dato lascia il computer.%n%nNon servono privilegi di amministratore. Prima di proseguire chiudi gli altri programmi aperti.
@@ -139,6 +141,12 @@ Type: files; Name: "{localappdata}\DeGioia\PresenzeXmlConverter\ai-model.txt"
 ; attribuite al programma e Windows puo' sopprimerle.
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; AppUserModelID: "{#AppUserModelId}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon; AppUserModelID: "{#AppUserModelId}"
+
+[Registry]
+; Stessa riga che l'app scrive da sola (StartupLaunch.cs): percorso fra virgolette e --tray.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "VyrnPresence"; ValueData: """{app}\{#AppExeName}"" --tray"; Flags: uninsdeletevalue; Tasks: startup
+; Anche se l'avvio è stato attivato dall'app, la disinstallazione toglie la voce.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "VyrnPresence"; Flags: uninsdeletevalue
 
 [UninstallDelete]
 ; Cartella del programma: se resta vuota dopo la rimozione dei file, sparisce anch'essa.
