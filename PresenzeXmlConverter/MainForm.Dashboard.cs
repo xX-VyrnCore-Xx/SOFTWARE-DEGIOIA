@@ -39,8 +39,8 @@ internal sealed partial class MainForm
         // Le altezze di questa pagina cambiano con il contenuto (vedi ApplyDashboardLayout): niente riquadri vuoti.
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 300));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
 
         page.Controls.Add(BuildSectionHeading(
             "Dashboard",
@@ -132,8 +132,8 @@ internal sealed partial class MainForm
         _dashMetrics.Visible = layout.ShowMetrics;
         page.RowStyles[1] = new RowStyle(SizeType.Absolute, layout.ShowMetrics ? 102 : 0);
         _dashBottom.Visible = layout.ShowBottom;
-        page.RowStyles[2] = layout.ShowBottom ? new RowStyle(SizeType.Absolute, 246) : new RowStyle(SizeType.Percent, 100);
-        page.RowStyles[3] = layout.ShowBottom ? new RowStyle(SizeType.Percent, 100) : new RowStyle(SizeType.Absolute, 0);
+        page.RowStyles[2] = new RowStyle(SizeType.Absolute, layout.ShowBottom ? 246 : 300);
+        page.RowStyles[3] = new RowStyle(SizeType.Percent, 100);
         _dashInsightsCard.Visible = layout.ShowInsights;
         _dashBottom.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, layout.ShowInsights ? 62 : 100);
         _dashBottom.ColumnStyles[1] = new ColumnStyle(SizeType.Percent, layout.ShowInsights ? 38 : 0);
@@ -265,7 +265,7 @@ internal sealed partial class MainForm
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
         for (var row = 0; row < 3; row++)
         {
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
         }
         layout.Controls.Add(CreateCardTitle("STATO"), 0, 0);
         // Tre righe che servono davvero. Il file sta nella scheda di conversione; il certificato è nelle Impostazioni.

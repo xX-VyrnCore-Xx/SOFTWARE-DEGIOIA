@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.54.0] - Corrente
+## [1.55.0] - Corrente
+
+### 🪟 Finestre «Apri» e «Salva» spostabili, Dashboard più ordinata
+- **Le finestre per scegliere o salvare un file non si aprono più a tutto schermo**: Windows ricorda la dimensione di ogni finestra di questo tipo per applicazione, e una volta ingrandita si riapriva sempre così, senza poterla spostare. Ora hanno un identificativo proprio: riaprono con la dimensione normale, si spostano e si ridimensionano a piacere, e ricordano la nuova misura. Vale per tutte le dieci finestre dell'app (importa Excel, salva XML, esporta e importa codici, report e immagini del calendario, registro attività, certificato…). Un test controlla che nessuna sia rimasta indietro
+- **Dashboard a foglio vuoto**: la scheda «Nuova conversione» non è più enorme; ha un'altezza ragionevole e l'area di rilascio ha **icona, titolo e invito centrati** invece di una riga isolata a sinistra
+- **Stato**: le tre righe stanno insieme in alto con la stessa altezza, invece di sparpagliarsi su tutta la pagina
+- **Card del tema «Vetro»**: sparito il riquadro interno più scuro che si vedeva dentro le card; l'interno è uniforme e il vetro si vede sul bordo luminoso e sul velo di luce in alto
+- La conversione XML non è toccata
+
+## [1.54.0]
 
 ### ✂️ Meno rumore, più sostanza
 - **Dashboard essenziale**: a foglio vuoto resta solo la scheda «Nuova conversione» (grande, con l'area di rilascio) e lo stato. Gli **indicatori** compaiono solo quando c'è un foglio letto (prima erano tre o quattro zeri), il riquadro **«Ultime esportazioni»** solo se esiste una consegna o un'anteprima, **«Analisi del mese»** solo con un'anteprima pronta. Niente più riquadri vuoti

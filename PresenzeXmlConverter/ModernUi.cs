@@ -535,6 +535,12 @@ internal sealed class DropZone : Control
             graphics.DrawPath(pen, path);
         }
 
+        if (!_loaded && !Busy && bounds.Height >= 120)
+        {
+            PaintLargeEmpty(graphics, bounds, blend);
+            return;
+        }
+
         var chip = Math.Min(44, bounds.Height - 20);
         var chipBox = new Rectangle(bounds.Left + 16, bounds.Top + ((bounds.Height - chip) / 2), chip, chip);
         using (var chipPath = Theme.RoundedRectangle(chipBox, 12))
@@ -603,6 +609,43 @@ internal sealed class DropZone : Control
             graphics.DrawLine(cross, remove.Left + inset, remove.Top + inset, remove.Right - inset, remove.Bottom - inset);
             graphics.DrawLine(cross, remove.Right - inset, remove.Top + inset, remove.Left + inset, remove.Bottom - inset);
         }
+    }
+
+    /// <summary>Area grande e vuota: icona, titolo e invito centrati, invece di una riga isolata a sinistra.</summary>
+    private void PaintLargeEmpty(Graphics graphics, Rectangle bounds, float blend)
+    {
+        var chip = 56;
+        var titleFont = Theme.Fonts.Field;
+        var subFont = Theme.Fonts.Small;
+        var total = chip + 14 + titleFont.Height + 4 + subFont.Height;
+        var top = bounds.Top + Math.Max(8, (bounds.Height - total) / 2);
+        var chipBox = new Rectangle(bounds.Left + ((bounds.Width - chip) / 2), top, chip, chip);
+        using (var chipPath = Theme.RoundedRectangle(chipBox, 16))
+        using (var chipBrush = new SolidBrush(Mix(Theme.BrandLite, Theme.Brand, blend)))
+        {
+            graphics.FillPath(chipBrush, chipPath);
+        }
+        Glyphs.Draw(
+            graphics,
+            Rectangle.Inflate(chipBox, -15, -15),
+            Glyph.Upload,
+            blend > 0.5f ? Color.White : Theme.BrandInk,
+            2f);
+        var centered = TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix;
+        TextRenderer.DrawText(
+            graphics,
+            _title,
+            titleFont,
+            new Rectangle(bounds.Left + 12, chipBox.Bottom + 14, bounds.Width - 24, titleFont.Height + 2),
+            Theme.Ink,
+            centered);
+        TextRenderer.DrawText(
+            graphics,
+            _subtitle,
+            subFont,
+            new Rectangle(bounds.Left + 12, chipBox.Bottom + 14 + titleFont.Height + 4, bounds.Width - 24, subFont.Height + 2),
+            Theme.MutedInk,
+            centered);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)

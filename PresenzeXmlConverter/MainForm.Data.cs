@@ -190,6 +190,7 @@ internal sealed partial class MainForm
                 FileName = CodesBackup.SuggestFileName(DateTime.Now),
                 OverwritePrompt = true
             };
+            picker.ClientGuid = FileDialogs.ClientId;
             if (!string.IsNullOrEmpty(_lastExportDirectory) && Directory.Exists(_lastExportDirectory))
             {
                 picker.InitialDirectory = _lastExportDirectory;
@@ -228,6 +229,7 @@ internal sealed partial class MainForm
                 CheckFileExists = true,
                 Multiselect = false
             };
+            picker.ClientGuid = FileDialogs.ClientId;
             // Si parte dalla cartella delle copie automatiche, se ce n'è già qualcuna.
             var autoFolder = CodesAutoBackup.FolderFor(_database);
             if (CodesAutoBackup.List(autoFolder).Count > 0)

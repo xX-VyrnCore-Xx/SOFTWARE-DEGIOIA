@@ -424,6 +424,7 @@ internal sealed class SettingsDialog : Form
             Filter = "File XML (*.xml)|*.xml|Tutti i file (*.*)|*.*",
             CheckFileExists = true
         };
+        picker.ClientGuid = FileDialogs.ClientId;
         if (picker.ShowDialog(this) != DialogResult.OK)
         {
             return;

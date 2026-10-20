@@ -552,6 +552,7 @@ internal sealed partial class MainForm : Form
             CheckFileExists = true,
             Multiselect = false
         };
+        picker.ClientGuid = FileDialogs.ClientId;
         if (!string.IsNullOrEmpty(_lastSourceDirectory) && Directory.Exists(_lastSourceDirectory))
         {
             picker.InitialDirectory = _lastSourceDirectory;
@@ -960,6 +961,7 @@ internal sealed partial class MainForm : Form
             FileName = ExportHistory.SuggestFileName(_companyCode.Value, _sourcePath, _movements),
             OverwritePrompt = true
         };
+        picker.ClientGuid = FileDialogs.ClientId;
         if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
         {
             picker.InitialDirectory = initialDirectory;
