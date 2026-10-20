@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.52.0] - Corrente
+## [1.53.0] - Corrente
+
+### 🛠️ Correzioni grafiche (dallo screenshot della 1.52.0)
+- **Il tema «Vetro» ora si applica davvero**: chi aveva «Come Windows» salvato (il valore che le Impostazioni scrivono da sole) restava con il vecchio tema scuro blu. Una volta sola «Come Windows» diventa «Vetro»; scegliere di nuovo «Come Windows» o «Chiaro» / «Scuro» viene rispettato
+- **«DATI LOCALI» non è più tagliato** nel riquadro in basso della barra laterale (la riga era più bassa del testo); la card cresce di quattro pixel
+- **Titolo delle sezioni più staccato dalle card**: più aria fra sottotitolo e schede, e il testo parte esattamente dal bordo sinistro delle card (prima era spostato di 4–8 px)
+- **«Analisi del mese» senza dati**: icona e testo centrati, come nell'elenco delle esportazioni, invece di una riga isolata a sinistra
+- Un test controlla il passaggio al tema «Vetro» (una sola volta, scelte esplicite mai toccate)
+- La conversione XML non è toccata
+
+## [1.52.0]
 
 ### 🔮 Nuovo tema «Vetro» (predefinito)
 - **Tema «Vetro»**, ispirato alla dashboard di riferimento: fondo viola-nero profondo, **card di vetro** con sfumatura leggera, bordo luminoso che si schiarisce verso l'angolo in alto a sinistra e un filo di luce sotto il bordo alto, **colori vivaci** (viola elettrico, ciano, verde menta, ambra, rosa)

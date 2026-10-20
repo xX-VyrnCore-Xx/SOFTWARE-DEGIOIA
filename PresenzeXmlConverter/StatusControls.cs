@@ -252,10 +252,10 @@ internal sealed class RailStatusCard : Control
             g,
             "DATI LOCALI",
             Theme.Fonts.Section,
-            new Rectangle(left, y, right - left, 14),
+            new Rectangle(left, y, right - left, 17),
             Theme.FaintInk,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-        y += 20;
+        y += 22;
 
         var dataText = StatusBarModel.CleanRailLine(_data.Text);
         var dot = new Rectangle(left, y + 5, 8, 8);
