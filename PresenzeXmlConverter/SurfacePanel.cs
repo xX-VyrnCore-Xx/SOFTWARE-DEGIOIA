@@ -74,6 +74,11 @@ internal sealed class SurfacePanel : Panel
         using var path = Theme.RoundedRectangle(
             new Rectangle(0, 0, ClientSize.Width - 1, ClientSize.Height - 1),
             _radius);
+        if (Theme.IsGlass && _fill.ToArgb() == Theme.Surface.ToArgb())
+        {
+            PaintGlass(eventArgs.Graphics, path);
+            return;
+        }
         using var pen = new Pen(_border);
         eventArgs.Graphics.DrawPath(pen, path);
         // Sulle card di superficie, un rilievo morbido sul bordo inferiore (tre strati sempre più tenui): l'effetto
@@ -97,6 +102,29 @@ internal sealed class SurfacePanel : Panel
                     eventArgs.Graphics.DrawLine(edge, left + layer, y, right - layer, y);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Tema «Vetro»: sfumatura leggera dall'alto in basso, bordo che si schiarisce verso l'angolo in alto a sinistra
+    /// come un vetro colpito dalla luce, e un filo luminoso appena sotto il bordo alto.
+    /// </summary>
+    private void PaintGlass(Graphics graphics, GraphicsPath path)
+    {
+        var area = new Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
+        using (var fill = new LinearGradientBrush(area, Theme.GlassTop, Theme.GlassBottom, 90f))
+        {
+            graphics.FillPath(fill, path);
+        }
+        using (var edge = new LinearGradientBrush(area, Theme.GlassEdge, Theme.GlassEdgeDim, 40f))
+        using (var pen = new Pen(edge, 1f))
+        {
+            graphics.DrawPath(pen, path);
+        }
+        if (ClientSize.Width > (_radius * 2) + 4)
+        {
+            using var highlight = new Pen(Color.FromArgb(46, 255, 255, 255), 1f);
+            graphics.DrawLine(highlight, _radius, 1.5f, ClientSize.Width - _radius - 1, 1.5f);
         }
     }
 

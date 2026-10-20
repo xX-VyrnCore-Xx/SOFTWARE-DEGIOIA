@@ -232,17 +232,35 @@ internal sealed class NavRail : Control
             var pillBox = ItemBox(_selectedIndex);
             pillBox.Y = pillTop;
             using var pillPath = Theme.RoundedRectangle(Rectangle.Round(pillBox), 8);
-            using var pillFill = new SolidBrush(Theme.BrandSoft);
-            e.Graphics.FillPath(pillFill, pillPath);
+            if (Theme.IsGlass)
+            {
+                // Vetro: pillola viola vivace sfumata, come nel riferimento, con testo e icona bianchi.
+                using var glassFill = new LinearGradientBrush(
+                    Rectangle.Round(pillBox),
+                    Theme.BrandHover,
+                    Theme.BrandPressed,
+                    0f);
+                e.Graphics.FillPath(glassFill, pillPath);
+                using var sheen = new Pen(Color.FromArgb(70, 255, 255, 255), 1f);
+                e.Graphics.DrawPath(sheen, pillPath);
+            }
+            else
+            {
+                using var pillFill = new SolidBrush(Theme.BrandSoft);
+                e.Graphics.FillPath(pillFill, pillPath);
+            }
             var barHeight = Math.Max(16, (int)Math.Round(pillBox.Height * 0.42f));
             var bar = new Rectangle(
                 (int)pillBox.Left + 2,
                 (int)Math.Round(pillBox.Top + ((pillBox.Height - barHeight) / 2f)),
                 AccentWidth,
                 barHeight);
-            using var barPath = Theme.RoundedRectangle(bar, 2);
-            using var barFill = new SolidBrush(Theme.Brand);
-            e.Graphics.FillPath(barFill, barPath);
+            if (!Theme.IsGlass)
+            {
+                using var barPath = Theme.RoundedRectangle(bar, 2);
+                using var barFill = new SolidBrush(Theme.Brand);
+                e.Graphics.FillPath(barFill, barPath);
+            }
         }
 
         for (var index = 0; index < _items.Count; index++)
@@ -264,7 +282,7 @@ internal sealed class NavRail : Control
                 e.Graphics.FillPath(fill, path);
             }
 
-            var ink = Mix(Theme.InkSecondary, Theme.BrandInk, covered);
+            var ink = Mix(Theme.InkSecondary, Theme.IsGlass ? Color.White : Theme.BrandInk, covered);
             var iconBox = new Rectangle(
                 (int)box.Left + 14,
                 (int)(box.Top + (box.Height - 18) / 2),
@@ -287,7 +305,7 @@ internal sealed class NavRail : Control
                     badgeWidth,
                     20);
                 using var pillPath = Theme.RoundedRectangle(pill, 10);
-                using var badgeFill = new SolidBrush(covered > 0.5f ? Theme.BrandLite : Theme.Sunken);
+                using var badgeFill = new SolidBrush(covered > 0.5f ? (Theme.IsGlass ? Color.FromArgb(70, Color.White) : Theme.BrandLite) : Theme.Sunken);
                 e.Graphics.FillPath(badgeFill, pillPath);
                 TextRenderer.DrawText(
                     e.Graphics,

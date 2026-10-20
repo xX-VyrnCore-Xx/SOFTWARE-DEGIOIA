@@ -19,6 +19,18 @@ internal static class Theme
     /// <summary>Sceglie il tema. Va chiamato prima di creare qualunque finestra o controllo: i colori si leggono alla creazione.</summary>
     public static void Apply(bool dark) => Current = dark ? ThemePalette.Dark : ThemePalette.Light;
 
+    /// <summary>Sceglie la tavolozza indicata (anche «Vetro»). Stesso vincolo di <see cref="Apply(bool)"/>.</summary>
+    public static void Apply(ThemePalette palette) => Current = palette;
+
+    /// <summary>Tema «Vetro» attivo?</summary>
+    public static bool IsGlass => Current.IsGlass;
+
+    public static Color GlowColor => Current.GlowColor;
+    public static Color GlassTop => Current.GlassTop;
+    public static Color GlassBottom => Current.GlassBottom;
+    public static Color GlassEdge => Current.GlassEdge;
+    public static Color GlassEdgeDim => Current.GlassEdgeDim;
+
     // Colori aggiunti con il tema scuro (nel tema chiaro hanno gli stessi valori usati prima nel codice).
     public static Color HoverRow => Current.HoverRow;
     public static Color WarningSoft => Current.WarningSoft;

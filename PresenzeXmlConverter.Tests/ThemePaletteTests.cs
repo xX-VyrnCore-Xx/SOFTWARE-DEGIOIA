@@ -5,9 +5,9 @@ namespace PresenzeXmlConverter.Tests;
 
 public class ThemePaletteTests
 {
-    public static IEnumerable<object[]> Palettes() => [[false], [true]];
+    public static IEnumerable<object[]> Palettes() => [[0], [1], [2]];
 
-    private static ThemePalette Pick(bool dark) => dark ? ThemePalette.Dark : ThemePalette.Light;
+    private static ThemePalette Pick(int kind) => kind switch { 0 => ThemePalette.Light, 1 => ThemePalette.Dark, _ => ThemePalette.Glass };
 
     private static void AtLeast(double minimum, Color text, Color back, string what)
     {
@@ -17,9 +17,9 @@ public class ThemePaletteTests
 
     [Theory]
     [MemberData(nameof(Palettes))]
-    public void BodyTextIsReadableOnEverySurface(bool dark)
+    public void BodyTextIsReadableOnEverySurface(int kind)
     {
-        var p = Pick(dark);
+        var p = Pick(kind);
         AtLeast(7, p.Ink, p.Canvas, "Ink su Canvas");
         AtLeast(7, p.Ink, p.Surface, "Ink su Surface");
         AtLeast(4.5, p.InkSecondary, p.Surface, "InkSecondary su Surface");
@@ -33,9 +33,9 @@ public class ThemePaletteTests
 
     [Theory]
     [MemberData(nameof(Palettes))]
-    public void StatusColorsAreReadableOnTheirFills(bool dark)
+    public void StatusColorsAreReadableOnTheirFills(int kind)
     {
-        var p = Pick(dark);
+        var p = Pick(kind);
         AtLeast(4.5, p.BrandInk, p.Surface, "BrandInk su Surface");
         AtLeast(4.5, p.BrandInk, p.BrandSoft, "BrandInk su BrandSoft");
         AtLeast(4.5, p.SuccessInk, p.SuccessSoft, "SuccessInk su SuccessSoft");
@@ -48,9 +48,9 @@ public class ThemePaletteTests
 
     [Theory]
     [MemberData(nameof(Palettes))]
-    public void HeaderButtonsAndGridsAreReadable(bool dark)
+    public void HeaderButtonsAndGridsAreReadable(int kind)
     {
-        var p = Pick(dark);
+        var p = Pick(kind);
         AtLeast(7, p.HeaderInk, p.HeaderFill, "HeaderInk su HeaderFill");
         AtLeast(4.5, p.HeaderMuted, p.HeaderFill, "HeaderMuted su HeaderFill");
         AtLeast(4.5, p.HeaderInk, p.HeaderFieldFill, "HeaderInk nel campo di ricerca");
@@ -67,9 +67,9 @@ public class ThemePaletteTests
 
     [Theory]
     [MemberData(nameof(Palettes))]
-    public void SurfacesAreDistinguishableFromEachOther(bool dark)
+    public void SurfacesAreDistinguishableFromEachOther(int kind)
     {
-        var p = Pick(dark);
+        var p = Pick(kind);
         Assert.NotEqual(p.Canvas, p.Surface);
         Assert.NotEqual(p.Surface, p.Sunken);
         Assert.NotEqual(p.Surface, p.Divider);

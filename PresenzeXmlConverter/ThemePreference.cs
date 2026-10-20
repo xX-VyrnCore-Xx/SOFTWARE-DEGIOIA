@@ -14,16 +14,19 @@ internal static class ThemePreference
         "PresenzeXmlConverter",
         "theme.txt");
 
+    /// <summary>Senza una scelta salvata si parte dal tema «Vetro».</summary>
+    public const ThemeMode DefaultMode = ThemeMode.Glass;
+
     public static ThemeMode Load(string? path = null)
     {
         try
         {
             var file = path ?? FilePath;
-            return File.Exists(file) ? ThemeChoice.Parse(File.ReadAllText(file)) : ThemeMode.System;
+            return File.Exists(file) ? ThemeChoice.Parse(File.ReadAllText(file)) : DefaultMode;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return ThemeMode.System;
+            return DefaultMode;
         }
     }
 
@@ -64,8 +67,7 @@ internal static class ThemePreference
     /// <summary>Sceglie e applica il tema da usare in questa esecuzione.</summary>
     public static bool ApplyAtStartup()
     {
-        var dark = ThemeChoice.ResolveDark(Load(), SystemIsDark());
-        Theme.Apply(dark);
-        return dark;
+        Theme.Apply(ThemeChoice.PaletteFor(Load(), SystemIsDark()));
+        return Theme.IsDark;
     }
 }

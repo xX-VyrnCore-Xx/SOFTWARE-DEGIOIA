@@ -174,8 +174,22 @@ internal sealed class ThemedButton : Button
                 using var shadow = new SolidBrush(Color.FromArgb(fill.GetBrightness() < 0.5f ? 46 : 22, 0, 0, 0));
                 graphics.FillPath(shadow, shadowPath);
             }
-            using (var brush = new SolidBrush(fill))
+            if (Theme.IsGlass && Enabled)
             {
+                // Vetro: i pulsanti pieni sono sfumati (più chiari in alto), quelli neutri appena velati.
+                var filled = FlatAppearance.BorderSize == 0;
+                var top = Mix(fill, Color.White, filled ? 0.16f : 0.07f);
+                var bottom = filled ? Theme.Shade(fill, 0.12f) : fill;
+                using var gradient = new LinearGradientBrush(
+                    new Rectangle(bounds.X, bounds.Y, Math.Max(1, bounds.Width), Math.Max(1, bounds.Height)),
+                    top,
+                    bottom,
+                    90f);
+                graphics.FillPath(gradient, path);
+            }
+            else
+            {
+                using var brush = new SolidBrush(fill);
                 graphics.FillPath(brush, path);
             }
             if (FlatAppearance.BorderSize > 0 && Enabled)
@@ -185,7 +199,7 @@ internal sealed class ThemedButton : Button
             }
             // Riflesso sottile lungo il bordo alto dei pulsanti pieni (blu, verde): da' un
             // minimo di rilievo senza sfumature pesanti.
-            if (Enabled && !_pressed && fill.GetBrightness() < 0.5f && bounds.Width > radius * 2 + 6)
+            if (Enabled && !_pressed && (fill.GetBrightness() < 0.5f || Theme.IsGlass) && bounds.Width > radius * 2 + 6)
             {
                 using var gloss = new Pen(Color.FromArgb(46, Color.White), 1f);
                 graphics.DrawLine(gloss, bounds.Left + radius, bounds.Top + 1, bounds.Right - radius, bounds.Top + 1);
