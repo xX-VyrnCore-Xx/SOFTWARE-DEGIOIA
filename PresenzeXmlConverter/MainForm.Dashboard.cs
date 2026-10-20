@@ -263,6 +263,11 @@ internal sealed partial class MainForm
         _kpiMovements.Caption = summary.HasMovements
             ? $"su {summary.DaysText} giorni lavorativi"
             : "genera l'anteprima";
+        // Andamento delle ultime otto esportazioni (dalla più vecchia alla più recente) accanto a tre indicatori.
+        var recent = _exports.Take(8).Reverse().ToArray();
+        _kpiEmployees.Spark = recent.Select(export => (float)export.Employees).ToArray();
+        _kpiMovements.Spark = recent.Select(export => (float)export.Movements).ToArray();
+        _kpiHours.Spark = recent.Select(export => (float)export.TotalMinutes).ToArray();
         _kpiHours.AnimateTo(summary.CompactTotalText);
         _kpiHours.Caption = "nell'anteprima corrente";
         // Confronto con l'ultima esportazione (se l'anteprima è già stata esportata, con quella prima).

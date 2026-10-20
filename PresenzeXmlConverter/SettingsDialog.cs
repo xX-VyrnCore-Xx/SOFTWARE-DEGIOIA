@@ -42,6 +42,7 @@ internal sealed class SettingsDialog : Form
     private readonly RadioButton _themeSystem = new();
     private readonly RadioButton _themeLight = new();
     private readonly RadioButton _themeDark = new();
+    private readonly RadioButton _themeGlass = new();
     private readonly Label _backupStatus = new();
     private readonly GeneralInfo _general;
 
@@ -557,6 +558,7 @@ internal sealed class SettingsDialog : Form
         };
         foreach (var (button, text, mode) in new[]
                  {
+                     (_themeGlass, "Vetro", ThemeMode.Glass),
                      (_themeSystem, "Come Windows", ThemeMode.System),
                      (_themeLight, "Chiaro", ThemeMode.Light),
                      (_themeDark, "Scuro", ThemeMode.Dark)
@@ -876,7 +878,7 @@ internal sealed class SettingsDialog : Form
         }
         InAppNotifications = _inAppNotifications.Checked;
         CloseBehavior = _closeTray.Checked ? "tray" : _closeExit.Checked ? "exit" : string.Empty;
-        ThemeMode = _themeLight.Checked ? ThemeMode.Light : _themeDark.Checked ? ThemeMode.Dark : ThemeMode.System;
+        ThemeMode = _themeLight.Checked ? ThemeMode.Light : _themeDark.Checked ? ThemeMode.Dark : _themeGlass.Checked ? ThemeMode.Glass : ThemeMode.System;
         SystemNotifications = _systemNotifications.Checked;
         DialogResult = DialogResult.OK;
         Close();

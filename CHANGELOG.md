@@ -4,7 +4,18 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.51.0] - Corrente
+## [1.52.0] - Corrente
+
+### 🔮 Nuovo tema «Vetro» (predefinito)
+- **Tema «Vetro»**, ispirato alla dashboard di riferimento: fondo viola-nero profondo, **card di vetro** con sfumatura leggera, bordo luminoso che si schiarisce verso l'angolo in alto a sinistra e un filo di luce sotto il bordo alto, **colori vivaci** (viola elettrico, ciano, verde menta, ambra, rosa)
+- **Pulsanti più definiti**: i pulsanti pieni sono sfumati (più chiari in alto) con un riflesso sul bordo; quelli neutri sono appena velati con bordo viola
+- **Barra laterale**: la voce attiva è una pillola viola vivace sfumata con testo e icona bianchi
+- **Indicatori con andamento**: «Dipendenti», «Movimenti» e «Ore assegnate» mostrano una linea con area sfumata dell'andamento delle ultime otto esportazioni
+- Si sceglie in Impostazioni → Generale → «Aspetto dell'app» (Vetro, Come Windows, Chiaro, Scuro); chi aveva già scelto un tema lo mantiene, gli altri partono da «Vetro». Si applica al prossimo avvio
+- Tutti i contrasti del nuovo tema sono verificati dai test, come per gli altri
+- La conversione XML non è toccata
+
+## [1.51.0]
 
 ### 📊 Dashboard: confronto con l'ultima esportazione
 - La scheda **«Ore assegnate»** mostra una pillola colorata con la variazione sull'ultima esportazione, per esempio «+3,1% sull'ultima esportazione» (verde se aumentano, arancio se diminuiscono, azzurra se uguali). Se l'anteprima è già stata esportata si confronta con quella prima. Senza esportazioni precedenti resta la didascalia di sempre

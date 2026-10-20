@@ -841,6 +841,58 @@ internal sealed class MetricCard : Control
     }
 
     private Trend? _trend;
+    private float[] _spark = [];
+
+    /// <summary>Andamento delle ultime esportazioni: una linea con area sfumata accanto al valore (serve almeno due punti).</summary>
+    public float[] Spark
+    {
+        get => _spark;
+        set
+        {
+            _spark = SparklineMath.Normalize(value ?? []);
+            Invalidate();
+        }
+    }
+
+    private void PaintSparkline(Graphics graphics, Rectangle bounds, int valueRight)
+    {
+        if (_spark.Length < 2)
+        {
+            return;
+        }
+        var left = Math.Max(valueRight + 12, bounds.Left + (bounds.Width / 2));
+        var area = new Rectangle(left, bounds.Top + 20, bounds.Right - 14 - left, 38);
+        if (area.Width < 48)
+        {
+            return;
+        }
+        var points = new PointF[_spark.Length];
+        for (var index = 0; index < points.Length; index++)
+        {
+            points[index] = new PointF(
+                area.Left + (area.Width * index / (float)(points.Length - 1)),
+                area.Bottom - (area.Height * _spark[index]));
+        }
+        var color = Theme.IsGlass ? Theme.BrandHover : _accent;
+        using (var fillPath = new GraphicsPath())
+        {
+            fillPath.AddLines(points);
+            fillPath.AddLine(points[^1], new PointF(points[^1].X, area.Bottom + 4));
+            fillPath.AddLine(new PointF(points[^1].X, area.Bottom + 4), new PointF(points[0].X, area.Bottom + 4));
+            fillPath.CloseFigure();
+            using var fill = new LinearGradientBrush(
+                new Rectangle(area.Left, area.Top, area.Width, area.Height + 6),
+                Color.FromArgb(Theme.IsGlass ? 90 : 60, color),
+                Color.FromArgb(0, color),
+                90f);
+            graphics.FillPath(fill, fillPath);
+        }
+        using var line = new Pen(color, 2f) { LineJoin = LineJoin.Round, StartCap = LineCap.Round, EndCap = LineCap.Round };
+        graphics.DrawCurve(line, points, 0.35f);
+        var last = points[^1];
+        using var dot = new SolidBrush(color);
+        graphics.FillEllipse(dot, last.X - 3f, last.Y - 3f, 6f, 6f);
+    }
 
     /// <summary>Confronto con la volta scorsa: se c'è, al posto della didascalia compare una pillola colorata.</summary>
     public Trend? Trend
@@ -869,10 +921,21 @@ internal sealed class MetricCard : Control
         }
         using (var path = Theme.RoundedRectangle(bounds, 14))
         {
-            using var fill = new SolidBrush(Theme.Surface);
-            graphics.FillPath(fill, path);
-            using var pen = new Pen(Theme.Divider);
-            graphics.DrawPath(pen, path);
+            if (Theme.IsGlass)
+            {
+                using var glassFill = new LinearGradientBrush(bounds, Theme.GlassTop, Theme.GlassBottom, 90f);
+                graphics.FillPath(glassFill, path);
+                using var glassEdge = new LinearGradientBrush(bounds, Theme.GlassEdge, Theme.GlassEdgeDim, 40f);
+                using var glassPen = new Pen(glassEdge, 1f);
+                graphics.DrawPath(glassPen, path);
+            }
+            else
+            {
+                using var fill = new SolidBrush(Theme.Surface);
+                graphics.FillPath(fill, path);
+                using var pen = new Pen(Theme.Divider);
+                graphics.DrawPath(pen, path);
+            }
             // Barra d'accento in cima, rientrata dagli angoli: ogni metrica ha il suo colore.
             var barBounds = new Rectangle(bounds.Left + 18, bounds.Top, Math.Max(8, bounds.Width - 36), 3);
             using var barPath = Theme.RoundedRectangle(barBounds, 1);
@@ -904,6 +967,12 @@ internal sealed class MetricCard : Control
             new Rectangle(left, bounds.Top + 27, width, 32),
             _accent,
             ModernPalette.Single);
+        var valueWidth = TextRenderer.MeasureText(
+            _shown,
+            Theme.Fonts.Kpi,
+            new Size(int.MaxValue, int.MaxValue),
+            TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
+        PaintSparkline(graphics, bounds, left + valueWidth);
         if (_trend is { } trend)
         {
             var (chipFill, chipInk) = trend.Tone switch
