@@ -10,30 +10,32 @@ public class ThemeMigrationTests
     }
 
     [Fact]
-    public void LegacySystemChoiceMovesToGlassExactlyOnce()
+    public void LegacyChoicesMoveToLightExactlyOnce()
     {
-        var (dir, file, marker) = Setup();
-        try
+        foreach (var legacy in new[] { "system", "glass" })
         {
-            File.WriteAllText(file, "system");
-            Assert.Equal(ThemeMode.Glass, ThemeStore.Load(file, marker));
-            Assert.Equal("glass", File.ReadAllText(file));
-            Assert.True(File.Exists(marker));
+            var (dir, file, marker) = Setup();
+            try
+            {
+                File.WriteAllText(file, legacy);
+                Assert.Equal(ThemeMode.Light, ThemeStore.Load(file, marker));
+                Assert.Equal("light", File.ReadAllText(file));
+                Assert.True(File.Exists(marker));
 
-            // Dopo il passaggio, scegliere di nuovo «Come Windows» viene rispettato.
-            File.WriteAllText(file, "system");
-            Assert.Equal(ThemeMode.System, ThemeStore.Load(file, marker));
-        }
-        finally
-        {
-            Directory.Delete(dir, recursive: true);
+                // Dopo il passaggio, scegliere di nuovo «Vetro» o «Come Windows» viene rispettato.
+                File.WriteAllText(file, legacy);
+                Assert.Equal(legacy == "glass" ? ThemeMode.Glass : ThemeMode.System, ThemeStore.Load(file, marker));
+            }
+            finally
+            {
+                Directory.Delete(dir, recursive: true);
+            }
         }
     }
 
     [Theory]
     [InlineData("light", "Light")]
     [InlineData("dark", "Dark")]
-    [InlineData("glass", "Glass")]
     public void ExplicitChoicesAreNeverOverridden(string text, string expected)
     {
         var (dir, file, marker) = Setup();
@@ -50,12 +52,12 @@ public class ThemeMigrationTests
     }
 
     [Fact]
-    public void MissingFileStartsWithGlass()
+    public void MissingFileStartsWithLight()
     {
         var (dir, file, marker) = Setup();
         try
         {
-            Assert.Equal(ThemeMode.Glass, ThemeStore.Load(file, marker));
+            Assert.Equal(ThemeMode.Light, ThemeStore.Load(file, marker));
         }
         finally
         {

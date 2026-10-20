@@ -559,10 +559,10 @@ internal sealed class SettingsDialog : Form
         };
         foreach (var (button, text, mode) in new[]
                  {
-                     (_themeGlass, "Vetro", ThemeMode.Glass),
-                     (_themeSystem, "Come Windows", ThemeMode.System),
                      (_themeLight, "Chiaro", ThemeMode.Light),
-                     (_themeDark, "Scuro", ThemeMode.Dark)
+                     (_themeDark, "Scuro", ThemeMode.Dark),
+                     (_themeSystem, "Come Windows", ThemeMode.System),
+                     (_themeGlass, "Vetro", ThemeMode.Glass)
                  })
         {
             button.Text = text;

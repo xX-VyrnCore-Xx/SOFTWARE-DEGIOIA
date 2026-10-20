@@ -132,30 +132,30 @@ internal static class Theme
         private const string Semibold = "Segoe UI Semibold";
         private static readonly string MonoFamily = ResolveMonoFamily();
 
-        public static readonly Font Ui = new("Segoe UI", 10f);
+        public static readonly Font Ui = new("Segoe UI", 10.5f);
         public static readonly Font HeaderTitle = new(Semibold, 21f);
         public static readonly Font CardTitle = new(Semibold, 17f);
-        public static readonly Font Section = new(Semibold, 8.2f);
-        public static readonly Font Small = new("Segoe UI", 8.7f);
-        public static readonly Font SmallBold = new(Semibold, 8.7f);
-        public static readonly Font Tiny = new("Segoe UI", 8.4f);
-        public static readonly Font Step = new(Semibold, 8.6f);
-        public static readonly Font Button = new(Semibold, 9.5f);
-        public static readonly Font ButtonSmall = new(Semibold, 9f);
-        public static readonly Font Pill = new(Semibold, 8.2f);
+        public static readonly Font Section = new(Semibold, 9f);
+        public static readonly Font Small = new("Segoe UI", 9.8f);
+        public static readonly Font SmallBold = new(Semibold, 9.8f);
+        public static readonly Font Tiny = new("Segoe UI", 9.2f);
+        public static readonly Font Step = new(Semibold, 9.5f);
+        public static readonly Font Button = new(Semibold, 10.5f);
+        public static readonly Font ButtonSmall = new(Semibold, 10f);
+        public static readonly Font Pill = new(Semibold, 9f);
         public static readonly Font Metric = new(Semibold, 22f);
         public static readonly Font Stat = new(Semibold, 15f);
         public static readonly Font Kpi = new(Semibold, 19f);
         public static readonly Font Field = new(Semibold, 13f);
         public static readonly Font DialogTitle = new(Semibold, 13f);
-        public static readonly Font Grid = new("Segoe UI", 8.9f);
-        public static readonly Font GridHeader = new(Semibold, 8.6f);
-        public static readonly Font Tab = new("Segoe UI", 9f);
-        public static readonly Font TabBold = new(Semibold, 9f);
-        public static readonly Font Number = new(Semibold, 9f);
-        public static readonly Font Code = new(MonoFamily, 8.4f);
+        public static readonly Font Grid = new("Segoe UI", 10f);
+        public static readonly Font GridHeader = new(Semibold, 9.5f);
+        public static readonly Font Tab = new("Segoe UI", 10.5f);
+        public static readonly Font TabBold = new(Semibold, 10.5f);
+        public static readonly Font Number = new(Semibold, 10f);
+        public static readonly Font Code = new(MonoFamily, 9.3f);
         public static readonly Font Mono = new(MonoFamily, 9.3f);
-        public static readonly Font MonoSmall = new(MonoFamily, 8.2f);
+        public static readonly Font MonoSmall = new(MonoFamily, 9f);
 
         /// <summary>
         /// Sceglie la prima famiglia monospaziata disponibile. Si prova a creare

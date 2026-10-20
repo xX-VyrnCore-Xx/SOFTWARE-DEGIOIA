@@ -1,7 +1,7 @@
 namespace PresenzeXmlConverter;
 
 /// <summary>
-/// Il file di testo con la scelta del tema (lettura, scrittura e passaggio una tantum al tema «Vetro»): solo file,
+/// Il file di testo con la scelta del tema (lettura, scrittura e passaggio una tantum al tema chiaro): solo file,
 /// senza finestre, così si verifica con un test.
 /// </summary>
 internal static class ThemeStore
@@ -12,10 +12,10 @@ internal static class ThemeStore
         "PresenzeXmlConverter",
         "theme.txt");
 
-    /// <summary>Senza una scelta salvata si parte dal tema «Vetro».</summary>
-    public const ThemeMode DefaultMode = ThemeMode.Glass;
+    /// <summary>Senza una scelta salvata si parte dal tema chiaro, in stile Windows 11 / Office.</summary>
+    public const ThemeMode DefaultMode = ThemeMode.Light;
 
-    private static string MigrationMarkerPath { get; } = Path.Combine(Path.GetDirectoryName(FilePath)!, "theme-glass-default.txt");
+    private static string MigrationMarkerPath { get; } = Path.Combine(Path.GetDirectoryName(FilePath)!, "theme-light-default.txt");
 
     public static ThemeMode Load(string? path = null, string? markerPath = null)
     {
@@ -27,15 +27,15 @@ internal static class ThemeStore
                 return DefaultMode;
             }
             var mode = ThemeChoice.Parse(File.ReadAllText(file));
-            // «Come Windows» salvato prima dell'arrivo del tema «Vetro» è quasi sempre il valore scritto da sé aprendo
-            // le Impostazioni, non una scelta: una volta sola si passa a «Vetro». Chi poi sceglie di nuovo «Come
-            // Windows» viene rispettato (il segnale di avvenuto passaggio resta).
+            // «Come Windows» e «Vetro» salvati prima del tema chiaro rifatto sono i predefiniti di versioni precedenti
+            // (o il valore scritto da sé aprendo le Impostazioni), non una scelta: una volta sola si passa a «Chiaro».
+            // Chi poi sceglie di nuovo «Come Windows», «Vetro» o «Scuro» viene rispettato (il segnale resta).
             var marker = markerPath ?? (path is null ? MigrationMarkerPath : null);
-            if (marker is not null && mode == ThemeMode.System && !File.Exists(marker))
+            if (marker is not null && (mode is ThemeMode.System or ThemeMode.Glass) && !File.Exists(marker))
             {
-                Save(ThemeMode.Glass, file);
+                Save(ThemeMode.Light, file);
                 File.WriteAllText(marker, "1");
-                return ThemeMode.Glass;
+                return ThemeMode.Light;
             }
             return mode;
         }

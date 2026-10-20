@@ -338,7 +338,7 @@ internal sealed class ToastCenter : IDisposable
             {
                 graphics.FillEllipse(badgeFill, badge);
             }
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 glyph,
                 Theme.Fonts.DialogTitle,
@@ -347,14 +347,14 @@ internal sealed class ToastCenter : IDisposable
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
 
             var textWidth = Width - TextLeft - Px(16);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 Title,
                 Theme.Fonts.SmallBold,
                 new Rectangle(TextLeft, Px(12), textWidth, Px(20)),
                 Theme.Ink,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 Message,
                 Theme.Fonts.Small,

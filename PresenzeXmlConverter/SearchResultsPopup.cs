@@ -126,14 +126,14 @@ internal sealed class SearchResultsPopup : Control
 
             var textLeft = chip.Right + 10;
             var textWidth = Math.Max(0, row.Right - textLeft - 8);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 g,
                 hit.Title,
                 Theme.Fonts.SmallBold,
                 new Rectangle(textLeft, row.Top + 4, textWidth, (row.Height / 2) - 2),
                 Theme.Ink,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 g,
                 hit.Detail,
                 Theme.Fonts.Tiny,

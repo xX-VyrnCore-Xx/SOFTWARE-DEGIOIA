@@ -179,7 +179,7 @@ internal sealed class UpdateProgressDialog : Form
                 var state = UpdateSteps.StateOf(step, _current);
                 var dot = new Rectangle(2, y + (RowHeight - 18) / 2, 18, 18);
                 DrawDot(g, dot, state);
-                TextRenderer.DrawText(
+                UiText.Draw(
                     g,
                     UpdateSteps.Label(step),
                     state == StepState.Active ? Theme.Fonts.SmallBold : Theme.Fonts.Small,

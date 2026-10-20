@@ -94,7 +94,7 @@ internal sealed class StatusBar : Control
             var box = new Rectangle(x, 0, width, Height);
             var ink = segment.IsUpdates && _updatesHot ? Theme.Ink : segment.Ink;
             Glyphs.Draw(g, new Rectangle(box.Left, (Height - IconSize) / 2, IconSize, IconSize), segment.Glyph, ink, 1.4f);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 g,
                 segment.Text,
                 font,
@@ -121,7 +121,7 @@ internal sealed class StatusBar : Control
         {
             g.FillEllipse(dotBrush, dot);
         }
-        TextRenderer.DrawText(
+        UiText.Draw(
             g,
             _message,
             font,
@@ -205,7 +205,7 @@ internal sealed class RailStatusCard : Control
         var left = 16;
         var right = Width - 12;
         var y = Height - 26;
-        TextRenderer.DrawText(
+        UiText.Draw(
             g,
             $"Versione {_version}",
             Theme.Fonts.Tiny,
@@ -223,7 +223,7 @@ internal sealed class RailStatusCard : Control
             {
                 g.FillEllipse(dotBrush, dot);
             }
-            TextRenderer.DrawText(
+            UiText.Draw(
                 g,
                 dataText,
                 Theme.Fonts.SmallBold,
@@ -282,7 +282,7 @@ internal sealed class HintLine : Control
         if (_label.Length > 0)
         {
             var labelWidth = ModernPalette.Measure(_label, Theme.Fonts.SmallBold).Width;
-            TextRenderer.DrawText(
+            UiText.Draw(
                 g,
                 _label,
                 Theme.Fonts.SmallBold,
@@ -291,7 +291,7 @@ internal sealed class HintLine : Control
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             x += labelWidth + 8;
         }
-        TextRenderer.DrawText(
+        UiText.Draw(
             g,
             _body,
             Theme.Fonts.Tiny,

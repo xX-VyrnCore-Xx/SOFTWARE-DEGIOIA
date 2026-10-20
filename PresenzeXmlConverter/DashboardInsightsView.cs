@@ -94,7 +94,7 @@ internal sealed class DashboardInsightsView : Control
                 g.FillPath(chipFill, chipPath);
             }
             Glyphs.Draw(g, Rectangle.Inflate(chip, -11, -11), Glyph.Table, Theme.BrandInk, 1.6f);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 g,
                 "Genera l'anteprima per vedere presenza, assenze e giorni da controllare.",
                 Theme.Fonts.Small,
@@ -109,7 +109,7 @@ internal sealed class DashboardInsightsView : Control
         y += BarHeight + 4;
 
         var summary = $"Presenza {FormatMinutes(_insights.PresenceMinutes)}   ·   Assenza {FormatMinutes(_insights.AbsenceMinutes)}  ({_insights.AbsenceRatio:P0})";
-        TextRenderer.DrawText(
+        UiText.Draw(
             g,
             summary,
             Theme.Fonts.Tiny,
@@ -143,7 +143,7 @@ internal sealed class DashboardInsightsView : Control
     /// <summary>Una colonna per ogni giorno: presenza in azzurro, assenza in arancio sopra; le colonne crescono a cascata.</summary>
     private void DrawDayChart(Graphics g, Rectangle area)
     {
-        TextRenderer.DrawText(
+        UiText.Draw(
             g,
             "Ore al giorno",
             Theme.Fonts.Tiny,
@@ -214,7 +214,7 @@ internal sealed class DashboardInsightsView : Control
         var label = string.IsNullOrWhiteSpace(share.Policy) ? share.Code : $"{share.Code} · {share.Policy}";
         var hours = FormatMinutes(share.Minutes);
         var hoursWidth = TextRenderer.MeasureText(hours, Theme.Fonts.SmallBold).Width;
-        TextRenderer.DrawText(
+        UiText.Draw(
             g,
             label,
             Theme.Fonts.Small,
@@ -237,7 +237,7 @@ internal sealed class DashboardInsightsView : Control
             g.FillPath(front, path);
         }
 
-        TextRenderer.DrawText(
+        UiText.Draw(
             g,
             hours,
             Theme.Fonts.SmallBold,
@@ -268,7 +268,7 @@ internal sealed class DashboardInsightsView : Control
         {
             g.FillPath(brush, path);
         }
-        TextRenderer.DrawText(
+        UiText.Draw(
             g,
             text,
             Theme.Fonts.Pill,
