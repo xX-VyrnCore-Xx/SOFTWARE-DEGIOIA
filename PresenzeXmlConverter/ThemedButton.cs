@@ -242,7 +242,7 @@ internal sealed class ThemedButton : Button
             if (layout.ShowIcon)
             {
                 Glyphs.Draw(graphics, new Rectangle(layout.IconLeft, (ClientSize.Height - 2 - iconSize) / 2, iconSize, iconSize), glyph, ink, 1.6f);
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     Text,
                     Font,
@@ -258,7 +258,7 @@ internal sealed class ThemedButton : Button
             0,
             Math.Max(1, ClientSize.Width - Padding.Horizontal),
             ClientSize.Height);
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             Text,
             Font,

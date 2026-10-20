@@ -307,7 +307,7 @@ internal sealed class NavRail : Control
                 using var pillPath = Theme.RoundedRectangle(pill, 10);
                 using var badgeFill = new SolidBrush(covered > 0.5f ? (Theme.IsGlass ? Color.FromArgb(70, Color.White) : Theme.BrandLite) : Theme.Sunken);
                 e.Graphics.FillPath(badgeFill, pillPath);
-                TextRenderer.DrawText(
+                UiText.Draw(
                     e.Graphics,
                     badge,
                     Theme.Fonts.Tiny,
@@ -322,7 +322,7 @@ internal sealed class NavRail : Control
                 (int)box.Top,
                 Math.Max(1, (int)box.Right - iconBox.Right - 14 - badgeWidth),
                 (int)box.Height);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 e.Graphics,
                 _useShortTitles ? item.ShortTitle : item.Title,
                 active ? Theme.Fonts.TabBold : Theme.Fonts.Tab,

@@ -4,7 +4,17 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.55.0] - Corrente
+## [1.56.0] - Corrente
+
+### 🏢 Aspetto professionale, chiaro, in stile Windows 11 / Office
+- **Tema chiaro rifatto** con grigi neutri (fondo #F3F3F3, schede bianche), testo quasi nero, il blu di sistema di Windows 11 (#0067C0), verde, ambra e rosso sobri e **bordi netti** (più scuri, ben visibili) su pulsanti, caselle e griglie. Tutti i contrasti restano verificati dai test
+- **È il tema predefinito**: chi aveva «Come Windows» o «Vetro» salvato (valori scritti dalle versioni precedenti) passa **una volta sola** a «Chiaro»; «Scuro», «Vetro» e «Come Windows» restano nelle Impostazioni → Generale e, se scelti di nuovo, vengono rispettati
+- **Testi più grandi in tutto il programma** (circa +13 %): testo base 10,5 pt (prima 10), secondario 9,8 pt (8,7), piccolo 9,2 pt (8,4), etichette e pillole 9 pt (8,2), tabelle 10 pt (8,9) con intestazioni 9,5 pt, voci della barra laterale e schede 10,5 pt, pulsanti 10,5 pt
+- **Il testo disegnato dal programma non viene più tagliato dal bordo del suo riquadro**: con caratteri più grandi o con lo scaling di Windows al 125–150 % una riga che sborda di un pixel resta leggibile (prima perdeva la metà inferiore delle lettere, come «DATI LOCALI»). Vale per tutti i controlli fatti a mano (indicatori, barra di stato, calendario, ricerca, menù, avvisi…)
+- Le Impostazioni mostrano i temi nell'ordine Chiaro, Scuro, Come Windows, Vetro
+- La conversione XML non è toccata
+
+## [1.55.0]
 
 ### 🪟 Finestre «Apri» e «Salva» spostabili, Dashboard più ordinata
 - **Le finestre per scegliere o salvare un file non si aprono più a tutto schermo**: Windows ricorda la dimensione di ogni finestra di questo tipo per applicazione, e una volta ingrandita si riapriva sempre così, senza poterla spostare. Ora hanno un identificativo proprio: riaprono con la dimensione normale, si spostano e si ridimensionano a piacere, e ricordano la nuova misura. Vale per tutte le dieci finestre dell'app (importa Excel, salva XML, esporta e importa codici, report e immagini del calendario, registro attività, certificato…). Un test controlla che nessuna sia rimasta indietro

@@ -655,7 +655,7 @@ internal sealed partial class MainForm
             {
                 args.Graphics.FillRectangle(background, bounds);
             }
-            TextRenderer.DrawText(
+            UiText.Draw(
                 args.Graphics,
                 (args.RowIndex + 1).ToString("D2"),
                 Theme.Fonts.MonoSmall,

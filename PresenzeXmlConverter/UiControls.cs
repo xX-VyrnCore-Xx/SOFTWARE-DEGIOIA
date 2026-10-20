@@ -149,7 +149,7 @@ internal sealed class ThemedGrid : DataGridView
             }
             Glyphs.Draw(e.Graphics, Rectangle.Inflate(chipBox, -13, -13), EmptyGlyph, Theme.BrandInk, 1.7f);
             bounds = new Rectangle(bounds.Left + 20, chipBox.Bottom + 8, bounds.Width - 40, Theme.Fonts.Small.Height * 2 + 6);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 e.Graphics,
                 EmptyStateText,
                 Theme.Fonts.Small,
@@ -158,7 +158,7 @@ internal sealed class ThemedGrid : DataGridView
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.WordBreak);
             return;
         }
-        TextRenderer.DrawText(
+        UiText.Draw(
             e.Graphics,
             EmptyStateText,
             Theme.Fonts.Small,
@@ -678,7 +678,7 @@ internal sealed class ThemedTabControl : Control
                 using var fill = new SolidBrush(Active ? Theme.BrandSoft : Theme.Sunken);
                 e.Graphics.FillPath(fill, path);
             }
-            TextRenderer.DrawText(
+            UiText.Draw(
                 e.Graphics,
                 Text,
                 Font,
@@ -715,7 +715,7 @@ internal sealed class StepBadge : Control
         var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
         using var fill = new SolidBrush(_active ? Theme.Brand : Theme.BrandLite);
         e.Graphics.FillEllipse(fill, bounds);
-        TextRenderer.DrawText(
+        UiText.Draw(
             e.Graphics,
             _caption,
             Theme.Fonts.Step,
@@ -779,7 +779,7 @@ internal sealed class StatusPill : Control
             e.Graphics.FillPath(fill, path);
         }
         var textBounds = new Rectangle(0, 0, Width, Height);
-        TextRenderer.DrawText(
+        UiText.Draw(
             e.Graphics,
             _caption,
             Theme.Fonts.Pill,
@@ -957,7 +957,7 @@ internal sealed class NoteTextView : Control
                         {
                             e.Graphics.FillRectangle(accent, area.X - Px(7), area.Y + Px(2), Px(3), Math.Max(4, area.Height - Px(4)));
                         }
-                        TextRenderer.DrawText(e.Graphics, block.Text, HeadingFont, area, Theme.BrandInk, BodyFlags);
+                        UiText.Draw(e.Graphics, block.Text, HeadingFont, area, Theme.BrandInk, BodyFlags);
                         break;
                     case NoteBlockKind.Bullet:
                         var dot = Px(6);
@@ -970,10 +970,10 @@ internal sealed class NoteTextView : Control
                                 dot,
                                 dot);
                         }
-                        TextRenderer.DrawText(e.Graphics, block.Text, Font, area, Theme.Ink, BodyFlags);
+                        UiText.Draw(e.Graphics, block.Text, Font, area, Theme.Ink, BodyFlags);
                         break;
                     default:
-                        TextRenderer.DrawText(e.Graphics, block.Text, Font, area, Theme.InkSecondary, BodyFlags);
+                        UiText.Draw(e.Graphics, block.Text, Font, area, Theme.InkSecondary, BodyFlags);
                         break;
                 }
             }

@@ -274,7 +274,7 @@ internal sealed class IconButton : Control
         }
         if (hasText)
         {
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 Text,
                 Font,
@@ -582,14 +582,14 @@ internal sealed class DropZone : Control
         var subHeight = subFont.Height;
         var total = titleHeight + 2 + subHeight;
         var top = bounds.Top + ((bounds.Height - total) / 2);
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             Busy ? "Lettura del file in corso…" : _title,
             titleFont,
             new Rectangle(textLeft, top, textWidth, titleHeight),
             _loaded ? Theme.SuccessInk : Theme.Ink,
             ModernPalette.Single);
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             _subtitle,
             subFont,
@@ -632,14 +632,14 @@ internal sealed class DropZone : Control
             blend > 0.5f ? Color.White : Theme.BrandInk,
             2f);
         var centered = TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix;
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             _title,
             titleFont,
             new Rectangle(bounds.Left + 12, chipBox.Bottom + 14, bounds.Width - 24, titleFont.Height + 2),
             Theme.Ink,
             centered);
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             _subtitle,
             subFont,
@@ -996,14 +996,14 @@ internal sealed class MetricCard : Control
 
         var left = chip.Right + 12;
         var width = Math.Max(10, bounds.Right - left - 10);
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             Label,
             Theme.Fonts.Section,
             new Rectangle(left, bounds.Top + 12, width, 16),
             Theme.MutedInk,
             ModernPalette.Single);
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             _shown,
             Theme.Fonts.Kpi,
@@ -1036,7 +1036,7 @@ internal sealed class MetricCard : Control
             {
                 graphics.FillPath(pillBrush, pillPath);
             }
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 trend.Text,
                 Theme.Fonts.Pill,
@@ -1047,7 +1047,7 @@ internal sealed class MetricCard : Control
         }
         else if (_caption.Length > 0)
         {
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 _caption,
                 Theme.Fonts.Tiny,
@@ -1127,7 +1127,7 @@ internal sealed class StatusRow : Control
 
         var titleWidth = ModernPalette.Measure(Title, Theme.Fonts.SmallBold).Width;
         var left = chip.Right + 10;
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             Title,
             Theme.Fonts.SmallBold,
@@ -1139,7 +1139,7 @@ internal sealed class StatusRow : Control
         {
             if (_tone == StatusTone.Neutral)
             {
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     _value,
                     Theme.Fonts.Small,
@@ -1157,7 +1157,7 @@ internal sealed class StatusRow : Control
                 {
                     graphics.FillPath(pillBrush, pillPath);
                 }
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     _value,
                     Theme.Fonts.Small,
@@ -1249,7 +1249,7 @@ internal sealed class StepperBar : Control
             }
             else
             {
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     (index + 1).ToString(),
                     Theme.Fonts.SmallBold,
@@ -1257,7 +1257,7 @@ internal sealed class StepperBar : Control
                     active ? Color.White : Theme.MutedInk,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             }
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 Names[index],
                 active ? Theme.Fonts.SmallBold : Theme.Fonts.Small,

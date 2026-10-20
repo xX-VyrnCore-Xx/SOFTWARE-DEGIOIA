@@ -193,7 +193,7 @@ internal static class ThemedMenus
                 e.Graphics.DrawRectangle(border, 0, 0, e.Bounds.Width - 1, e.Bounds.Height - 1);
             }
             var inner = Rectangle.Inflate(new Rectangle(Point.Empty, e.Bounds.Size), -TipPaddingX, -TipPaddingY);
-            TextRenderer.DrawText(e.Graphics, e.ToolTipText, Theme.Fonts.Small, inner, palette.Ink, TipFlags);
+            UiText.Draw(e.Graphics, e.ToolTipText, Theme.Fonts.Small, inner, palette.Ink, TipFlags);
         };
         return tip;
     }
@@ -323,7 +323,7 @@ internal sealed class ThemedComboBox : ComboBox
         }
         var ink = MenuPalette.Text(palette, Enabled, hot);
         var textArea = new Rectangle(area.X + 12, area.Y, area.Width - 20, area.Height);
-        TextRenderer.DrawText(
+        UiText.Draw(
             e.Graphics,
             GetItemText(Items[e.Index]),
             Font,
@@ -398,7 +398,7 @@ internal sealed class ThemedComboBox : ComboBox
         var chevronWidth = Math.Max(26, Height - 4);
         var textArea = new Rectangle(face.Left + 11, face.Top, face.Width - chevronWidth - 11, face.Height);
         var text = SelectedIndex >= 0 ? GetItemText(SelectedItem) : Text;
-        TextRenderer.DrawText(
+        UiText.Draw(
             graphics,
             text,
             Font,

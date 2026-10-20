@@ -862,7 +862,7 @@ internal sealed class MonthCalendarView : Panel
             var image = new Bitmap(content.Width, TitleHeight + content.Height + legendHeight);
             using var graphics = Graphics.FromImage(image);
             graphics.Clear(Theme.Surface);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 title,
                 Theme.Fonts.DialogTitle,
@@ -892,7 +892,7 @@ internal sealed class MonthCalendarView : Panel
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             if (_owner._months.Count == 0)
             {
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     "Genera l'anteprima per vedere il calendario del mese.",
                     Theme.Fonts.Small,
@@ -986,7 +986,7 @@ internal sealed class MonthCalendarView : Panel
                 {
                     var date = new DateTime(year, month, day);
                     var count = _owner.PresentOn(date);
-                    TextRenderer.DrawText(
+                    UiText.Draw(
                         graphics,
                         count.ToString(CultureInfo.InvariantCulture),
                         Theme.Fonts.Tiny,
@@ -1018,7 +1018,7 @@ internal sealed class MonthCalendarView : Panel
                     using var band = new SolidBrush(Theme.AltRow);
                     graphics.FillRectangle(band, 0, top, NameColumn, RowHeight);
                 }
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     visible[row],
                     Theme.Fonts.Small,
@@ -1030,7 +1030,7 @@ internal sealed class MonthCalendarView : Panel
             {
                 var top = HeaderHeight + (visible.Count * RowHeight) + scroll.Y;
                 graphics.FillRectangle(holidayFill, 0, top, NameColumn, RowHeight);
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     _owner.FooterLabel,
                     Theme.Fonts.SmallBold,
@@ -1040,7 +1040,7 @@ internal sealed class MonthCalendarView : Panel
             }
             else
             {
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     "Nessun dipendente corrisponde ai filtri.",
                     Theme.Fonts.Small,
@@ -1066,14 +1066,14 @@ internal sealed class MonthCalendarView : Panel
                     graphics.FillEllipse(badgeFill, badge);
                     ink = Color.White;
                 }
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     day.ToString(CultureInfo.InvariantCulture),
                     Theme.Fonts.SmallBold,
                     numberArea,
                     ink,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     date.ToString("ddd", Italian)[..1].ToUpper(Italian),
                     Theme.Fonts.Tiny,
@@ -1082,7 +1082,7 @@ internal sealed class MonthCalendarView : Panel
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             }
             var totalLeft = NameColumn + (days * cellWidth) + scroll.X;
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 "Totale",
                 Theme.Fonts.SmallBold,
@@ -1098,7 +1098,7 @@ internal sealed class MonthCalendarView : Panel
         {
             var (minutes, gaps) = _owner.StatsOf(name, year, month);
             var differs = _owner.DifferenceOf(name, year, month) != 0;
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 MonthCalendarView.FormatTotal(minutes),
                 Theme.Fonts.SmallBold,
@@ -1113,7 +1113,7 @@ internal sealed class MonthCalendarView : Panel
             using var path = Theme.RoundedRectangle(pill, 6);
             using var fill = new SolidBrush(Theme.Danger);
             graphics.FillPath(fill, path);
-            TextRenderer.DrawText(
+            UiText.Draw(
                 graphics,
                 gaps > 99 ? "99+" : gaps.ToString(CultureInfo.InvariantCulture),
                 Theme.Fonts.Tiny,
@@ -1142,7 +1142,7 @@ internal sealed class MonthCalendarView : Panel
                 FillCell(graphics, cell, items[0]);
                 var minutes = items.Sum(movement => (movement.Hours * 60) + movement.Minutes);
                 var colors = ColorsOf(items[0]);
-                TextRenderer.DrawText(
+                UiText.Draw(
                     graphics,
                     FormatHours(minutes),
                     Theme.Fonts.Tiny,
@@ -1235,7 +1235,7 @@ internal sealed class MonthCalendarView : Panel
                         e.Graphics.DrawPath(pen, path);
                     }
                 }
-                TextRenderer.DrawText(
+                UiText.Draw(
                     e.Graphics,
                     entry.Text,
                     Theme.Fonts.Tiny,
