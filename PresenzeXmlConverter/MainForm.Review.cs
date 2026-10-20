@@ -37,7 +37,7 @@ internal sealed partial class MainForm
         // inferiore dei due pulsanti veniva tagliato di 3 px.
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
         var toolbar = new SurfacePanel
         {
