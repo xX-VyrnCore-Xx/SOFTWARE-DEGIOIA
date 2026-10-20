@@ -245,6 +245,7 @@ internal sealed partial class MainForm
             FileName = $"registro-attivita-{DateTime.Now:yyyyMMdd}.csv",
             OverwritePrompt = true
         };
+        picker.ClientGuid = FileDialogs.ClientId;
         if (picker.ShowDialog(this) != DialogResult.OK)
         {
             return;

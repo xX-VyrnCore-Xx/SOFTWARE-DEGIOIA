@@ -112,10 +112,24 @@ internal sealed class SurfacePanel : Panel
     private void PaintGlass(Graphics graphics, GraphicsPath path)
     {
         var area = new Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
-        using (var fill = new LinearGradientBrush(area, Theme.GlassTop, Theme.GlassBottom, 90f))
+        // Interno uniforme: i controlli dentro la card hanno lo stesso fondo e non si vede nessun riquadro più scuro.
+        using (var fill = new SolidBrush(Theme.Surface))
         {
             graphics.FillPath(fill, path);
         }
+        // Un velo di luce sul bordo alto, dentro la card, come il riflesso sul vetro.
+        var oldClip = graphics.Clip;
+        using (var clip = new Region(path))
+        {
+            graphics.SetClip(clip, CombineMode.Replace);
+            using var sheen = new LinearGradientBrush(
+                new Rectangle(0, 0, Math.Max(1, ClientSize.Width), 18),
+                Color.FromArgb(26, 255, 255, 255),
+                Color.FromArgb(0, 255, 255, 255),
+                90f);
+            graphics.FillRectangle(sheen, 0, 0, ClientSize.Width, 18);
+        }
+        graphics.Clip = oldClip;
         using (var edge = new LinearGradientBrush(area, Theme.GlassEdge, Theme.GlassEdgeDim, 40f))
         using (var pen = new Pen(edge, 1f))
         {

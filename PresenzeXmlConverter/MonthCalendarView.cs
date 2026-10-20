@@ -579,6 +579,7 @@ internal sealed class MonthCalendarView : Panel
                 : "Report ore.pdf",
             OverwritePrompt = true
         };
+        picker.ClientGuid = FileDialogs.ClientId;
         if (picker.ShowDialog(FindForm()) != DialogResult.OK)
         {
             return;
@@ -617,6 +618,7 @@ internal sealed class MonthCalendarView : Panel
             FileName = "Riepilogo ore.csv",
             OverwritePrompt = true
         };
+        picker.ClientGuid = FileDialogs.ClientId;
         if (picker.ShowDialog(FindForm()) != DialogResult.OK)
         {
             return;
@@ -654,6 +656,7 @@ internal sealed class MonthCalendarView : Panel
             FileName = $"Calendario {year}-{month:00}.png",
             OverwritePrompt = true
         };
+        picker.ClientGuid = FileDialogs.ClientId;
         if (picker.ShowDialog(FindForm()) != DialogResult.OK)
         {
             return;

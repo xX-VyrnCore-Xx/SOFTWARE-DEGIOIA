@@ -908,6 +908,7 @@ internal sealed partial class MainForm
                 FileName = record.FileName,
                 OverwritePrompt = true
             };
+            picker.ClientGuid = FileDialogs.ClientId;
             if (!string.IsNullOrEmpty(_lastExportDirectory) && Directory.Exists(_lastExportDirectory))
             {
                 picker.InitialDirectory = _lastExportDirectory;
