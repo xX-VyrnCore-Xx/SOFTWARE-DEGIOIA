@@ -86,13 +86,21 @@ internal sealed class DashboardInsightsView : Control
 
         if (!_insights.HasData)
         {
+            // Stato vuoto: icona e testo centrati, come nell'elenco delle esportazioni.
+            var chip = new Rectangle((width - 44) / 2, Math.Max(0, (ClientSize.Height / 2) - 52), 44, 44);
+            using (var chipPath = Theme.RoundedRectangle(chip, 12))
+            using (var chipFill = new SolidBrush(Theme.BrandSoft))
+            {
+                g.FillPath(chipFill, chipPath);
+            }
+            Glyphs.Draw(g, Rectangle.Inflate(chip, -11, -11), Glyph.Table, Theme.BrandInk, 1.6f);
             TextRenderer.DrawText(
                 g,
                 "Genera l'anteprima per vedere presenza, assenze e giorni da controllare.",
                 Theme.Fonts.Small,
-                new Rectangle(0, 0, width, ClientSize.Height),
+                new Rectangle(8, chip.Bottom + 10, Math.Max(10, width - 16), 48),
                 Theme.MutedInk,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.WordBreak);
             return;
         }
 

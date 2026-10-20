@@ -8,43 +8,14 @@ namespace PresenzeXmlConverter;
 /// </summary>
 internal static class ThemePreference
 {
-    public static string FilePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "DeGioia",
-        "PresenzeXmlConverter",
-        "theme.txt");
+    public static string FilePath => ThemeStore.FilePath;
 
-    /// <summary>Senza una scelta salvata si parte dal tema «Vetro».</summary>
-    public const ThemeMode DefaultMode = ThemeMode.Glass;
+    public const ThemeMode DefaultMode = ThemeStore.DefaultMode;
 
-    public static ThemeMode Load(string? path = null)
-    {
-        try
-        {
-            var file = path ?? FilePath;
-            return File.Exists(file) ? ThemeChoice.Parse(File.ReadAllText(file)) : DefaultMode;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return DefaultMode;
-        }
-    }
+    public static ThemeMode Load(string? path = null, string? markerPath = null) => ThemeStore.Load(path, markerPath);
 
     /// <summary>Salva la scelta; restituisce false se non è stato possibile (l'app continua con il tema di prima).</summary>
-    public static bool Save(ThemeMode mode, string? path = null)
-    {
-        try
-        {
-            var file = path ?? FilePath;
-            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            File.WriteAllText(file, ThemeChoice.Serialize(mode));
-            return true;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
+    public static bool Save(ThemeMode mode, string? path = null) => ThemeStore.Save(mode, path);
 
     /// <summary>Windows è impostato sul tema scuro per le app? (Windows 10 1809 e successivi; altrimenti chiaro.)</summary>
     public static bool SystemIsDark()

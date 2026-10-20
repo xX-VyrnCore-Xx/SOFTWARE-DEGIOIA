@@ -161,7 +161,7 @@ internal sealed partial class MainForm
         return new RailStatusCard(_railDataLabel, _railBackupLabel, _railCompanyLabel, RunningVersion.ToString(3))
         {
             Dock = DockStyle.Bottom,
-            Height = 132,
+            Height = 136,
             Margin = Padding.Empty
         };
     }
@@ -333,7 +333,7 @@ internal sealed partial class MainForm
         page.ColumnCount = 1;
         page.Padding = new Padding(0, 0, 4, 0);
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
 
@@ -608,7 +608,7 @@ internal sealed partial class MainForm
         page.ColumnCount = 1;
         page.Padding = new Padding(0, 0, 4, 0);
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
 
@@ -1036,7 +1036,7 @@ internal sealed partial class MainForm
             Margin = Padding.Empty
         };
         heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
         heading.Controls.Add(new Label
         {
@@ -1045,7 +1045,8 @@ internal sealed partial class MainForm
             TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Theme.Ink,
             Font = Theme.Fonts.CardTitle,
-            Margin = Padding.Empty
+            // Il bordo sinistro del testo combacia con quello delle card sotto (il testo ha un piccolo margine suo).
+            Margin = new Padding(-5, 0, 0, 0)
         }, 0, 0);
         heading.Controls.Add(new Label
         {
@@ -1055,7 +1056,7 @@ internal sealed partial class MainForm
             ForeColor = Theme.MutedInk,
             Font = Theme.Fonts.Small,
             AutoEllipsis = true,
-            Margin = Padding.Empty
+            Margin = new Padding(-3, 0, 0, 0)
         }, 0, 1);
         return heading;
     }
