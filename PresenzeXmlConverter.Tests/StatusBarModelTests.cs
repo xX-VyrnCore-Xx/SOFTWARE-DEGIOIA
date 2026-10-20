@@ -26,13 +26,6 @@ public class StatusBarModelTests
         Assert.Equal(expected, StatusBarModel.CleanUpdates(input));
 
     [Fact]
-    public void VersionAndClockAreCompact()
-    {
-        Assert.Equal("v1.42.0", StatusBarModel.VersionText(new Version(1, 42, 0, 0)));
-        Assert.Equal("09:05", StatusBarModel.ClockText(new DateTime(2026, 10, 16, 9, 5, 0)));
-    }
-
-    [Fact]
     public void AllSegmentsFitWhenThereIsRoom()
     {
         Assert.Equal(3, StatusBarModel.SegmentsThatFit(1000, 200, [200, 60, 50], 12));

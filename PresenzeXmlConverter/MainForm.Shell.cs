@@ -158,10 +158,10 @@ internal sealed partial class MainForm
         _railDataLabel.Text = "●  Database collegato";
         _railBackupLabel.Text = "backup automatici";
         _railCompanyLabel.Text = "nessuna azienda";
-        return new RailStatusCard(_railDataLabel, _railBackupLabel, _railCompanyLabel, RunningVersion.ToString(3))
+        return new RailStatusCard(_railDataLabel, RunningVersion.ToString(3))
         {
             Dock = DockStyle.Bottom,
-            Height = 136,
+            Height = 56,
             Margin = Padding.Empty
         };
     }

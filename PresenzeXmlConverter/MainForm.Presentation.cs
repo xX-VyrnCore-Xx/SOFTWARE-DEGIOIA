@@ -792,7 +792,6 @@ internal sealed partial class MainForm
 
         _statusBar.Dock = DockStyle.Fill;
         _statusBar.Margin = Padding.Empty;
-        _statusBar.SetVersion(StatusBarModel.VersionText(RunningVersion));
         _statusBar.SetMessage("Pronto  ·  Formato di esportazione: XML TRRIPW", false);
         _statusBar.UpdatesClicked += async (_, _) => await CheckForUpdatesAsync(userInitiated: true);
         footer.Controls.Add(_statusBar, 0, 1);
