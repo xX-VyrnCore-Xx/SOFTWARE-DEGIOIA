@@ -43,12 +43,6 @@ internal static class StatusBarModel
         return cleaned.Length == 0 ? "verifica in corso" : cleaned;
     }
 
-    /// <summary>«v1.42.0» dalla versione in uso.</summary>
-    public static string VersionText(Version version) => $"v{version.ToString(3)}";
-
-    /// <summary>Ora e minuti, come «12:13».</summary>
-    public static string ClockText(DateTime now) => now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
-
     /// <summary>
     /// Quali segmenti di destra entrano. <paramref name="widths"/> è in ordine di importanza (aggiornamenti, versione, ora):
     /// si tolgono prima gli ultimi. Resta sempre almeno <paramref name="minimumMessage"/> pixel al messaggio di stato;

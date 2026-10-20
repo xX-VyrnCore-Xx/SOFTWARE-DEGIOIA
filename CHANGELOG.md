@@ -4,7 +4,19 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.53.0] - Corrente
+## [1.54.0] - Corrente
+
+### ✂️ Meno rumore, più sostanza
+- **Dashboard essenziale**: a foglio vuoto resta solo la scheda «Nuova conversione» (grande, con l'area di rilascio) e lo stato. Gli **indicatori** compaiono solo quando c'è un foglio letto (prima erano tre o quattro zeri), il riquadro **«Ultime esportazioni»** solo se esiste una consegna o un'anteprima, **«Analisi del mese»** solo con un'anteprima pronta. Niente più riquadri vuoti
+- **Indicatori da quattro a tre**: tolta «Richieste» (il numero è già nell'area di rilascio, con dipendenti e foglio)
+- **Stato** con tre righe che servono (Database, Aggiornamenti, Regole): tolti «File Excel» (già nella scheda di conversione) e «Certificato» (dice già se scade con una notifica e nelle Impostazioni)
+- **Barra di stato in fondo**: solo il messaggio; gli aggiornamenti compaiono solo se c'è una versione nuova o un errore. Tolti la versione e l'ora, ripetuti altrove
+- **Barra laterale**: sparito il riquadro «Dati locali» (database, backup, azienda e versione, tutte cose già mostrate altrove). Restano la versione, piccola, e una riga di avviso solo se il database ha un problema
+- Tolto il suggerimento «puoi trascinare un file Excel», ripetuto dall'area di rilascio
+- Un test controlla quando compare ciascun riquadro
+- La conversione XML non è toccata
+
+## [1.53.0]
 
 ### 🛠️ Correzioni grafiche (dallo screenshot della 1.52.0)
 - **Il tema «Vetro» ora si applica davvero**: chi aveva «Come Windows» salvato (il valore che le Impostazioni scrivono da sole) restava con il vecchio tema scuro blu. Una volta sola «Come Windows» diventa «Vetro»; scegliere di nuovo «Come Windows» o «Chiaro» / «Scuro» viene rispettato

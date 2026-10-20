@@ -14,58 +14,61 @@ internal sealed partial class MainForm
     private readonly MetricCard _kpiHours = new("ORE ASSEGNATE", Glyph.Clock, Theme.SuccessInk, Theme.SuccessSoft);
     private readonly DropZone _dashDropZone = new();
     private readonly StepperBar _dashStepper = new();
-    private readonly StatusRow _statusFile = new("File Excel", Glyph.File);
     private readonly StatusRow _statusDatabase = new("Database", Glyph.Database);
     private readonly StatusRow _statusUpdates = new("Aggiornamenti", Glyph.Refresh);
     private readonly StatusRow _statusRules = new("Regole", Glyph.Chip);
-    private readonly StatusRow _statusCertificate = new("Certificato", Glyph.Shield);
 
-    // La firma si legge dal file una volta sola: la dashboard si aggiorna spesso.
-    private static readonly Lazy<DateTime?> CertificateExpiry = new(ExecutableSignature.CurrentCertificateExpiry);
     private readonly DashboardInsightsView _dashInsights = new();
     private IconButton? _dashGenerateButton;
 
     /// <summary>La consegna in anteprima è già stata esportata? Serve al terzo passo dell'avanzamento.</summary>
     private bool _currentPreviewExported;
 
+    private TableLayoutPanel? _dashMetrics;
+    private TableLayoutPanel? _dashBottom;
+    private Control? _dashInsightsCard;
+    private Control? _dashExportsCard;
+
     private Control BuildDashboardSection()
     {
         var page = _dashboardSection;
-        page.RowCount = 5;
+        page.RowCount = 4;
         page.ColumnCount = 1;
         page.Padding = new Padding(0, 0, 4, 0);
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        // Le altezze di questa pagina cambiano con il contenuto (vedi ApplyDashboardLayout): niente riquadri vuoti.
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 102));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 246));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
 
         page.Controls.Add(BuildSectionHeading(
             "Dashboard",
-            "Riepilogo della conversione in corso e delle ultime esportazioni."), 0, 0);
+            "La conversione in corso e le ultime esportazioni."), 0, 0);
 
-        // Quattro schede di riepilogo.
+        // Tre indicatori, solo quando c'è un foglio letto: a foglio vuoto sarebbero tre zeri.
         var metrics = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 4,
+            ColumnCount = 3,
             RowCount = 1,
             BackColor = Theme.Canvas,
             Margin = Padding.Empty
         };
-        for (var column = 0; column < 4; column++)
+        for (var column = 0; column < 3; column++)
         {
-            metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
         }
         metrics.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var cards = new[] { _kpiRequests, _kpiEmployees, _kpiMovements, _kpiHours };
+        var cards = new[] { _kpiEmployees, _kpiMovements, _kpiHours };
         for (var index = 0; index < cards.Length; index++)
         {
             cards[index].Dock = DockStyle.Fill;
             cards[index].Margin = new Padding(0, 0, index == cards.Length - 1 ? 0 : 10, 10);
             metrics.Controls.Add(cards[index], index, 0);
         }
+        metrics.Visible = false;
+        _dashMetrics = metrics;
         page.Controls.Add(metrics, 0, 1);
 
         // Conversione (a sinistra) e stato del sistema (a destra).
@@ -84,30 +87,58 @@ internal sealed partial class MainForm
         hero.Controls.Add(BuildDashboardStatusCard(), 1, 0);
         page.Controls.Add(hero, 0, 2);
 
+        // Sotto: ultime esportazioni e, solo con un'anteprima pronta, l'analisi del mese. A pagina vuota non c'è.
         var bottom = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
             BackColor = Theme.Canvas,
-            Margin = Padding.Empty
+            Margin = Padding.Empty,
+            Visible = false
         };
-        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62));
-        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 0));
         bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var exports = BuildDashboardExports();
-        exports.Margin = new Padding(0, 0, 10, 0);
-        bottom.Controls.Add(exports, 0, 0);
-        bottom.Controls.Add(BuildDashboardInsightsCard(), 1, 0);
+        _dashExportsCard = BuildDashboardExports();
+        _dashInsightsCard = BuildDashboardInsightsCard();
+        _dashInsightsCard.Visible = false;
+        bottom.Controls.Add(_dashExportsCard, 0, 0);
+        bottom.Controls.Add(_dashInsightsCard, 1, 0);
+        _dashBottom = bottom;
         page.Controls.Add(bottom, 0, 3);
-        page.Controls.Add(BuildSectionHint(
-            "Suggerimento: puoi trascinare un file Excel (.xlsx, .xlsm) in qualunque punto della finestra."), 0, 4);
 
         _dashDropZone.Click += async (_, _) => await ImportWorkbookAsync();
         _dashDropZone.FileDropped += async path => await LoadWorkbookAsync(path);
         _dashDropZone.RemoveRequested += RemoveWorkbook;
         RefreshDashboardCards();
         return page;
+    }
+
+    /// <summary>
+    /// La dashboard mostra solo ciò che ha qualcosa da dire: gli indicatori con un foglio letto, il riquadro delle
+    /// esportazioni con almeno una consegna o un'anteprima, l'analisi del mese con un'anteprima pronta. Senza niente
+    /// di tutto questo la scheda «Nuova conversione» occupa la pagina.
+    /// </summary>
+    private void ApplyDashboardLayout()
+    {
+        if (_dashMetrics is null || _dashBottom is null || _dashInsightsCard is null || _dashExportsCard is null)
+        {
+            return;
+        }
+        var layout = DashboardLayout.For(_requests.Count > 0, _movements.Count > 0, _exports.Count > 0);
+        var page = _dashboardSection;
+        page.SuspendLayout();
+        _dashMetrics.Visible = layout.ShowMetrics;
+        page.RowStyles[1] = new RowStyle(SizeType.Absolute, layout.ShowMetrics ? 102 : 0);
+        _dashBottom.Visible = layout.ShowBottom;
+        page.RowStyles[2] = layout.ShowBottom ? new RowStyle(SizeType.Absolute, 246) : new RowStyle(SizeType.Percent, 100);
+        page.RowStyles[3] = layout.ShowBottom ? new RowStyle(SizeType.Percent, 100) : new RowStyle(SizeType.Absolute, 0);
+        _dashInsightsCard.Visible = layout.ShowInsights;
+        _dashBottom.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, layout.ShowInsights ? 62 : 100);
+        _dashBottom.ColumnStyles[1] = new ColumnStyle(SizeType.Percent, layout.ShowInsights ? 38 : 0);
+        _dashExportsCard.Margin = new Padding(0, 0, layout.ShowInsights ? 10 : 0, 0);
+        page.ResumeLayout(true);
     }
 
     private Control BuildDashboardConversionCard()
@@ -226,18 +257,19 @@ internal sealed partial class MainForm
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 6,
+            RowCount = 4,
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-        for (var row = 0; row < 5; row++)
+        for (var row = 0; row < 3; row++)
         {
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
         }
-        layout.Controls.Add(CreateCardTitle("STATO DEL SISTEMA"), 0, 0);
-        var rows = new[] { _statusFile, _statusDatabase, _statusUpdates, _statusRules, _statusCertificate };
+        layout.Controls.Add(CreateCardTitle("STATO"), 0, 0);
+        // Tre righe che servono davvero. Il file sta nella scheda di conversione; il certificato è nelle Impostazioni.
+        var rows = new[] { _statusDatabase, _statusUpdates, _statusRules };
         for (var index = 0; index < rows.Length; index++)
         {
             rows[index].Dock = DockStyle.Fill;
@@ -283,6 +315,7 @@ internal sealed partial class MainForm
                     _generationOptions,
                     SafeProfiles(() => _database.GetEmployeeProfiles())));
 
+        ApplyDashboardLayout();
         UpdateDropZones();
         _dashStepper.Current = _currentPreviewExported && !string.IsNullOrWhiteSpace(_xml)
             ? 3
@@ -290,25 +323,11 @@ internal sealed partial class MainForm
                 ? 2
                 : _requests.Count > 0 ? 1 : 0;
 
-        _statusFile.SetState(
-            _sourcePath is null ? "nessun file" : Path.GetFileName(_sourcePath),
-            _sourcePath is null ? StatusTone.Neutral : StatusTone.Good);
         RefreshDatabaseStatusRow();
         RefreshUpdatesStatusRow();
         _statusRules.SetState(
             GenerationSettings.Describe(_generationOptions),
             StatusTone.Good);
-        var certificate = CertificateStatus.Describe(CertificateExpiry.Value, DateTime.Now);
-        _statusCertificate.SetState(
-            certificate.Text,
-            certificate.Level switch
-            {
-                HealthLevel.Good => StatusTone.Good,
-                HealthLevel.Warning => StatusTone.Warning,
-                HealthLevel.Bad => StatusTone.Bad,
-                _ => StatusTone.Neutral
-            });
-
         if (_dashGenerateButton is not null)
         {
             _dashGenerateButton.Enabled = _generateButton.Enabled;

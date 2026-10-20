@@ -14,12 +14,10 @@ internal sealed class StatusBar : Control
     private const int IconSize = 13;
     private const int IconGap = 6;
 
-    private readonly System.Windows.Forms.Timer _clock = new() { Interval = 30_000 };
     private string _message = StatusBarModel.ReadyMessage;
     private bool _messageWarning;
     private string _updates = "verifica in corso";
     private bool _updatesWarning;
-    private string _version = string.Empty;
     private Rectangle _updatesBounds = Rectangle.Empty;
     private bool _updatesHot;
 
@@ -35,14 +33,6 @@ internal sealed class StatusBar : Control
         Height = 28;
         AccessibleRole = AccessibleRole.StatusBar;
         AccessibleName = "Barra di stato";
-        _clock.Tick += (_, _) =>
-        {
-            if (Visible)
-            {
-                Invalidate();
-            }
-        };
-        _clock.Start();
     }
 
     /// <summary>Un clic sul segmento degli aggiornamenti: la finestra verifica subito se c'è una versione nuova.</summary>
@@ -64,21 +54,6 @@ internal sealed class StatusBar : Control
         Invalidate();
     }
 
-    public void SetVersion(string text)
-    {
-        _version = text;
-        Invalidate();
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _clock.Dispose();
-        }
-        base.Dispose(disposing);
-    }
-
     private static int TextWidth(string text, Font font) => ModernPalette.Measure(text, font).Width;
 
     protected override void OnPaint(PaintEventArgs e)
@@ -90,23 +65,20 @@ internal sealed class StatusBar : Control
         var font = Theme.Fonts.Tiny;
         var pad = 12;
 
-        var clockText = StatusBarModel.ClockText(DateTime.Now);
-        var segments = new List<(string Text, Glyph Glyph, Color Ink, bool IsUpdates)>
+        // La barra dice solo ciò che serve: il messaggio e, se c'è da agire (versione nuova, errore), lo stato degli
+        // aggiornamenti. Versione e ora non si ripetono qui: la versione sta in Impostazioni e nella barra laterale.
+        var segments = new List<(string Text, Glyph Glyph, Color Ink, bool IsUpdates)>();
+        if (_updatesWarning)
         {
-            (_updates, Glyph.Refresh, _updatesWarning ? Theme.WarningInk : Theme.MutedInk, true)
-        };
-        if (_version.Length > 0)
-        {
-            segments.Add((_version, Glyph.Chip, Theme.MutedInk, false));
+            segments.Add((_updates, Glyph.Refresh, Theme.WarningInk, true));
         }
-        segments.Add((clockText, Glyph.Clock, Theme.MutedInk, false));
 
         var widths = segments.Select(s => IconSize + IconGap + TextWidth(s.Text, font)).ToList();
         var available = Width - (pad * 2);
         var kept = StatusBarModel.SegmentsThatFit(available, MinimumMessage, widths, Gap * 2 + 1);
         // Il primo segmento (gli aggiornamenti) si accorcia con i puntini se ancora non basta.
         var firstMax = Math.Max(60, available - MinimumMessage);
-        if (kept == 1 && widths[0] > firstMax)
+        if (kept == 1 && widths.Count > 0 && widths[0] > firstMax)
         {
             widths[0] = firstMax;
         }
@@ -199,11 +171,9 @@ internal sealed class StatusBar : Control
 internal sealed class RailStatusCard : Control
 {
     private readonly Label _data;
-    private readonly Label _backup;
-    private readonly Label _company;
     private readonly string _version;
 
-    public RailStatusCard(Label data, Label backup, Label company, string version)
+    public RailStatusCard(Label data, string version)
     {
         SetStyle(
             ControlStyles.UserPaint |
@@ -212,13 +182,11 @@ internal sealed class RailStatusCard : Control
             ControlStyles.ResizeRedraw,
             true);
         _data = data;
-        _backup = backup;
-        _company = company;
         _version = version;
         BackColor = Theme.Canvas;
         AccessibleRole = AccessibleRole.Grouping;
         AccessibleName = "Dati locali";
-        foreach (var label in new[] { data, backup, company })
+        foreach (var label in new[] { data })
         {
             label.TextChanged += (_, _) => Invalidate();
             label.ForeColorChanged += (_, _) => Invalidate();
@@ -232,62 +200,36 @@ internal sealed class RailStatusCard : Control
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Theme.Canvas);
 
-        var card = new Rectangle(8, 4, Width - 16, Height - 12);
-        if (card.Width < 60 || card.Height < 60)
-        {
-            return;
-        }
-        using (var path = Theme.RoundedRectangle(card, 10))
-        using (var fill = new SolidBrush(Theme.Surface))
-        using (var border = new Pen(Theme.Divider, 1f))
-        {
-            g.FillPath(fill, path);
-            g.DrawPath(border, path);
-        }
-
-        var left = card.Left + 12;
-        var right = card.Right - 10;
-        var y = card.Top + 8;
+        // Solo l'essenziale: la versione in basso e, se qualcosa non va nei dati (database temporaneo, non leggibile),
+        // una riga di avviso. Backup e azienda stanno già in «Stato» e nelle sezioni: qui non si ripetono.
+        var left = 16;
+        var right = Width - 12;
+        var y = Height - 26;
         TextRenderer.DrawText(
             g,
-            "DATI LOCALI",
-            Theme.Fonts.Section,
-            new Rectangle(left, y, right - left, 17),
+            $"Versione {_version}",
+            Theme.Fonts.Tiny,
+            new Rectangle(left, y, Math.Max(10, right - left), 17),
             Theme.FaintInk,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-        y += 22;
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 
         var dataText = StatusBarModel.CleanRailLine(_data.Text);
-        var dot = new Rectangle(left, y + 5, 8, 8);
-        using (var dotBrush = new SolidBrush(ToneColor(_data.ForeColor)))
+        var needsAttention = dataText.Length > 0 && _data.ForeColor != Theme.SuccessInk;
+        if (needsAttention)
         {
-            g.FillEllipse(dotBrush, dot);
-        }
-        TextRenderer.DrawText(
-            g,
-            dataText,
-            Theme.Fonts.SmallBold,
-            new Rectangle(dot.Right + 8, y, right - dot.Right - 8, 18),
-            _data.ForeColor,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-        y += 20;
-
-        foreach (var (glyph, text) in new[]
-                 {
-                     (Glyph.Database, StatusBarModel.CleanRailLine(_backup.Text)),
-                     (Glyph.Building, StatusBarModel.CleanRailLine(_company.Text)),
-                     (Glyph.Chip, $"Versione {_version}")
-                 })
-        {
-            Glyphs.Draw(g, new Rectangle(left - 1, y + 2, 13, 13), glyph, Theme.FaintInk, 1.3f);
+            y -= 24;
+            var dot = new Rectangle(left, y + 5, 8, 8);
+            using (var dotBrush = new SolidBrush(ToneColor(_data.ForeColor)))
+            {
+                g.FillEllipse(dotBrush, dot);
+            }
             TextRenderer.DrawText(
                 g,
-                text,
-                Theme.Fonts.Tiny,
-                new Rectangle(left + 18, y, right - left - 18, 17),
-                Theme.MutedInk,
+                dataText,
+                Theme.Fonts.SmallBold,
+                new Rectangle(dot.Right + 8, y, Math.Max(10, right - dot.Right - 8), 18),
+                _data.ForeColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-            y += 19;
         }
     }
 
