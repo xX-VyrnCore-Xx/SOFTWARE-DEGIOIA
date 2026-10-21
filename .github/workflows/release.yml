@@ -280,7 +280,7 @@ jobs:
       - name: Verifica i file richiesti dall'installer
         shell: pwsh
         run: |
-          foreach ($file in @('dist\app\PresenzeFlow.exe', 'dist\app\e_sqlite3.dll')) {
+          foreach ($file in @('dist\app\PresenzeFlow.exe', 'dist\app\e_sqlite3.dll', 'dist\app\wpfgfx_cor3.dll', 'dist\app\PresentationNative_cor3.dll')) {
             if (-not (Test-Path $file)) {
               throw "File mancante dopo il publish: $file (l'app installata non partirebbe)."
             }

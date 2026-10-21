@@ -24,6 +24,9 @@ public class InstallerPackagingTests
         // il single-file publish non la include.
         Assert.Contains(@"Source: ""dist\app\e_sqlite3.dll""; DestDir: ""{app}""", script, StringComparison.Ordinal);
 
+        // Le librerie native di WPF (nuova interfaccia) viaggiano allo stesso modo.
+        Assert.Contains(@"Source: ""dist\app\*_cor3.dll""; DestDir: ""{app}""", script, StringComparison.Ordinal);
+
         var publishDirectory = Path.Combine(repositoryRoot, "dist", "app");
         if (Directory.Exists(publishDirectory))
         {

@@ -117,10 +117,27 @@ jobs:
       - name: Verifica i file richiesti dall'installer
         shell: pwsh
         run: |
-          foreach ($file in @('dist\app\PresenzeFlow.exe', 'dist\app\e_sqlite3.dll')) {
+          foreach ($file in @('dist\app\PresenzeFlow.exe', 'dist\app\e_sqlite3.dll', 'dist\app\wpfgfx_cor3.dll', 'dist\app\PresentationNative_cor3.dll')) {
             if (-not (Test-Path $file)) {
               throw "File mancante dopo il publish: $file (l'app installata non partirebbe)."
             }
+          }
+
+      # La nuova interfaccia (WPF) deve partire dall'eseguibile pubblicato: se non parte il programma ripiega
+      # sulla classica, quindi qui si verifica che resti viva e che non abbia scritto il ripiego nel registro errori.
+      - name: Avvio di prova della nuova interfaccia
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:LOCALAPPDATA 'DeGioia\PresenzeXmlConverter\error.log'
+          if (Test-Path $log) { Remove-Item $log -Force }
+          $process = Start-Process -FilePath '.\dist\app\PresenzeFlow.exe' -ArgumentList '--wpf' -PassThru
+          Start-Sleep -Seconds 12
+          $alive = -not $process.HasExited
+          if ($alive) { Stop-Process -Id $process.Id -Force }
+          if (Test-Path $log) { Get-Content $log | Write-Host }
+          if (-not $alive) { throw "L'app pubblicata e' terminata entro 12 secondi." }
+          if ((Test-Path $log) -and (Select-String -Path $log -Pattern 'Nuova interfaccia non avviata' -Quiet)) {
+            throw "La nuova interfaccia non e' partita (vedi sopra): il programma ripiegherebbe sulla classica."
           }
 
       # L'installer ha il suo linguaggio (Pascal Script) e i suoi errori di

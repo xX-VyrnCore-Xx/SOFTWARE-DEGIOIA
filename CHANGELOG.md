@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.57.0] - Corrente
+## [1.58.0] - Corrente
+
+### ✨ Nuova interfaccia (anteprima), opzionale e con ripiego automatico
+- **Interfaccia nuova in WPF**: tavolozza chiara e arioso stile macOS, animazioni fluide (barra laterale con pillola che scorre, dissolvenza fra le pagine, riquadri che si sollevano al passaggio del mouse, interruttori animati), barre di scorrimento sottili. In questa versione sono pronte la **barra laterale** e la **Dashboard** (foglio da trascinare, tre passi, stato del sistema, scorciatoie); le altre sezioni arrivano nelle prossime versioni
+- **Non cambia nulla se non la scegli**: l'interfaccia classica resta quella di partenza e funziona come prima. Si prova dal menù dell'icona nel tray («Prova la nuova interfaccia (anteprima)») o con il parametro `--wpf`; si torna indietro dal pulsante in fondo alla barra laterale o con `--classic`
+- **Ripiego automatico**: se la nuova interfaccia non riesce ad aprirsi, l'errore va nel registro errori e il programma apre da solo quella classica
+- L'installer porta con sé le librerie native di WPF; la CI avvia l'eseguibile pubblicato con `--wpf` per verificare che parta
+- La conversione XML non è toccata
+
+## [1.57.0]
 
 ### 🍎 Grafica rifatta in stile macOS, senza testi tagliati né sovrapposti
 - **Perché i testi si sovrapponevano**: con lo schermo al 125 % o 150 % i caratteri crescevano ma molte altezze scritte in pixel (righe, card, voci della barra) restavano ferme, quindi titoli, righe di testo e pulsanti si tagliavano o si sovrapponevano. Ora **ogni riga di testo è alta quanto il suo testo** (nessuna altezza fissa nei titoli, nelle Impostazioni e nei dialoghi) e le misure disegnate a mano seguono la scala dello schermo. In più una **rete di sicurezza** scala la finestra se Windows non l'ha fatto

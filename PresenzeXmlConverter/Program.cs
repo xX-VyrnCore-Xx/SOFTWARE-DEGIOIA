@@ -37,6 +37,11 @@ static class Program
 
         try
         {
+            // Nuova interfaccia (anteprima) solo se scelta; se non parte, ripiego silenzioso sulla classica.
+            if (UiMode.Choose(args) == UiKind.Modern && Wpf.WpfLauncher.TryRun(instance, TryWriteErrorLog))
+            {
+                return;
+            }
             var window = new MainForm(StartupLaunch.IsBackgroundStart(args));
             instance.OnActivationRequested(window.ActivateFromAnotherInstance);
             Application.Run(window);
@@ -76,6 +81,8 @@ static class Program
         "DeGioia",
         "PresenzeXmlConverter",
         "error.log");
+
+    private static void TryWriteErrorLog(Exception exception) => TryWriteErrorLog("Nuova interfaccia non avviata:" + Environment.NewLine + exception);
 
     private static void TryWriteErrorLog(string details)
     {
