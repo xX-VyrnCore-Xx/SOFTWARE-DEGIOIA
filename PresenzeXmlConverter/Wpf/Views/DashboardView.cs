@@ -54,8 +54,8 @@ internal sealed class DashboardView : ScrollViewer
         Database = new StatusRow("Archivio", Glyph.Database);
         Updates = new StatusRow("Aggiornamenti", Glyph.Refresh);
         Security = new StatusRow("Protezione dati", Glyph.Shield);
-        Database.SetState("In controllo…", UiTone.Neutral);
-        Updates.SetState("In controllo…", UiTone.Neutral);
+        Database.SetState("Database locale (SQLite)", UiTone.Neutral);
+        Updates.SetState("Gestiti dall'interfaccia classica", UiTone.Neutral);
         Security.SetState("Dati solo su questo PC", UiTone.Good);
 
         var status = new StackPanel();
