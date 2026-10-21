@@ -49,6 +49,7 @@ internal sealed class DropZoneView : Grid
     {
         Focusable = true;
         FocusVisualStyle = null;
+        Background = System.Windows.Media.Brushes.Transparent;
         AllowDrop = true;
         Cursor = Cursors.Hand;
         MinHeight = 150;

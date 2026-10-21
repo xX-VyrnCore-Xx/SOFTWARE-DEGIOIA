@@ -54,8 +54,12 @@ internal sealed class ShellWindow : Window
     private readonly ContentControl _host = new() { Focusable = false };
     private readonly UIElement?[] _pages = new UIElement?[Sections.Length];
 
-    public ShellWindow()
+    private readonly ConversionService _service;
+    private ConversionView? _conversion;
+
+    public ShellWindow(ConversionService service)
     {
+        _service = service;
         var version = typeof(ShellWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
         Title = $"Vyrn Presence {version}";
         MinWidth = 1000;
@@ -117,6 +121,16 @@ internal sealed class ShellWindow : Window
         Loaded += (_, _) => _nav.Select(0);
     }
 
+    /// <summary>Apre la schermata di conversione e importa il foglio (se il percorso è nullo ne chiede uno).</summary>
+    public async Task ImportAsync(string? path)
+    {
+        Navigate(1);
+        var view = _conversion ??= new ConversionView(_service, () => this);
+        await view.ImportAsync(path);
+    }
+
+    internal ConversionView? Conversion => _conversion;
+
     public int SectionCount => Sections.Length;
 
     public int CurrentSection => _nav.SelectedIndex;
@@ -150,7 +164,8 @@ internal sealed class ShellWindow : Window
 
     private UIElement CreatePage(int index) => index switch
     {
-        0 => new DashboardView(Navigate),
+        0 => new DashboardView(Navigate, path => _ = ImportAsync(path)),
+        1 => _conversion ??= new ConversionView(_service, () => this),
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",

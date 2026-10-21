@@ -47,6 +47,21 @@ internal static class WpfTestHost
         done.Task.GetAwaiter().GetResult();
     }
 
+    /// <summary>Aspetta un compito lasciando lavorare il dispatcher (le continuazioni tornano sul thread dell'interfaccia).</summary>
+    public static void Await(Task task, int timeoutSeconds = 60)
+    {
+        var until = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+        while (!task.IsCompleted)
+        {
+            if (DateTime.UtcNow > until)
+            {
+                throw new TimeoutException("Compito WPF non terminato.");
+            }
+            Pump(20);
+        }
+        task.GetAwaiter().GetResult();
+    }
+
     /// <summary>Lascia lavorare il dispatcher (layout, caricamento, animazioni brevi).</summary>
     public static void Pump(int milliseconds = 0)
     {
@@ -91,7 +106,8 @@ public class WpfShellTests
         WpfTestHost.Run(() =>
         {
             WpfApp.EnsureApplication();
-            var window = new ShellWindow
+            var folder = Directory.CreateTempSubdirectory().FullName;
+            var window = new ShellWindow(new ConversionService(new LocalDatabase(Path.Combine(folder, "app.db"))))
             {
                 WindowStartupLocation = WindowStartupLocation.Manual,
                 Left = -4000,
@@ -120,6 +136,74 @@ public class WpfShellTests
             }
             window.Close();
         });
+    }
+
+    [Fact]
+    public void TheConversionScreenImportsGeneratesAndShowsMovementsXmlAndChecks()
+    {
+        WpfTestHost.Run(() =>
+        {
+            WpfApp.EnsureApplication();
+            var folder = Directory.CreateTempSubdirectory().FullName;
+            var database = new LocalDatabase(Path.Combine(folder, "app.db"));
+            var service = new ConversionService(database) { CompanyCode = "AZ001" };
+            // I codici sono già noti: la conversione non deve aprire nessuna finestra di abbinamento.
+            Assert.True(service.LoadAsync(SampleWorkbook.Path, new NoPrompts()).GetAwaiter().GetResult());
+            var index = 0;
+            foreach (var name in service.Requests.Select(request => request.EmployeeName).Distinct())
+            {
+                database.SaveEmployeeMapping(name, $"E{++index:D3}");
+            }
+            foreach (var policy in service.Requests.Select(request => request.Policy).Distinct())
+            {
+                database.SavePolicyMapping(policy, "FE");
+            }
+            service.Unload();
+
+            var window = new ShellWindow(service)
+            {
+                WindowStartupLocation = WindowStartupLocation.Manual,
+                Left = -4000,
+                Top = -4000
+            };
+            window.Show();
+            WpfTestHost.Pump();
+            WpfTestHost.Await(window.ImportAsync(SampleWorkbook.Path));
+            Assert.Equal(1, window.CurrentSection);
+            Assert.True(service.HasWorkbook);
+            var view = window.Conversion!;
+            WpfTestHost.Await(view.GenerateAsync());
+            Assert.True(service.HasPreview);
+            var directory = Environment.GetEnvironmentVariable("PRESENZEFLOW_SCREENSHOT_DIR");
+            for (var tab = 0; tab < 3; tab++)
+            {
+                view.ShowTab(tab);
+                WpfTestHost.Pump(450);
+                var bitmap = Render(window);
+                Assert.True(CountMagenta(bitmap) == 0, $"Conversione, scheda {tab}: colori mancanti (magenta).");
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var stream = File.Create(Path.Combine(directory, $"wpf-Conversione{tab}.png"));
+                    encoder.Save(stream);
+                }
+            }
+            window.Close();
+        });
+    }
+
+    private sealed class NoPrompts : IConversionPrompts
+    {
+        public ColumnSelection? AskColumns(IReadOnlyList<string> headers) => throw new InvalidOperationException("Nessuna domanda attesa.");
+
+        public bool ConfirmCodeReplace(string employee, string fileCode, string savedCode) => throw new InvalidOperationException("Nessuna domanda attesa.");
+
+        public bool CompleteMappings(IReadOnlyList<string> missingEmployees, IReadOnlyList<string> missingPolicies, LocalDatabase database) =>
+            throw new InvalidOperationException("Nessuna domanda attesa.");
+
+        public bool ConfirmAlreadyDelivered(ExportRecord previous) => throw new InvalidOperationException("Nessuna domanda attesa.");
     }
 
     [Fact]

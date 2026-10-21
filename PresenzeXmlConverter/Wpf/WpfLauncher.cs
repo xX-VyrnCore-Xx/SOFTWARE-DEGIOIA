@@ -15,7 +15,8 @@ internal static class WpfLauncher
         try
         {
             var app = WpfApp.EnsureApplication();
-            var window = new ShellWindow();
+            var service = new ConversionService(LocalDatabase.OpenWithRecovery().Database);
+            var window = new ShellWindow(service);
             window.ContentRendered += (_, _) => shown = true;
             instance.OnActivationRequested(() => window.Dispatcher.BeginInvoke(() =>
             {
