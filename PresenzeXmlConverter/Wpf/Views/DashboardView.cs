@@ -35,19 +35,19 @@ internal sealed class DashboardView : ScrollViewer
         HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
         Focusable = false;
 
-        Drop = new DropZoneView();
+        Zone = new DropZoneView();
         Stepper = new StepperBar { Margin = new Thickness(0, 22, 0, 0) };
-        Drop.ShowEmpty();
+        Zone.ShowEmpty();
 
         var choose = new Button { Content = "Scegli il foglio Excel", Style = Ui.Style("Primary"), MinWidth = 180 };
-        choose.Click += (_, _) => Drop.RaiseClicked();
+        choose.Click += (_, _) => Zone.RaiseClicked();
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 18, 0, 0) };
         actions.Children.Add(choose);
 
         var work = new StackPanel();
         work.Children.Add(Ui.Text("Nuova conversione", 18, FontWeights.SemiBold));
         work.Children.Add(Ui.Text("Trascina qui il foglio presenze: il programma lo legge, lo controlla e prepara il file XML.", 13.5, ink: "Brush.Muted", wrap: true).WithMargin(new Thickness(0, 4, 0, 16)));
-        work.Children.Add(Drop);
+        work.Children.Add(Zone);
         work.Children.Add(Stepper);
         work.Children.Add(actions);
 
@@ -90,7 +90,7 @@ internal sealed class DashboardView : ScrollViewer
         Content = new PageScaffold("Buongiorno", "Da qui importi le presenze, le controlli e scarichi il file per Zucchetti.", page);
     }
 
-    public DropZoneView Drop { get; }
+    public DropZoneView Zone { get; }
 
     public StepperBar Stepper { get; }
 
