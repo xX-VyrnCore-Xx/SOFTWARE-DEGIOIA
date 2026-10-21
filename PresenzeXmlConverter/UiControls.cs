@@ -42,6 +42,8 @@ internal sealed class ThemedGrid : DataGridView
         ColumnHeadersDefaultCellStyle.ForeColor = Theme.MutedInk;
         ColumnHeadersDefaultCellStyle.Font = Theme.Fonts.GridHeader;
         ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 4, 0);
+        // Le intestazioni stanno su una riga (con i puntini se serve): a capo spezzerebbero «Codice PAGHE» su due righe.
+        ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.False;
         ColumnHeadersDefaultCellStyle.SelectionBackColor = Theme.Sunken;
         ColumnHeadersDefaultCellStyle.SelectionForeColor = Theme.InkSecondary;
         ColumnHeadersHeight = 38;

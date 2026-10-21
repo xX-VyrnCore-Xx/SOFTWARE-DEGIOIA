@@ -10,7 +10,7 @@ namespace PresenzeXmlConverter;
 /// </summary>
 internal sealed partial class MainForm
 {
-    private const string DefaultCompanyHint = "Codice Zucchetti · max 6 caratteri";
+    private const string DefaultCompanyHint = "Codice PAGHE, max 6 caratteri";
 
     private readonly TableLayoutPanel _companiesSection = NewSection();
     private readonly ThemedGrid _companiesGrid = new();

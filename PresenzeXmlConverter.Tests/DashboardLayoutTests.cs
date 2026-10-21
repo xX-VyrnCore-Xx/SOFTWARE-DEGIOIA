@@ -9,6 +9,7 @@ public class DashboardLayoutTests
         Assert.False(layout.ShowMetrics);
         Assert.False(layout.ShowBottom);
         Assert.False(layout.ShowInsights);
+        Assert.True(layout.ShowTiles);
     }
 
     [Fact]
@@ -18,6 +19,7 @@ public class DashboardLayoutTests
         Assert.False(layout.ShowMetrics);
         Assert.True(layout.ShowBottom);
         Assert.False(layout.ShowInsights);
+        Assert.False(layout.ShowTiles);
     }
 
     [Fact]
@@ -35,5 +37,6 @@ public class DashboardLayoutTests
         Assert.True(layout.ShowMetrics);
         Assert.True(layout.ShowBottom);
         Assert.True(layout.ShowInsights);
+        Assert.False(layout.ShowTiles);
     }
 }
