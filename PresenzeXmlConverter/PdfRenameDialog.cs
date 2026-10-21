@@ -145,9 +145,9 @@ internal sealed class PdfRenameDialog : Form
         {
             Title = "Scegli lo ZIP o i PDF da rinominare",
             Filter = "ZIP o PDF (*.zip;*.pdf)|*.zip;*.pdf|Tutti i file (*.*)|*.*",
-            Multiselect = true,
-            ClientGuid = FileDialogs.ClientId
+            Multiselect = true
         };
+        dialog.ClientGuid = FileDialogs.ClientId;
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             LoadPaths(dialog.FileNames);
@@ -253,9 +253,9 @@ internal sealed class PdfRenameDialog : Form
             Filter = "File ZIP (*.zip)|*.zip",
             FileName = _sourceLabel + "-rinominati.zip",
             InitialDirectory = _sourceFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            OverwritePrompt = true,
-            ClientGuid = FileDialogs.ClientId
+            OverwritePrompt = true
         };
+        dialog.ClientGuid = FileDialogs.ClientId;
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
             return;
