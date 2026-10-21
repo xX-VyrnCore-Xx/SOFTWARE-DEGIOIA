@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <!-- WPF toglie System.IO e System.Net.Http dagli using impliciti: il codice esistente li usa ovunque. -->
+    <Using Remove="Microsoft.Win32" />
     <Using Include="System.IO" />
     <Using Include="System.Net.Http" />
   </ItemGroup>

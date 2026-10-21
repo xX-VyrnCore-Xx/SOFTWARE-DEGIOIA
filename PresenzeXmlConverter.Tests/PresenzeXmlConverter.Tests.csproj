@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Remove="Microsoft.Win32" />
     <Using Include="System.IO" />
     <Using Include="System.Net.Http" />
   </ItemGroup>
