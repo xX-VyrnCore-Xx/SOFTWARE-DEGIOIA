@@ -26,6 +26,8 @@ internal static class WpfLauncher
                 }
                 window.Activate();
             }));
+            // L'app finisce con la finestra principale (nei test resta aperta: un'Application si crea una volta sola).
+            app.ShutdownMode = ShutdownMode.OnMainWindowClose;
             app.Run(window);
             return true;
         }
