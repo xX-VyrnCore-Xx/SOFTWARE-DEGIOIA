@@ -150,7 +150,10 @@ public class WpfShellTests
             var database = new LocalDatabase(Path.Combine(folder, "app.db"));
             var service = new ConversionService(database) { CompanyCode = "AZ001" };
             // I codici sono già noti: la conversione non deve aprire nessuna finestra di abbinamento.
-            Assert.True(service.LoadAsync(SampleWorkbook.Path, new NoPrompts()).GetAwaiter().GetResult());
+            // Mai bloccare il thread dell'interfaccia su un compito che deve tornarci: si aspetta facendo lavorare il dispatcher.
+            var loading = service.LoadAsync(SampleWorkbook.Path, new NoPrompts());
+            WpfTestHost.Await(loading);
+            Assert.True(loading.Result);
             var index = 0;
             foreach (var name in service.Requests.Select(request => request.EmployeeName).Distinct())
             {
