@@ -1,13 +1,14 @@
 namespace PresenzeXmlConverter;
 
 /// <summary>
-/// «Rinomina PDF per codice cliente»: si sceglie (o si trascina) uno ZIP o dei PDF, ogni pagina è un cliente e il suo
+/// Sezione «Rinomina PDF»: si sceglie (o si trascina) uno ZIP o dei PDF, ogni pagina è un cliente e il suo
 /// codice è nel piè di pagina. Il programma legge i codici, mostra in tabella cosa farà e segnala ciò che non torna
 /// (codice mancante, doppio, di forma diversa); i codici si correggono a mano nella tabella. Solo alla conferma scrive
 /// un nuovo ZIP con un PDF per pagina chiamato come il codice, poi lo riapre e verifica ogni file. L'originale non si tocca.
 /// </summary>
-internal sealed class PdfRenameDialog : Form
+internal sealed class PdfRenamePanel : UserControl
 {
+    private const string Dialog = "Rinomina PDF";
     private const int ColumnStatus = 0;
     private const int ColumnSource = 1;
     private const int ColumnPage = 2;
@@ -22,18 +23,9 @@ internal sealed class PdfRenameDialog : Form
     private string _sourceLabel = "pdf";
     private string? _sourceFolder;
 
-    public PdfRenameDialog()
+    public PdfRenamePanel()
     {
-        Text = "Rinomina PDF per codice cliente";
-        StartPosition = FormStartPosition.CenterParent;
-        MinimizeBox = false;
-        ShowInTaskbar = false;
-        ClientSize = new Size(1060, 660);
-        MinimumSize = new Size(820, 520);
-        AutoScaleDimensions = new SizeF(96F, 96F);
-        AutoScaleMode = AutoScaleMode.Dpi;
-        UiScale.GuardAutoScale(this);
-        Theme.StyleDialog(this);
+        Dock = DockStyle.Fill;
         BackColor = Theme.Canvas;
         AllowDrop = true;
         DragEnter += OnDragEnter;
@@ -45,28 +37,10 @@ internal sealed class PdfRenameDialog : Form
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
-            Padding = new Padding(26, 22, 26, 8),
+            Padding = new Padding(0, 0, 0, 8),
             BackColor = Theme.Canvas
         };
         top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        top.Controls.Add(new TextBlock
-        {
-            Text = "Rinomina i PDF con il codice cliente",
-            Dock = DockStyle.Fill,
-            ForeColor = Theme.Ink,
-            Font = Theme.Fonts.DialogTitle,
-            Margin = new Padding(0, 0, 0, 4)
-        });
-        top.Controls.Add(new TextBlock
-        {
-            Text = "Scegli o trascina uno ZIP (o dei PDF). Ogni pagina è un cliente: il programma legge il codice in fondo alla pagina, " +
-                   "ti mostra cosa farà e, dopo la tua conferma, crea un nuovo ZIP con un PDF per cliente chiamato come il suo codice.",
-            Wrap = true,
-            Dock = DockStyle.Fill,
-            ForeColor = Theme.MutedInk,
-            Font = Theme.Fonts.Small,
-            Margin = new Padding(0, 0, 0, 12)
-        });
 
         var buttons = new FlowLayoutPanel
         {
@@ -96,7 +70,15 @@ internal sealed class PdfRenameDialog : Form
         top.Controls.Add(_summary);
 
         BuildGrid();
-        var gridHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(26, 4, 26, 22), BackColor = Theme.Canvas };
+        var gridHost = new SurfacePanel
+        {
+            Dock = DockStyle.Fill,
+            SurfaceFill = Theme.Surface,
+            SurfaceBorder = Theme.Divider,
+            Radius = 12,
+            Padding = new Padding(2, 2, 2, 2),
+            Margin = new Padding(0, 0, 0, 8)
+        };
         gridHost.Controls.Add(_grid);
         Controls.Add(gridHost);
         Controls.Add(top);
@@ -148,7 +130,7 @@ internal sealed class PdfRenameDialog : Form
             Multiselect = true
         };
         dialog.ClientGuid = FileDialogs.ClientId;
-        if (dialog.ShowDialog(this) == DialogResult.OK)
+        if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
         {
             LoadPaths(dialog.FileNames);
         }
@@ -178,7 +160,7 @@ internal sealed class PdfRenameDialog : Form
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
-            MessageBox.Show(this, "Non riesco a leggere il file: " + exception.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(FindForm(), "Non riesco a leggere il file: " + exception.Message, Dialog, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         finally
         {
@@ -187,9 +169,9 @@ internal sealed class PdfRenameDialog : Form
         if (unreadable.Count > 0)
         {
             MessageBox.Show(
-                this,
+                FindForm(),
                 "Questi PDF non si sono potuti leggere e sono stati saltati:" + Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine, unreadable),
-                Text,
+                Dialog,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
         }
@@ -238,9 +220,9 @@ internal sealed class PdfRenameDialog : Form
         var skipped = _items.Count - withName;
         if (skipped > 0 &&
             MessageBox.Show(
-                this,
+                FindForm(),
                 $"{skipped} pagine senza codice non verranno salvate. Procedo con le altre {withName}?",
-                Text,
+                Dialog,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question,
                 MessageBoxDefaultButton.Button2) != DialogResult.Yes)
@@ -256,7 +238,7 @@ internal sealed class PdfRenameDialog : Form
             OverwritePrompt = true
         };
         dialog.ClientGuid = FileDialogs.ClientId;
-        if (dialog.ShowDialog(this) != DialogResult.OK)
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK)
         {
             return;
         }
@@ -270,20 +252,20 @@ internal sealed class PdfRenameDialog : Form
             if (problems.Count == 0)
             {
                 MessageBox.Show(
-                    this,
+                    FindForm(),
                     $"Fatto: {written} PDF salvati in {Path.GetFileName(dialog.FileName)}." + Environment.NewLine +
                     "Ho riaperto lo ZIP e controllato ogni file: una pagina ciascuno, con lo stesso testo dell'originale.",
-                    Text,
+                    Dialog,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
             else
             {
                 MessageBox.Show(
-                    this,
+                    FindForm(),
                     "Lo ZIP è stato scritto ma il controllo ha trovato dei problemi:" + Environment.NewLine + Environment.NewLine +
                     string.Join(Environment.NewLine, problems.Take(15)),
-                    Text,
+                    Dialog,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
@@ -291,7 +273,7 @@ internal sealed class PdfRenameDialog : Form
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             UseWaitCursor = false;
-            MessageBox.Show(this, "Non riesco a scrivere lo ZIP: " + exception.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(FindForm(), "Non riesco a scrivere lo ZIP: " + exception.Message, Dialog, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         finally
         {

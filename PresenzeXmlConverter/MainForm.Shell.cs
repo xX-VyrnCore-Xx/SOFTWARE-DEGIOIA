@@ -31,12 +31,14 @@ internal sealed partial class MainForm
     private const int SectionCodes = 3;
     private const int SectionHistory = 4;
     private const int SectionActivity = 5;
+    private const int SectionPdf = 6;
 
     private readonly NavRail _navRail = new();
     private readonly Panel _sectionHost = new();
     private readonly TableLayoutPanel _dashboardSection = NewSection();
     private readonly TableLayoutPanel _codesSection = NewSection();
     private readonly TableLayoutPanel _historySection = NewSection();
+    private readonly TableLayoutPanel _pdfSection = NewSection();
     private readonly MappingEditorPanel _mappingPanel = new();
     private readonly MonthCalendarView _calendarView = new();
     private Control? _conversionSection;
@@ -86,6 +88,7 @@ internal sealed partial class MainForm
         _navRail.AddItem("Gestione codici", NavIcon.Codes, "Codici");
         _navRail.AddItem("Storico esportazioni", NavIcon.History, "Storico");
         _navRail.AddItem("Registro attività", NavIcon.Activity, "Registro");
+        _navRail.AddItem("Rinomina PDF", NavIcon.Pdf, "PDF");
         _navRail.Dock = DockStyle.Top;
         _navRail.Height = _navRail.PreferredRailHeight;
         _navRail.Margin = Padding.Empty;
@@ -112,6 +115,7 @@ internal sealed partial class MainForm
         _sectionHost.Controls.Add(BuildCodesSection());
         _sectionHost.Controls.Add(BuildHistorySection());
         _sectionHost.Controls.Add(BuildActivitySection());
+        _sectionHost.Controls.Add(BuildPdfSection());
         _sectionHost.Controls.Add(conversionSection);
 
         var body = new TableLayoutPanel
@@ -219,6 +223,7 @@ internal sealed partial class MainForm
         _codesSection.Visible = index == SectionCodes;
         _historySection.Visible = index == SectionHistory;
         _activitySection.Visible = index == SectionActivity;
+        _pdfSection.Visible = index == SectionPdf;
 
         switch (index)
         {
@@ -250,6 +255,7 @@ internal sealed partial class MainForm
                 SectionCompanies => _companiesSection,
                 SectionCodes => _codesSection,
                 SectionActivity => _activitySection,
+                SectionPdf => _pdfSection,
                 _ => _historySection
             });
         }
@@ -1286,7 +1292,7 @@ internal sealed partial class MainForm
                 ChangeThemeFromCommand(ThemeMode.System);
                 break;
             case "rename-pdf":
-                OpenPdfRename();
+                ShowSection(SectionPdf);
                 break;
             case "backup":
                 BackupDatabaseNow();

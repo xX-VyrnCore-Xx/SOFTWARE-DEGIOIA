@@ -249,7 +249,7 @@ internal sealed partial class MainForm
             ("Codici", "Giustificativi e codici PAGHE", Glyph.List, SectionCodes),
             ("Storico", "Le consegne già esportate", Glyph.Clock, SectionHistory),
             ("Registro", "Cosa è stato fatto e quando", Glyph.File, SectionActivity),
-            ("Rinomina PDF", "Da ZIP, con il codice cliente", Glyph.Sheet, -1)
+            ("Rinomina PDF", "Da ZIP, con il codice cliente", Glyph.Folder, SectionPdf)
         };
         for (var index = 0; index < entries.Length; index++)
         {
@@ -260,17 +260,7 @@ internal sealed partial class MainForm
                 Margin = new Padding(0, 0, index == entries.Length - 1 ? 0 : 10, 10)
             };
             var section = entry.Section;
-            tile.Click += (_, _) =>
-            {
-                if (section < 0)
-                {
-                    OpenPdfRename();
-                }
-                else
-                {
-                    ShowSection(section);
-                }
-            };
+            tile.Click += (_, _) => ShowSection(section);
             tiles.Controls.Add(tile, index, 0);
         }
         _dashTiles = tiles;
@@ -459,9 +449,4 @@ internal sealed partial class MainForm
 
     private DropZone? _conversionDropZone;
 
-    private void OpenPdfRename()
-    {
-        using var dialog = new PdfRenameDialog();
-        dialog.ShowDialog(this);
-    }
 }
