@@ -1285,6 +1285,9 @@ internal sealed partial class MainForm
             case "theme-system":
                 ChangeThemeFromCommand(ThemeMode.System);
                 break;
+            case "rename-pdf":
+                OpenPdfRename();
+                break;
             case "backup":
                 BackupDatabaseNow();
                 break;

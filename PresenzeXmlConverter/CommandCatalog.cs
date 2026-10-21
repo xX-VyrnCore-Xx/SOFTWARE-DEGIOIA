@@ -33,6 +33,7 @@ internal static class CommandCatalog
         new("theme-dark", "Tema scuro", "si applica al prossimo avvio", "", "aspetto notte colori"),
         new("theme-light", "Tema chiaro", "si applica al prossimo avvio", "", "aspetto giorno colori"),
         new("theme-system", "Tema come Windows", "segue il sistema, al prossimo avvio", "", "aspetto automatico colori"),
+        new("rename-pdf", "Rinomina PDF per codice cliente", "da ZIP o PDF, con controllo", "", "pdf zip rinomina codice cliente cedolini"),
         new("backup", "Crea un backup dei dati", "copia di sicurezza immediata", "", "salva copia database sicurezza"),
         new("open-data", "Apri la cartella dei dati", "dove l'app conserva i dati", "", "cartella database esplora"),
         new("open-codes-backup", "Apri la cartella delle copie dei codici", "backup automatici di codici e aziende", "", "cartella copie codici aziende"),

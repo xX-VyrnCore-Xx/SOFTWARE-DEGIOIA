@@ -1,5 +1,5 @@
 #define AppName "Vyrn Presence"
-#define AppVersion "1.57.0"
+#define AppVersion "1.58.0"
 #define AppPublisher "DeGioia"
 #define AppExeName "PresenzeFlow.exe"
 
@@ -122,6 +122,9 @@ Source: "dist\app\PresenzeFlow.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Dipendenza nativa NON inclusa nel single-file publish: senza questo file l'app
 ; termina all'avvio con DllNotFoundException (SQLite illeggibile) e non mostra alcuna finestra.
 Source: "dist\app\e_sqlite3.dll"; DestDir: "{app}"; Flags: ignoreversion
+; Le librerie native di WPF (nuova interfaccia) escono accanto all'eseguibile come SQLite: senza di loro la
+; nuova interfaccia non parte e il programma ripiega sulla classica.
+Source: "dist\app\*_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 #ifdef TrustCertificate
 Source: "dist\PresenzeFlow-codesign.cer"; DestDir: "{app}"; Flags: ignoreversion
 #endif
