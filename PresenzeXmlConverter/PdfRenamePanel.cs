@@ -37,6 +37,7 @@ internal sealed class PdfRenamePanel : UserControl
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
+            RowCount = 2,
             Padding = new Padding(0, 0, 0, 8),
             BackColor = Theme.Canvas
         };
@@ -59,7 +60,9 @@ internal sealed class PdfRenamePanel : UserControl
         choose.Margin = new Padding(0, 3, 0, 3);
         buttons.Controls.Add(choose);
         buttons.Controls.Add(_saveButton);
-        top.Controls.Add(buttons);
+        top.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        top.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        top.Controls.Add(buttons, 0, 0);
 
         _summary.Dock = DockStyle.Fill;
         _summary.Wrap = true;
@@ -67,7 +70,7 @@ internal sealed class PdfRenamePanel : UserControl
         _summary.Font = Theme.Fonts.Ui;
         _summary.Margin = new Padding(0, 0, 0, 6);
         _summary.Text = "Nessun file scelto.";
-        top.Controls.Add(_summary);
+        top.Controls.Add(_summary, 0, 1);
 
         BuildGrid();
         var gridHost = new SurfacePanel

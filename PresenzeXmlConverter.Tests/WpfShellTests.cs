@@ -20,6 +20,8 @@ internal static class WpfTestHost
     {
         var thread = new Thread(() =>
         {
+            // Come in una vera applicazione WPF: le continuazioni di await tornano sul thread dell'interfaccia.
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
             foreach (var (work, done) in Queue.GetConsumingEnumerable())
             {
                 try
