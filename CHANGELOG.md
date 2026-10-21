@@ -4,7 +4,19 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.56.0] - Corrente
+## [1.57.0] - Corrente
+
+### 🍎 Grafica rifatta in stile macOS, senza testi tagliati né sovrapposti
+- **Perché i testi si sovrapponevano**: con lo schermo al 125 % o 150 % i caratteri crescevano ma molte altezze scritte in pixel (righe, card, voci della barra) restavano ferme, quindi titoli, righe di testo e pulsanti si tagliavano o si sovrapponevano. Ora **ogni riga di testo è alta quanto il suo testo** (nessuna altezza fissa nei titoli, nelle Impostazioni e nei dialoghi) e le misure disegnate a mano seguono la scala dello schermo. In più una **rete di sicurezza** scala la finestra se Windows non l'ha fatto
+- **Barra laterale in stile macOS**: pannello arrotondato più scuro della tela, voce attiva a **pillola blu piena** con testo e icona bianchi che scorre da una voce all'altra
+- **Tavolozza chiara macOS**: blu di sistema (#007AFF), grigi morbidi, bordi sottili; angoli delle card lisci (prima a scalini) e senza il doppio filo sul bordo inferiore
+- **Interruttori** (verde acceso, grigio spento, con animazione) al posto delle caselle di spunta, e **controllo segmentato** con pillola che scorre al posto dei pulsanti radio (chiusura con la X, aspetto dell'app)
+- **Impostazioni e dialoghi** (Impostazioni, «Come vuoi chiudere il programma?», Regole azienda): righe che seguono il testo, titolo non più tagliato, schede che non hanno bisogno di scorrere
+- **Dashboard a foglio vuoto**: la scheda di conversione riempie la pagina e sotto compaiono **scorciatoie** verso Aziende, Codici, Storico e Registro (con animazione al passaggio del mouse), così si vede dove andare
+- Intestazioni delle tabelle su una riga (niente più «Codice PAGHE» spezzato in due)
+- La conversione XML non è toccata
+
+## [1.56.0]
 
 ### 🏢 Aspetto professionale, chiaro, in stile Windows 11 / Office
 - **Tema chiaro rifatto** con grigi neutri (fondo #F3F3F3, schede bianche), testo quasi nero, il blu di sistema di Windows 11 (#0067C0), verde, ambra e rosso sobri e **bordi netti** (più scuri, ben visibili) su pulsanti, caselle e griglie. Tutti i contrasti restano verificati dai test

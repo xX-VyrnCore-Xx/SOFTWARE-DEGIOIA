@@ -30,6 +30,7 @@ internal sealed class UpdateProgressDialog : Form
         ClientSize = new Size(460, 292);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        UiScale.GuardAutoScale(this);
         Theme.StyleDialog(this);
 
         var root = new TableLayoutPanel

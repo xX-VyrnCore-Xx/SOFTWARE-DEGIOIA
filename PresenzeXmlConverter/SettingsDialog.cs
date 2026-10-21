@@ -19,31 +19,26 @@ internal sealed class SettingsDialog : Form
 {
     private readonly int _referenceYear;
     private readonly RoundedField _hours = new();
-    private readonly CheckBox _saturdays = new();
+    private readonly ToggleSwitch _saturdays = new();
     private readonly TextBox _holidays = new();
-    private readonly CheckBox _autoDetect = new();
-    private readonly CheckBox _fillPresence = new();
-    private readonly CheckBox _autoCheck = new();
-    private readonly CheckBox _startWithWindows = new();
+    private readonly ToggleSwitch _autoDetect = new();
+    private readonly ToggleSwitch _fillPresence = new();
+    private readonly ToggleSwitch _autoCheck = new();
+    private readonly ToggleSwitch _startWithWindows = new();
     private readonly RoundedField _token = new();
-    private readonly Label _tokenStatus = new();
-    private readonly Label _errorLabel = new();
+    private readonly TextBlock _tokenStatus = new() { Wrap = true };
+    private readonly TextBlock _errorLabel = new() { Wrap = true };
     private readonly Button _verifyTokenButton;
     private readonly Button _clearTokenButton;
     private readonly RoundedField _xmlRoot = new();
     private readonly RoundedField _xmlNamespace = new();
-    private readonly CheckBox _xmlPerNode = new();
-    private readonly Label _xmlStatus = new();
-    private readonly CheckBox _inAppNotifications = new();
-    private readonly CheckBox _systemNotifications = new();
-    private readonly RadioButton _closeAsk = new();
-    private readonly RadioButton _closeTray = new();
-    private readonly RadioButton _closeExit = new();
-    private readonly RadioButton _themeSystem = new();
-    private readonly RadioButton _themeLight = new();
-    private readonly RadioButton _themeDark = new();
-    private readonly RadioButton _themeGlass = new();
-    private readonly Label _backupStatus = new();
+    private readonly ToggleSwitch _xmlPerNode = new();
+    private readonly TextBlock _xmlStatus = new() { Wrap = true };
+    private readonly ToggleSwitch _inAppNotifications = new();
+    private readonly ToggleSwitch _systemNotifications = new();
+    private readonly SegmentedControl _closeChoice = new();
+    private readonly SegmentedControl _themeChoice = new();
+    private readonly TextBlock _backupStatus = new() { Wrap = true };
     private readonly GeneralInfo _general;
 
     public SettingsDialog(
@@ -82,6 +77,7 @@ internal sealed class SettingsDialog : Form
         ClientSize = new Size(SettingsPageLayout.DefaultClientWidth, SettingsPageLayout.DefaultClientHeight);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        UiScale.GuardAutoScale(this);
         Theme.StyleDialog(this);
         BackColor = Theme.Canvas;
 
@@ -90,46 +86,46 @@ internal sealed class SettingsDialog : Form
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            Padding = new Padding(20, SettingsPageLayout.WindowPadding / 2, 20, SettingsPageLayout.WindowPadding / 2),
+            Padding = new Padding(24, 18, 24, 18),
             BackColor = Theme.Canvas,
             Margin = Padding.Empty
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, SettingsPageLayout.HeaderRow));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, SettingsPageLayout.FooterRow));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         Controls.Add(root);
 
+        // Titolo e sottotitolo hanno l'altezza del loro testo: niente più titolo tagliato o sovrapposto.
         var heading = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 2,
             BackColor = Theme.Canvas,
-            Margin = Padding.Empty
+            Margin = Padding.Empty,
+            Padding = new Padding(0, 0, 0, 14)
         };
         heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        // Titolo (34 px: il font dei titoli è alto una trentina di pixel) e
-        // sottotitolo su una riga sola, che resta dentro la riga dichiarata.
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        heading.Controls.Add(new Label
+        heading.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        heading.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        heading.Controls.Add(new TextBlock
         {
             Text = "Impostazioni",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
+            Dock = DockStyle.Top,
             ForeColor = Theme.Ink,
             Font = Theme.Fonts.CardTitle,
             Margin = Padding.Empty
         }, 0, 0);
-        heading.Controls.Add(new Label
+        heading.Controls.Add(new TextBlock
         {
             Text = $"Vyrn Presence {ExecutableSignature.DisplayVersion}  ·  regole di conversione e aggiornamenti.",
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.TopLeft,
+            Dock = DockStyle.Top,
             ForeColor = Theme.MutedInk,
             Font = Theme.Fonts.Small,
-            Margin = Padding.Empty
+            Margin = new Padding(1, 2, 0, 0)
         }, 0, 1);
         root.Controls.Add(heading, 0, 0);
 
@@ -141,7 +137,7 @@ internal sealed class SettingsDialog : Form
             SurfaceFill = Theme.Surface,
             SurfaceBorder = Theme.Divider,
             Radius = 12,
-            Padding = new Padding(16, SettingsPageLayout.ShellPadding / 2, 16, SettingsPageLayout.ShellPadding / 2),
+            Padding = new Padding(18, 12, 18, 12),
             Margin = Padding.Empty
         };
         var tabs = new ThemedTabControl { Dock = DockStyle.Fill, Margin = Padding.Empty };
@@ -156,29 +152,29 @@ internal sealed class SettingsDialog : Form
 
         var footer = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 2,
             BackColor = Theme.Canvas,
-            Margin = Padding.Empty
+            Margin = Padding.Empty,
+            Padding = new Padding(0, 12, 0, 0)
         };
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        // Messaggio di errore e pulsanti: le due righe sommano esattamente il piè
-        // di pagina dichiarato in SettingsPageLayout (prima i pulsanti da 40 px
-        // finivano in 30 px e il bordo inferiore veniva tagliato).
-        footer.RowStyles.Add(new RowStyle(SizeType.Absolute, SettingsPageLayout.FooterMessageRow));
-        footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        footer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        footer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _errorLabel.Dock = DockStyle.Fill;
-        _errorLabel.TextAlign = ContentAlignment.MiddleLeft;
         _errorLabel.ForeColor = Theme.DangerInk;
         _errorLabel.Font = Theme.Fonts.Small;
-        _errorLabel.AutoEllipsis = true;
-        _errorLabel.Margin = Padding.Empty;
+        _errorLabel.Margin = new Padding(0, 0, 0, 6);
         footer.Controls.Add(_errorLabel, 0, 0);
 
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
             BackColor = Color.Transparent,
@@ -234,11 +230,11 @@ internal sealed class SettingsDialog : Form
     public bool TokenSaved { get; private set; }
 
     /// <summary>
-    /// Pagina di una scheda: le righe sono quelle dichiarate in
-    /// <see cref="SettingsPageLayout"/>, quindi l'altezza della scheda e quella
-    /// del suo contenuto non possono separarsi.
+    /// Pagina di una scheda: una colonna di righe alte quanto il loro contenuto. Nessuna altezza scritta a
+    /// mano: con un carattere più grande (scala 125% o 150%) o un testo più lungo la riga cresce e nulla si
+    /// sovrappone né viene tagliato.
     /// </summary>
-    private static (Panel Page, TableLayoutPanel Body) CreatePage(IReadOnlyList<int> rows)
+    private (Panel Page, TableLayoutPanel Body) CreatePage()
     {
         var page = new Panel
         {
@@ -248,32 +244,49 @@ internal sealed class SettingsDialog : Form
         };
         var body = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
-            RowCount = rows.Count,
+            RowCount = 0,
             BackColor = Theme.Surface,
-            Padding = new Padding(0, SettingsPageLayout.PagePadding / 2, 0, SettingsPageLayout.PagePadding / 2),
+            Padding = new Padding(0, 14, 0, 10),
             Margin = Padding.Empty
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        foreach (var height in rows)
-        {
-            body.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
-        }
         page.Controls.Add(body);
+        _pages.Add((page, body));
         return (page, body);
     }
+
+    private readonly List<(Panel Page, TableLayoutPanel Body)> _pages = new();
+
+    private static void AddRow(TableLayoutPanel body, Control control)
+    {
+        body.RowCount++;
+        body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        body.Controls.Add(control, 0, body.RowCount - 1);
+    }
+
+    /// <summary>
+    /// Per ogni scheda, l'altezza che chiede e quella che ha: se la prima supera la seconda la scheda
+    /// avrebbe bisogno di una barra di scorrimento (che Windows disegna grigia, fuori tema). Lo usa il test grafico.
+    /// </summary>
+    internal IReadOnlyList<(int Needed, int Available)> MeasurePages() =>
+        _pages.Select(entry => (
+            entry.Body.GetPreferredSize(new Size(Math.Max(1, entry.Page.ClientSize.Width), 0)).Height,
+            entry.Page.ClientSize.Height)).ToList();
 
     /// <summary>Scheda "Conversione": giornata standard, sabato e chiusure aziendali.</summary>
     private Control BuildConversionPage()
     {
-        var (page, body) = CreatePage(SettingsPageLayout.ConversionRows);
+        var (page, body) = CreatePage();
 
-        body.Controls.Add(CreateHint(
-            "Come vengono distribuite le ore della richiesta sui giorni lavorativi."), 0, 0);
+        AddRow(body, CreateHint(
+            "Come vengono distribuite le ore della richiesta sui giorni lavorativi."));
 
-        body.Controls.Add(CreateFieldLabel(
-            $"Ore di una giornata standard  (in {_referenceYear} la durata della richiesta viene divisa sui giorni lavorativi)"), 0, 1);
+        AddRow(body, CreateFieldLabel(
+            $"Ore di una giornata standard  (in {_referenceYear} la durata della richiesta viene divisa sui giorni lavorativi)"));
         _hours.MaxLength = 5;
         _hours.Dock = DockStyle.Fill;
         _hours.InputFont = Theme.Fonts.Field;
@@ -281,7 +294,7 @@ internal sealed class SettingsDialog : Form
         _hours.Value = Options.HoursPerDay.ToString("0.##", CultureInfo.CurrentCulture);
         _hours.Input.AccessibleName = "Ore di una giornata standard";
         _hours.Margin = new Padding(0, 2, 0, 8);
-        body.Controls.Add(_hours, 0, 2);
+        AddRow(body, _hours);
 
         _saturdays.Text = "Il sabato è sempre lavorativo (le ore vengono distribuite anche di sabato)";
         _saturdays.Dock = DockStyle.Fill;
@@ -291,7 +304,7 @@ internal sealed class SettingsDialog : Form
         _saturdays.Checked = Options.IncludeSaturdays;
         _saturdays.AccessibleName = "Considera lavorativo il sabato";
         _saturdays.Margin = Padding.Empty;
-        body.Controls.Add(_saturdays, 0, 3);
+        AddRow(body, _saturdays);
 
         _autoDetect.Text = "Rileva in automatico sabati e ore dalle date (consigliato)";
         _autoDetect.Dock = DockStyle.Fill;
@@ -301,7 +314,7 @@ internal sealed class SettingsDialog : Form
         _autoDetect.Checked = Options.AutoDetect;
         _autoDetect.AccessibleName = "Rileva automaticamente sabati e ore";
         _autoDetect.Margin = Padding.Empty;
-        body.Controls.Add(_autoDetect, 0, 4);
+        AddRow(body, _autoDetect);
 
         _fillPresence.Text = "Registra la presenza (01) nei giorni lavorativi senza assenze";
         _fillPresence.Dock = DockStyle.Fill;
@@ -311,10 +324,10 @@ internal sealed class SettingsDialog : Form
         _fillPresence.Checked = Options.FillPresence;
         _fillPresence.AccessibleName = "Registra la presenza nei giorni senza assenze";
         _fillPresence.Margin = Padding.Empty;
-        body.Controls.Add(_fillPresence, 0, 5);
+        AddRow(body, _fillPresence);
 
-        body.Controls.Add(CreateFieldLabel(
-            "Chiusure aziendali aggiuntive (oltre alle festività nazionali): una data per riga o separate da virgola — es. 02/06, 24/12"), 0, 6);
+        AddRow(body, CreateFieldLabel(
+            "Chiusure aziendali aggiuntive (oltre alle festività nazionali): una data per riga o separate da virgola — es. 02/06, 24/12"));
         _holidays.Dock = DockStyle.Fill;
         _holidays.Multiline = true;
         _holidays.ScrollBars = ScrollBars.None;
@@ -335,14 +348,16 @@ internal sealed class SettingsDialog : Form
             SurfaceFill = Theme.FieldFill,
             SurfaceBorder = Theme.DividerStrong,
             Radius = 8,
-            Padding = new Padding(8, 4, 8, 4),
-            Margin = new Padding(0, 2, 0, 6)
+            Padding = new Padding(8, 6, 8, 6),
+            Margin = new Padding(0, 2, 0, 6),
+            // Quattro righe di testo: l'altezza della riga è quella della casella, non una misura della tabella.
+            Height = 88
         };
         holidaysFrame.Controls.Add(_holidays);
-        body.Controls.Add(holidaysFrame, 0, 7);
+        AddRow(body, holidaysFrame);
 
-        body.Controls.Add(CreateNote(
-            "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore."), 0, 8);
+        AddRow(body, CreateNote(
+            "Le festività nazionali e le domeniche sono sempre escluse. Un giorno di chiusura qui indicato non riceve ore."));
         return page;
     }
 
@@ -353,12 +368,12 @@ internal sealed class SettingsDialog : Form
     /// </summary>
     private Control BuildXmlPage()
     {
-        var (page, body) = CreatePage(SettingsPageLayout.XmlRows);
+        var (page, body) = CreatePage();
 
-        body.Controls.Add(CreateHint(
-            "Impostazioni avanzate: servono solo se Zucchetti respinge il file con «cvc-elt.1: impossibile trovare la dichiarazione dell'elemento…»."), 0, 0);
+        AddRow(body, CreateHint(
+            "Impostazioni avanzate: servono solo se Zucchetti respinge il file con «cvc-elt.1: impossibile trovare la dichiarazione dell'elemento…»."));
 
-        body.Controls.Add(CreateFieldLabel("Nome dell'elemento radice del file XML (la prima riga dopo <?xml …?>)"), 0, 1);
+        AddRow(body, CreateFieldLabel("Nome dell'elemento radice del file XML (la prima riga dopo <?xml …?>)"));
         _xmlRoot.MaxLength = 64;
         _xmlRoot.Dock = DockStyle.Fill;
         _xmlRoot.InputFont = Theme.Fonts.Field;
@@ -366,9 +381,9 @@ internal sealed class SettingsDialog : Form
         _xmlRoot.Value = Format.RootElement;
         _xmlRoot.Input.AccessibleName = "Nome dell'elemento radice";
         _xmlRoot.Margin = new Padding(0, 2, 0, 8);
-        body.Controls.Add(_xmlRoot, 0, 2);
+        AddRow(body, _xmlRoot);
 
-        body.Controls.Add(CreateFieldLabel("Spazio dei nomi (xmlns) dell'elemento radice: lascia vuoto se il file non ne ha"), 0, 3);
+        AddRow(body, CreateFieldLabel("Spazio dei nomi (xmlns) dell'elemento radice: lascia vuoto se il file non ne ha"));
         _xmlNamespace.MaxLength = 300;
         _xmlNamespace.Dock = DockStyle.Fill;
         _xmlNamespace.InputFont = Theme.Fonts.Small;
@@ -376,7 +391,7 @@ internal sealed class SettingsDialog : Form
         _xmlNamespace.Value = Format.Namespace;
         _xmlNamespace.Input.AccessibleName = "Spazio dei nomi del file XML";
         _xmlNamespace.Margin = new Padding(0, 2, 0, 8);
-        body.Controls.Add(_xmlNamespace, 0, 4);
+        AddRow(body, _xmlNamespace);
 
         _xmlPerNode.Text = "Ogni movimento è un nodo «Movimenti» a sé (senza il nodo «Movimento» dentro)";
         _xmlPerNode.Dock = DockStyle.Fill;
@@ -386,15 +401,17 @@ internal sealed class SettingsDialog : Form
         _xmlPerNode.Checked = Format.MovementPerNode;
         _xmlPerNode.AccessibleName = "Un nodo Movimenti per ogni movimento";
         _xmlPerNode.Margin = Padding.Empty;
-        body.Controls.Add(_xmlPerNode, 0, 5);
+        AddRow(body, _xmlPerNode);
 
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             BackColor = Theme.Surface,
-            Margin = Padding.Empty
+            Margin = new Padding(0, 8, 0, 0)
         };
         var detect = Theme.CreateButton("Leggi da un XML di esempio…", Theme.ButtonTone.Neutral, compact: true);
         detect.Size = new Size(260, 34);
@@ -403,16 +420,14 @@ internal sealed class SettingsDialog : Form
         detect.AccessibleDescription = "Sceglie un file XML accettato da Zucchetti e ne copia radice, spazio dei nomi e disposizione dei movimenti.";
         detect.Click += (_, _) => DetectFormatFromSample();
         actions.Controls.Add(detect);
-        body.Controls.Add(actions, 0, 6);
+        AddRow(body, actions);
 
         _xmlStatus.Dock = DockStyle.Fill;
-        _xmlStatus.TextAlign = ContentAlignment.MiddleLeft;
         _xmlStatus.ForeColor = Theme.MutedInk;
         _xmlStatus.Font = Theme.Fonts.Tiny;
-        _xmlStatus.AutoEllipsis = true;
-        _xmlStatus.Margin = Padding.Empty;
+        _xmlStatus.Margin = new Padding(0, 6, 0, 0);
         _xmlStatus.Text = "Con un file XML che Zucchetti accetta (anche di un altro programma) la forma si copia senza indovinare.";
-        body.Controls.Add(_xmlStatus, 0, 7);
+        AddRow(body, _xmlStatus);
         return page;
     }
 
@@ -446,23 +461,25 @@ internal sealed class SettingsDialog : Form
     /// <summary>Scheda "Notifiche": cartellini nella finestra, fumetti di Windows e prova.</summary>
     private Control BuildNotificationsPage()
     {
-        var (page, body) = CreatePage(SettingsPageLayout.NotificationRows);
+        var (page, body) = CreatePage();
 
-        body.Controls.Add(CreateHint(
-            "Avvisi per conversione completata, file salvato e aggiornamenti. Quelli di Windows arrivano solo quando la finestra non è in primo piano."), 0, 0);
+        AddRow(body, CreateHint(
+            "Avvisi per conversione completata, file salvato e aggiornamenti. Quelli di Windows arrivano solo quando la finestra non è in primo piano."));
 
         ConfigureCheck(_inAppNotifications, "Mostra gli avvisi dentro la finestra", InAppNotifications, "Avvisi dentro la finestra");
-        body.Controls.Add(_inAppNotifications, 0, 1);
+        AddRow(body, _inAppNotifications);
         ConfigureCheck(_systemNotifications, "Mostra le notifiche di Windows quando il programma è in background", SystemNotifications, "Notifiche di Windows");
-        body.Controls.Add(_systemNotifications, 0, 2);
+        AddRow(body, _systemNotifications);
 
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             BackColor = Theme.Surface,
-            Margin = Padding.Empty
+            Margin = new Padding(0, 8, 0, 0)
         };
         var test = Theme.CreateButton("Prova le notifiche", Theme.ButtonTone.Primary, compact: true);
         test.Size = new Size(170, 34);
@@ -478,10 +495,10 @@ internal sealed class SettingsDialog : Form
         windowsSettings.Click += (_, _) => OpenWindowsNotificationSettings();
         actions.Controls.Add(test);
         actions.Controls.Add(windowsSettings);
-        body.Controls.Add(actions, 0, 3);
+        AddRow(body, actions);
 
-        body.Controls.Add(CreateNote(
-            "Se la prova di Windows non compare, controlla Assistente focus e le notifiche di «Vyrn Presence» nelle impostazioni di Windows."), 0, 4);
+        AddRow(body, CreateNote(
+            "Se la prova di Windows non compare, controlla Assistente focus e le notifiche di «Vyrn Presence» nelle impostazioni di Windows."));
         return page;
     }
 
@@ -513,89 +530,53 @@ internal sealed class SettingsDialog : Form
     /// <summary>Scheda «Generale»: comportamento della X, cartella dei dati, backup e sicurezza.</summary>
     private Control BuildGeneralPage()
     {
-        var (page, body) = CreatePage(SettingsPageLayout.GeneralRows);
+        var (page, body) = CreatePage();
 
-        body.Controls.Add(CreateHint(
-            "Cosa fa il programma quando chiudi la finestra, dove tiene i dati e come sono protetti."), 0, 0);
+        AddRow(body, CreateHint(
+            "Cosa fa il programma quando chiudi la finestra, dove tiene i dati e come sono protetti."));
 
-        body.Controls.Add(CreateFieldLabel(
-            "Quando chiudi la finestra con la X  (in background nel tray ricevi gli avvisi degli aggiornamenti)"), 0, 1);
-        var choices = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        foreach (var (button, text, tag) in new[]
-                 {
-                     (_closeAsk, "Chiedi ogni volta", string.Empty),
-                     (_closeTray, "Resta in background (tray)", "tray"),
-                     (_closeExit, "Esci dal programma", "exit")
-                 })
-        {
-            button.Text = text;
-            button.Tag = tag;
-            button.AutoSize = true;
-            button.ForeColor = Theme.InkSecondary;
-            button.Font = Theme.Fonts.Small;
-            button.Margin = new Padding(0, 6, 22, 0);
-            button.AccessibleName = $"Alla chiusura: {text}";
-            button.Checked = string.Equals(tag, CloseBehavior, StringComparison.Ordinal);
-            choices.Controls.Add(button);
-        }
-        body.Controls.Add(choices, 0, 2);
+        AddRow(body, CreateFieldLabel(
+            "Quando chiudi la finestra con la X  (in background nel tray ricevi gli avvisi degli aggiornamenti)"));
+        _closeChoice.AddItem("Chiedi ogni volta", string.Empty);
+        _closeChoice.AddItem("Resta in background (tray)", "tray");
+        _closeChoice.AddItem("Esci dal programma", "exit");
+        _closeChoice.SelectTag(CloseBehavior);
+        _closeChoice.AccessibleName = "Alla chiusura della finestra";
+        _closeChoice.Margin = new Padding(0, 6, 0, 4);
+        _closeChoice.Anchor = AnchorStyles.Left;
+        AddRow(body, _closeChoice);
 
-        body.Controls.Add(CreateFieldLabel(
-            "Aspetto dell'app  (la scelta si applica al prossimo avvio: chiudi e riapri il programma)"), 0, 3);
-        var themeChoices = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            BackColor = Theme.Surface,
-            Margin = Padding.Empty
-        };
-        foreach (var (button, text, mode) in new[]
-                 {
-                     (_themeLight, "Chiaro", ThemeMode.Light),
-                     (_themeDark, "Scuro", ThemeMode.Dark),
-                     (_themeSystem, "Come Windows", ThemeMode.System),
-                     (_themeGlass, "Vetro", ThemeMode.Glass)
-                 })
-        {
-            button.Text = text;
-            button.Tag = mode;
-            button.AutoSize = true;
-            button.ForeColor = Theme.InkSecondary;
-            button.Font = Theme.Fonts.Small;
-            button.Margin = new Padding(0, 6, 22, 0);
-            button.AccessibleName = $"Tema: {text}";
-            button.Checked = mode == ThemeMode;
-            themeChoices.Controls.Add(button);
-        }
-        body.Controls.Add(themeChoices, 0, 4);
+        AddRow(body, CreateFieldLabel(
+            "Aspetto dell'app  (la scelta si applica al prossimo avvio: chiudi e riapri il programma)"));
+        _themeChoice.AddItem("Chiaro", ThemeMode.Light);
+        _themeChoice.AddItem("Scuro", ThemeMode.Dark);
+        _themeChoice.AddItem("Come Windows", ThemeMode.System);
+        _themeChoice.AddItem("Vetro", ThemeMode.Glass);
+        _themeChoice.SelectTag(ThemeMode);
+        _themeChoice.AccessibleName = "Aspetto dell'app";
+        _themeChoice.Margin = new Padding(0, 6, 0, 4);
+        _themeChoice.Anchor = AnchorStyles.Left;
+        AddRow(body, _themeChoice);
 
-        body.Controls.Add(CreateFieldLabel(
-            "Dati: tutto resta sul tuo computer, nella cartella dei dati del tuo profilo Windows."), 0, 5);
+        AddRow(body, CreateFieldLabel(
+            "Dati: tutto resta sul tuo computer, nella cartella dei dati del tuo profilo Windows."));
 
         _backupStatus.Dock = DockStyle.Fill;
-        _backupStatus.TextAlign = ContentAlignment.TopLeft;
         _backupStatus.ForeColor = Theme.MutedInk;
         _backupStatus.Font = Theme.Fonts.Small;
-        _backupStatus.AutoEllipsis = true;
         _backupStatus.Margin = new Padding(0, 2, 0, 0);
         _backupStatus.Text = _general.Describe();
-        body.Controls.Add(_backupStatus, 0, 6);
+        AddRow(body, _backupStatus);
 
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             BackColor = Theme.Surface,
-            Margin = Padding.Empty
+            Margin = new Padding(0, 8, 0, 0)
         };
         var openData = Theme.CreateButton("Apri la cartella dei dati", Theme.ButtonTone.Neutral, compact: true).WithIcon(Glyph.Folder);
         openData.Size = new Size(212, 34);
@@ -627,10 +608,10 @@ internal sealed class SettingsDialog : Form
         actions.Controls.Add(openData);
         actions.Controls.Add(backup);
         actions.Controls.Add(codes);
-        body.Controls.Add(actions, 0, 7);
+        AddRow(body, actions);
 
-        body.Controls.Add(CreateNote(
-            "Il token degli aggiornamenti è cifrato con il tuo utente Windows. " + ExecutableSignature.DescribeCurrentExecutable()), 0, 8);
+        AddRow(body, CreateNote(
+            "Il token degli aggiornamenti è cifrato con il tuo utente Windows. " + ExecutableSignature.DescribeCurrentExecutable()));
         return page;
     }
 
@@ -650,10 +631,10 @@ internal sealed class SettingsDialog : Form
 
     private Control BuildUpdatePage()
     {
-        var (page, body) = CreatePage(SettingsPageLayout.UpdateRows);
+        var (page, body) = CreatePage();
 
-        body.Controls.Add(CreateHint(
-            "Le Release del repository privato si leggono con un token di sola lettura, già incluso nelle versioni ufficiali."), 0, 0);
+        AddRow(body, CreateHint(
+            "Le Release del repository privato si leggono con un token di sola lettura, già incluso nelle versioni ufficiali."));
 
         _autoCheck.Text = "Cerca aggiornamenti automaticamente all'avvio e durante l'uso";
         _autoCheck.Dock = DockStyle.Fill;
@@ -663,7 +644,7 @@ internal sealed class SettingsDialog : Form
         _autoCheck.Checked = AutoUpdateCheck;
         _autoCheck.AccessibleName = "Cerca aggiornamenti automaticamente";
         _autoCheck.Margin = Padding.Empty;
-        body.Controls.Add(_autoCheck, 0, 1);
+        AddRow(body, _autoCheck);
 
         _startWithWindows.Text = "Avvia con Windows nel tray: gli aggiornamenti arrivano subito, anche a programma chiuso";
         _startWithWindows.Dock = DockStyle.Fill;
@@ -675,10 +656,10 @@ internal sealed class SettingsDialog : Form
         _startWithWindows.AccessibleDescription =
             "All'accesso a Windows il programma parte nel tray, senza aprire la finestra, e avvisa appena esce una nuova versione.";
         _startWithWindows.Margin = Padding.Empty;
-        body.Controls.Add(_startWithWindows, 0, 2);
+        AddRow(body, _startWithWindows);
 
-        body.Controls.Add(CreateFieldLabel(
-            "Token personale (facoltativo, se quello incluso è scaduto). Fine-grained, permesso Contents → Read-only."), 0, 3);
+        AddRow(body, CreateFieldLabel(
+            "Token personale (facoltativo, se quello incluso è scaduto). Fine-grained, permesso Contents → Read-only."));
         _token.MaxLength = 400;
         _token.Dock = DockStyle.Fill;
         _token.InputFont = Theme.Fonts.Field;
@@ -687,15 +668,17 @@ internal sealed class SettingsDialog : Form
         _token.Input.Text = UpdateService.ResolveUserToken() ?? string.Empty;
         _token.Input.AccessibleName = "Token GitHub delle Release";
         _token.Margin = new Padding(0, 2, 0, 8);
-        body.Controls.Add(_token, 0, 4);
+        AddRow(body, _token);
 
         var tokenActions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             BackColor = Theme.Surface,
-            Margin = Padding.Empty
+            Margin = new Padding(0, 8, 0, 0)
         };
         _verifyTokenButton.Size = new Size(180, 34);
         _verifyTokenButton.Margin = new Padding(0, 0, 8, 0);
@@ -705,61 +688,56 @@ internal sealed class SettingsDialog : Form
         _clearTokenButton.Click += (_, _) => ClearToken();
         tokenActions.Controls.Add(_verifyTokenButton);
         tokenActions.Controls.Add(_clearTokenButton);
-        body.Controls.Add(tokenActions, 0, 5);
+        AddRow(body, tokenActions);
 
         _tokenStatus.Dock = DockStyle.Fill;
-        _tokenStatus.TextAlign = ContentAlignment.TopLeft;
         _tokenStatus.Font = Theme.Fonts.Small;
-        _tokenStatus.AutoEllipsis = true;
         _tokenStatus.Margin = new Padding(0, 4, 0, 0);
         SetTokenStatus(
             $"Stato attuale: {UpdateService.DescribeTokenSource()}. Il file del token è {UpdateService.TokenFilePath}",
             Theme.MutedInk);
-        body.Controls.Add(_tokenStatus, 0, 6);
+        AddRow(body, _tokenStatus);
 
-        body.Controls.Add(CreateNote(
-            "Il token serve solo a leggere le Release. Se uno non vale, l'app prova gli altri (personale, file, incluso)."), 0, 7);
+        AddRow(body, CreateNote(
+            "Il token serve solo a leggere le Release. Se uno non vale, l'app prova gli altri (personale, file, incluso)."));
 
         // La firma dell'eseguibile riguarda l'aggiornamento (cioè se il file in uso
         // è quello pubblicato): sta qui, accanto alla versione delle Release.
-        body.Controls.Add(CreateNote(ExecutableSignature.DescribeCurrentExecutable()), 0, 8);
+        AddRow(body, CreateNote(ExecutableSignature.DescribeCurrentExecutable()));
         return page;
     }
 
-    /// <summary>Sottotitolo della scheda: una frase, fino a due righe.</summary>
-    private static Label CreateHint(string text) => new()
+    /// <summary>Sottotitolo della scheda: una frase, a capo se serve.</summary>
+    private static TextBlock CreateHint(string text) => new()
     {
         Text = text,
+        Wrap = true,
         Dock = DockStyle.Fill,
-        TextAlign = ContentAlignment.TopLeft,
         ForeColor = Theme.MutedInk,
-        Font = Theme.Fonts.Tiny,
-        AutoEllipsis = true,
-        Margin = Padding.Empty
+        Font = Theme.Fonts.Small,
+        Margin = new Padding(0, 0, 0, 10)
     };
 
     /// <summary>Testo guida di un campo.</summary>
-    private static Label CreateFieldLabel(string text) => new()
+    private static TextBlock CreateFieldLabel(string text) => new()
     {
         Text = text,
+        Wrap = true,
         Dock = DockStyle.Fill,
-        TextAlign = ContentAlignment.MiddleLeft,
         ForeColor = Theme.MutedInk,
-        Font = Theme.Fonts.Tiny,
-        AutoEllipsis = true,
-        Margin = Padding.Empty
+        Font = Theme.Fonts.Small,
+        Margin = new Padding(0, 10, 0, 2)
     };
 
     /// <summary>Riga informativa in fondo alla scheda.</summary>
-    private static Label CreateNote(string text) => new()
+    private static TextBlock CreateNote(string text) => new()
     {
         Text = text,
+        Wrap = true,
         Dock = DockStyle.Fill,
-        TextAlign = ContentAlignment.MiddleLeft,
         ForeColor = Theme.FaintInk,
         Font = Theme.Fonts.Tiny,
-        AutoEllipsis = true,
-        Margin = Padding.Empty
+        Margin = new Padding(0, 10, 0, 0)
     };
 
     private void SetTokenStatus(string text, Color color)
@@ -878,8 +856,8 @@ internal sealed class SettingsDialog : Form
             return;
         }
         InAppNotifications = _inAppNotifications.Checked;
-        CloseBehavior = _closeTray.Checked ? "tray" : _closeExit.Checked ? "exit" : string.Empty;
-        ThemeMode = _themeLight.Checked ? ThemeMode.Light : _themeDark.Checked ? ThemeMode.Dark : _themeGlass.Checked ? ThemeMode.Glass : ThemeMode.System;
+        CloseBehavior = _closeChoice.SelectedTag as string ?? string.Empty;
+        ThemeMode = _themeChoice.SelectedTag is ThemeMode chosen ? chosen : ThemeMode.System;
         SystemNotifications = _systemNotifications.Checked;
         DialogResult = DialogResult.OK;
         Close();

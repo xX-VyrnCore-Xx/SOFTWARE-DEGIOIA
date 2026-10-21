@@ -56,6 +56,16 @@ jobs:
           PRESENZEFLOW_SCREENSHOT_DIR: ${{ github.event_name == 'workflow_dispatch' && format('{0}\screenshots', github.workspace) || '' }}
         run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release
 
+      # Solo a richiesta: le stesse schermate a 125% di scala (processo a parte,
+      # perche' la scala si imposta una volta sola per processo). Non ferma la CI.
+      - name: Schermate a 125% di scala
+        if: always() && github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        env:
+          PRESENZEFLOW_SCREENSHOT_DIR: ${{ format('{0}\screenshots', github.workspace) }}
+          PRESENZEFLOW_DPI_SHOTS: '125'
+        run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release --filter "FullyQualifiedName~DpiScreenshotTests"
+
       # Solo a richiesta (Run workflow): le stesse schermate vengono pubblicate sul
       # ramo "schermate", cosi' si possono aprire direttamente da git senza
       # scaricare lo zip degli artifact.
@@ -68,7 +78,7 @@ jobs:
             echo "Nessuna schermata da pubblicare."
             exit 0
           fi
-          rm -rf /tmp/shots && mkdir /tmp/shots && cp screenshots/*.png /tmp/shots/
+          rm -rf /tmp/shots && mkdir /tmp/shots && cp screenshots/* /tmp/shots/
           cd /tmp/shots
           git init -q -b schermate
           git config user.name "github-actions[bot]"

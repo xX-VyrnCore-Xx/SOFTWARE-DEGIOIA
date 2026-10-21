@@ -60,6 +60,7 @@ internal sealed partial class MainForm : Form
         // e i caratteri crescono insieme, così niente testo più grande della sua scatola.
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        UiScale.GuardAutoScale(this);
         Font = Theme.Fonts.Ui;
         BackColor = Theme.Canvas;
         _applicationIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
@@ -138,6 +139,8 @@ internal sealed partial class MainForm : Form
         // Da qui la finestra ha la scala DPI definitiva: la larghezza della barra
         // laterale può seguire la dimensione della finestra.
         _navWidthReady = true;
+        // Le voci della barra sono disegnate a mano: da qui hanno la loro altezza alla scala reale.
+        _navRail.Height = _navRail.PreferredRailHeight;
         ApplyNavWidth();
         StartTrackingWindowBounds();
         // Dopo che la finestra è disegnata si riempiono i dati che non servono a

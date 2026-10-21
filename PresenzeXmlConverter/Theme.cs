@@ -52,6 +52,8 @@ internal static class Theme
     public static Color Surface => Current.Surface;
     public static Color Canvas => Current.Canvas;
     public static Color Sunken => Current.Sunken;
+    public static Color Sidebar => Current.Sidebar;
+    public static Color SidebarHover => Current.SidebarHover;
     public static Color AltRow => Current.AltRow;
     public static Color FieldFill => Current.FieldFill;
 

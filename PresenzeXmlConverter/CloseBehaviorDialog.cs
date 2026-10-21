@@ -6,7 +6,7 @@ namespace PresenzeXmlConverter;
 /// </summary>
 internal sealed class CloseBehaviorDialog : Form
 {
-    private readonly CheckBox _remember = new();
+    private readonly ToggleSwitch _remember = new();
 
     public CloseBehaviorDialog()
     {
@@ -16,71 +16,84 @@ internal sealed class CloseBehaviorDialog : Form
         MinimizeBox = false;
         MaximizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(470, 256);
+        ClientSize = new Size(480, 240);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        UiScale.GuardAutoScale(this);
         Theme.StyleDialog(this);
         BackColor = Theme.Surface;
 
         var root = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 5,
-            Padding = new Padding(22, 18, 22, 16),
+            Padding = new Padding(26, 22, 26, 18),
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        for (var row = 0; row < 5; row++)
+        {
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        }
         Controls.Add(root);
 
-        root.Controls.Add(new Label
+        root.Controls.Add(new TextBlock
         {
             Text = "Come vuoi chiudere il programma?",
             Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
             ForeColor = Theme.Ink,
             Font = Theme.Fonts.DialogTitle,
-            Margin = Padding.Empty
+            Margin = new Padding(0, 0, 0, 6)
         }, 0, 0);
 
-        root.Controls.Add(new Label
+        root.Controls.Add(new TextBlock
         {
-            Text = "Se resti in background ricevi una notifica quando una conversione termina,\nsenza tenere la finestra aperta.",
+            Text = "Se resti in background ricevi una notifica quando una conversione termina, senza tenere la finestra aperta.",
+            Wrap = true,
             Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.TopLeft,
             ForeColor = Theme.MutedInk,
             Font = Theme.Fonts.Small,
-            Margin = Padding.Empty
+            Margin = new Padding(0, 0, 0, 16)
         }, 0, 1);
 
         var trayButton = Theme.CreateButton("Riduci in tray  ·  notifiche attive", Theme.ButtonTone.Primary);
         trayButton.Dock = DockStyle.Fill;
-        trayButton.Margin = new Padding(0, 2, 0, 4);
+        trayButton.Height = 42;
+        trayButton.Margin = new Padding(0, 0, 0, 8);
         trayButton.DialogResult = DialogResult.OK;
         root.Controls.Add(trayButton, 0, 2);
 
         var exitButton = Theme.CreateButton("Esci definitivamente", Theme.ButtonTone.Neutral);
         exitButton.Dock = DockStyle.Fill;
-        exitButton.Margin = new Padding(0, 0, 0, 4);
+        exitButton.Height = 42;
+        exitButton.Margin = new Padding(0, 0, 0, 8);
         exitButton.DialogResult = DialogResult.Abort;
         root.Controls.Add(exitButton, 0, 3);
 
         _remember.Text = "Ricorda questa scelta (non chiedere più)";
-        _remember.AutoSize = true;
         // Non preselezionata: «non chiedere più» è una scelta da fare di proposito,
         // perché poi la finestra si chiude in tray senza più domande.
         _remember.Checked = false;
         _remember.Dock = DockStyle.Fill;
-        _remember.TextAlign = ContentAlignment.MiddleLeft;
         _remember.ForeColor = Theme.InkSecondary;
         _remember.Font = Theme.Fonts.Small;
-        _remember.Margin = Padding.Empty;
+        _remember.Margin = new Padding(0, 4, 0, 0);
         root.Controls.Add(_remember, 0, 4);
+
+        // Larghezza fissa e altezza quanto il contenuto: la finestra si adatta al testo (e alla scala dello schermo)
+        // senza altezze scritte a mano per le righe. Va fatto a finestra aperta, quando la scala è definitiva.
+        Shown += (_, _) =>
+        {
+            var needed = root.GetPreferredSize(new Size(ClientSize.Width, 0)).Height;
+            if (needed != ClientSize.Height)
+            {
+                ClientSize = new Size(ClientSize.Width, needed);
+            }
+        };
 
         AcceptButton = trayButton;
         // Esc e la X non devono uscire dal programma: sono un ripensamento, e la

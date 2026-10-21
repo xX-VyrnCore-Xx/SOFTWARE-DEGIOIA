@@ -42,6 +42,8 @@ internal sealed class ThemedGrid : DataGridView
         ColumnHeadersDefaultCellStyle.ForeColor = Theme.MutedInk;
         ColumnHeadersDefaultCellStyle.Font = Theme.Fonts.GridHeader;
         ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 4, 0);
+        // Le intestazioni stanno su una riga (con i puntini se serve): a capo spezzerebbero «Codice PAGHE» su due righe.
+        ColumnHeadersDefaultCellStyle.WrapMode = DataGridViewTriState.False;
         ColumnHeadersDefaultCellStyle.SelectionBackColor = Theme.Sunken;
         ColumnHeadersDefaultCellStyle.SelectionForeColor = Theme.InkSecondary;
         ColumnHeadersHeight = 38;
@@ -192,7 +194,7 @@ internal sealed class ThemedGrid : DataGridView
 /// </summary>
 internal sealed class RoundedField : Panel
 {
-    private const int Radius = 8;
+    private const int LogicalRadius = 8;
     private const int EmSetCueBanner = 0x1501;
     private readonly TextBox _input = new();
     private string _placeholder = string.Empty;
@@ -200,6 +202,8 @@ internal sealed class RoundedField : Panel
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, string lParam);
+
+    private int Radius => this.Px(LogicalRadius);
 
     public RoundedField()
     {
@@ -352,7 +356,7 @@ internal sealed class RoundedField : Panel
             if (ringBounds.Width > 2 && ringBounds.Height > 2)
             {
                 using var ringPath = Theme.RoundedRectangle(ringBounds, Radius - 1);
-                using var ring = new Pen(_onDark ? Color.FromArgb(70, Theme.Brand) : Theme.BrandLite, 3f);
+                using var ring = new Pen(_onDark ? Color.FromArgb(70, Theme.Brand) : Theme.BrandLite, this.Px(3f));
                 e.Graphics.DrawPath(ring, ringPath);
             }
         }
@@ -401,7 +405,7 @@ internal sealed class BrandMark : Control
         {
             return;
         }
-        using var path = Theme.RoundedRectangle(box, 12);
+        using var path = Theme.RoundedRectangle(box, this.Px(12));
         using (var gradient = new System.Drawing.Drawing2D.LinearGradientBrush(
                    box, Theme.Brand, Theme.Accent, 45f))
         {
@@ -423,7 +427,7 @@ internal sealed class BrandMark : Control
         {
             graphics.DrawPath(rim, path);
         }
-        Glyphs.Draw(graphics, Rectangle.Inflate(box, -11, -11), Glyph.Check, Color.White, 2.6f);
+        Glyphs.Draw(graphics, Rectangle.Inflate(box, -this.Px(11), -this.Px(11)), Glyph.Check, Color.White, this.Px(2.6f));
     }
 }
 
@@ -671,10 +675,10 @@ internal sealed class ThemedTabControl : Control
         {
             e.Graphics.Clear(Theme.Surface);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            var pill = new Rectangle(2, 6, Width - 5, Height - 13);
+            var pill = new Rectangle(this.Px(2), this.Px(6), Width - this.Px(5), Height - this.Px(13));
             if ((Active || _hover) && pill.Width > 8 && pill.Height > 8)
             {
-                using var path = Theme.RoundedRectangle(pill, 8);
+                using var path = Theme.RoundedRectangle(pill, this.Px(8));
                 using var fill = new SolidBrush(Active ? Theme.BrandSoft : Theme.Sunken);
                 e.Graphics.FillPath(fill, path);
             }
@@ -762,7 +766,7 @@ internal sealed class StatusPill : Control
     public override Size GetPreferredSize(Size proposedSize)
     {
         var text = ModernPalette.Measure(_caption, Theme.Fonts.Pill).Width;
-        return new Size(text + 30, Math.Max(26, Height));
+        return new Size(text + this.Px(30), Math.Max(this.Px(26), Height));
     }
 
     protected override void OnPaint(PaintEventArgs e)

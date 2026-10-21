@@ -27,17 +27,22 @@ internal enum NavIcon
 /// </summary>
 internal sealed class NavRail : Control
 {
-    /// <summary>Altezza di una voce: un bersaglio comodo anche con il mouse.</summary>
-    public const int ItemHeight = 46;
+    /// <summary>Altezza di una voce a 96 dpi: un bersaglio comodo anche con il mouse.</summary>
+    public const int LogicalItemHeight = 46;
 
-    /// <summary>Spazio fra due voci.</summary>
-    public const int ItemGap = 4;
+    /// <summary>Spazio fra due voci a 96 dpi.</summary>
+    public const int LogicalItemGap = 4;
 
-    /// <summary>Margine orizzontale della barra.</summary>
-    public const int RailPadding = 10;
+    /// <summary>Margine orizzontale della barra a 96 dpi.</summary>
+    public const int LogicalRailPadding = 10;
 
-    /// <summary>Larghezza della barretta che segna la voce attiva.</summary>
-    private const int AccentWidth = 3;
+    // Le misure vere seguono la scala dello schermo: il font cresce con il DPI e la voce deve crescere con lui.
+    private int ItemHeight => this.Px(LogicalItemHeight);
+
+    private int ItemGap => this.Px(LogicalItemGap);
+
+    private int RailPadding => this.Px(LogicalRailPadding);
+
 
     private readonly List<Item> _items = new();
     private int _selectedIndex = -1;
@@ -54,7 +59,7 @@ internal sealed class NavRail : Control
             ControlStyles.ResizeRedraw |
             ControlStyles.Selectable,
             true);
-        BackColor = Theme.Canvas;
+        BackColor = Theme.Sidebar;
         TabStop = true;
         AccessibleRole = AccessibleRole.List;
         AccessibleName = "Sezioni dell'applicazione";
@@ -176,6 +181,28 @@ internal sealed class NavRail : Control
         (int)Math.Round(from.G + ((to.G - from.G) * amount)),
         (int)Math.Round(from.B + ((to.B - from.B) * amount)));
 
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        // La pillola tiene la posizione in pixel: con un'altra scala va rimessa sulla voce attiva.
+        if (_selectedIndex >= 0)
+        {
+            MovePill(animate: false);
+        }
+        Height = PreferredRailHeight;
+        Invalidate();
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        // Le misure dipendono dalla scala della finestra, nota solo ora.
+        if (_selectedIndex >= 0)
+        {
+            MovePill(animate: false);
+        }
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -231,7 +258,7 @@ internal sealed class NavRail : Control
         {
             var pillBox = ItemBox(_selectedIndex);
             pillBox.Y = pillTop;
-            using var pillPath = Theme.RoundedRectangle(Rectangle.Round(pillBox), 8);
+            using var pillPath = Theme.RoundedRectangle(Rectangle.Round(pillBox), this.Px(8));
             if (Theme.IsGlass)
             {
                 // Vetro: pillola viola vivace sfumata, come nel riferimento, con testo e icona bianchi.
@@ -246,21 +273,11 @@ internal sealed class NavRail : Control
             }
             else
             {
-                using var pillFill = new SolidBrush(Theme.BrandSoft);
+                // Stile macOS: la voce attiva è una pillola piena del colore di sistema, con testo e icona bianchi.
+                using var pillFill = new SolidBrush(Theme.Brand);
                 e.Graphics.FillPath(pillFill, pillPath);
             }
-            var barHeight = Math.Max(16, (int)Math.Round(pillBox.Height * 0.42f));
-            var bar = new Rectangle(
-                (int)pillBox.Left + 2,
-                (int)Math.Round(pillBox.Top + ((pillBox.Height - barHeight) / 2f)),
-                AccentWidth,
-                barHeight);
-            if (!Theme.IsGlass)
-            {
-                using var barPath = Theme.RoundedRectangle(bar, 2);
-                using var barFill = new SolidBrush(Theme.Brand);
-                e.Graphics.FillPath(barFill, barPath);
-            }
+            // (nessuna barretta laterale: la pillola piena basta a segnare la voce attiva)
         }
 
         for (var index = 0; index < _items.Count; index++)
@@ -277,18 +294,19 @@ internal sealed class NavRail : Control
             {
                 using var path = Theme.RoundedRectangle(
                     Rectangle.Round(box),
-                    8);
-                using var fill = new SolidBrush(Theme.Sunken);
+                    this.Px(8));
+                using var fill = new SolidBrush(Theme.SidebarHover);
                 e.Graphics.FillPath(fill, path);
             }
 
-            var ink = Mix(Theme.InkSecondary, Theme.IsGlass ? Color.White : Theme.BrandInk, covered);
+            var ink = Mix(Theme.InkSecondary, Color.White, covered);
+            var iconSize = this.Px(18);
             var iconBox = new Rectangle(
-                (int)box.Left + 14,
-                (int)(box.Top + (box.Height - 18) / 2),
-                18,
-                18);
-            Glyphs.Draw(e.Graphics, iconBox, GlyphFor(item.Icon), ink, 1.7f);
+                (int)box.Left + this.Px(14),
+                (int)(box.Top + (box.Height - iconSize) / 2),
+                iconSize,
+                iconSize);
+            Glyphs.Draw(e.Graphics, iconBox, GlyphFor(item.Icon), ink, this.Px(1.7f));
 
             var badgeWidth = 0;
             if (_badges.TryGetValue(index, out var badge) && badge.Length > 0)
@@ -298,14 +316,15 @@ internal sealed class NavRail : Control
                     Theme.Fonts.Tiny,
                     new Size(int.MaxValue, int.MaxValue),
                     TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
-                badgeWidth = Math.Max(22, badgeSize.Width + 12);
+                badgeWidth = Math.Max(this.Px(22), badgeSize.Width + this.Px(12));
+                var badgeHeight = this.Px(20);
                 var pill = new Rectangle(
-                    (int)box.Right - badgeWidth - 10,
-                    (int)(box.Top + (box.Height - 20) / 2),
+                    (int)box.Right - badgeWidth - this.Px(10),
+                    (int)(box.Top + (box.Height - badgeHeight) / 2),
                     badgeWidth,
-                    20);
-                using var pillPath = Theme.RoundedRectangle(pill, 10);
-                using var badgeFill = new SolidBrush(covered > 0.5f ? (Theme.IsGlass ? Color.FromArgb(70, Color.White) : Theme.BrandLite) : Theme.Sunken);
+                    badgeHeight);
+                using var pillPath = Theme.RoundedRectangle(pill, badgeHeight / 2);
+                using var badgeFill = new SolidBrush(covered > 0.5f ? Color.FromArgb(70, Color.White) : Theme.SidebarHover);
                 e.Graphics.FillPath(badgeFill, pillPath);
                 UiText.Draw(
                     e.Graphics,
@@ -314,13 +333,13 @@ internal sealed class NavRail : Control
                     pill,
                     ink,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-                badgeWidth += 8;
+                badgeWidth += this.Px(8);
             }
 
             var textBounds = new Rectangle(
-                iconBox.Right + 10,
+                iconBox.Right + this.Px(10),
                 (int)box.Top,
-                Math.Max(1, (int)box.Right - iconBox.Right - 14 - badgeWidth),
+                Math.Max(1, (int)box.Right - iconBox.Right - this.Px(14) - badgeWidth),
                 (int)box.Height);
             UiText.Draw(
                 e.Graphics,

@@ -1,7 +1,7 @@
 namespace PresenzeXmlConverter;
 
 /// <summary>Cosa mostra la dashboard, deciso solo dai dati presenti (calcolo puro, verificabile con un test).</summary>
-internal readonly record struct DashboardLayout(bool ShowMetrics, bool ShowBottom, bool ShowInsights)
+internal readonly record struct DashboardLayout(bool ShowMetrics, bool ShowBottom, bool ShowInsights, bool ShowTiles)
 {
     /// <param name="hasRequests">Un foglio è stato letto.</param>
     /// <param name="hasPreview">L'anteprima dei movimenti è pronta.</param>
@@ -10,5 +10,7 @@ internal readonly record struct DashboardLayout(bool ShowMetrics, bool ShowBotto
         new(
             ShowMetrics: hasRequests || hasPreview,
             ShowBottom: hasPreview || hasExports,
-            ShowInsights: hasPreview);
+            ShowInsights: hasPreview,
+            // Senza consegne né anteprima non c'è altro da mostrare: la dashboard indica dove andare, invece di restare vuota.
+            ShowTiles: !(hasPreview || hasExports));
 }

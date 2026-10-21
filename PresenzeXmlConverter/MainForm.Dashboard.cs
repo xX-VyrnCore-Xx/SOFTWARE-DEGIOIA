@@ -28,19 +28,21 @@ internal sealed partial class MainForm
     private TableLayoutPanel? _dashBottom;
     private Control? _dashInsightsCard;
     private Control? _dashExportsCard;
+    private TableLayoutPanel? _dashTiles;
 
     private Control BuildDashboardSection()
     {
         var page = _dashboardSection;
-        page.RowCount = 4;
+        page.RowCount = 5;
         page.ColumnCount = 1;
         page.Padding = new Padding(0, 0, 4, 0);
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         // Le altezze di questa pagina cambiano con il contenuto (vedi ApplyDashboardLayout): niente riquadri vuoti.
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+        page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 300));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
 
         page.Controls.Add(BuildSectionHeading(
             "Dashboard",
@@ -86,6 +88,7 @@ internal sealed partial class MainForm
         hero.Controls.Add(BuildDashboardConversionCard(), 0, 0);
         hero.Controls.Add(BuildDashboardStatusCard(), 1, 0);
         page.Controls.Add(hero, 0, 2);
+        page.Controls.Add(BuildDashboardTiles(), 0, 3);
 
         // Sotto: ultime esportazioni e, solo con un'anteprima pronta, l'analisi del mese. A pagina vuota non c'è.
         var bottom = new TableLayoutPanel
@@ -106,7 +109,7 @@ internal sealed partial class MainForm
         bottom.Controls.Add(_dashExportsCard, 0, 0);
         bottom.Controls.Add(_dashInsightsCard, 1, 0);
         _dashBottom = bottom;
-        page.Controls.Add(bottom, 0, 3);
+        page.Controls.Add(bottom, 0, 4);
 
         _dashDropZone.Click += async (_, _) => await ImportWorkbookAsync();
         _dashDropZone.FileDropped += async path => await LoadWorkbookAsync(path);
@@ -130,10 +133,21 @@ internal sealed partial class MainForm
         var page = _dashboardSection;
         page.SuspendLayout();
         _dashMetrics.Visible = layout.ShowMetrics;
-        page.RowStyles[1] = new RowStyle(SizeType.Absolute, layout.ShowMetrics ? 102 : 0);
+        page.RowStyles[1] = new RowStyle(SizeType.Absolute, layout.ShowMetrics ? this.Px(102) : 0);
+        // Con qualcosa da mostrare sotto, la conversione ha l'altezza giusta e il resto va alle consegne;
+        // altrimenti la conversione occupa lo spazio e le scorciatoie indicano il resto del programma.
         _dashBottom.Visible = layout.ShowBottom;
-        page.RowStyles[2] = new RowStyle(SizeType.Absolute, layout.ShowBottom ? 246 : 300);
-        page.RowStyles[3] = new RowStyle(SizeType.Percent, 100);
+        page.RowStyles[2] = layout.ShowBottom
+            ? new RowStyle(SizeType.Absolute, this.Px(250))
+            : new RowStyle(SizeType.Percent, 100);
+        if (_dashTiles is not null)
+        {
+            _dashTiles.Visible = layout.ShowTiles;
+        }
+        page.RowStyles[3] = new RowStyle(SizeType.Absolute, layout.ShowTiles ? this.Px(104) : 0);
+        page.RowStyles[4] = layout.ShowBottom
+            ? new RowStyle(SizeType.Percent, 100)
+            : new RowStyle(SizeType.Absolute, 0);
         _dashInsightsCard.Visible = layout.ShowInsights;
         _dashBottom.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, layout.ShowInsights ? 62 : 100);
         _dashBottom.ColumnStyles[1] = new ColumnStyle(SizeType.Percent, layout.ShowInsights ? 38 : 0);
@@ -212,6 +226,46 @@ internal sealed partial class MainForm
         return card;
     }
 
+    /// <summary>Scorciatoie verso le altre sezioni: compaiono quando la dashboard non ha altro da mostrare.</summary>
+    private Control BuildDashboardTiles()
+    {
+        var tiles = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 4,
+            RowCount = 1,
+            BackColor = Theme.Canvas,
+            Margin = Padding.Empty,
+            Visible = true
+        };
+        for (var column = 0; column < 4; column++)
+        {
+            tiles.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+        }
+        tiles.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var entries = new (string Title, string Subtitle, Glyph Glyph, int Section)[]
+        {
+            ("Aziende", "Codice e regole di ogni azienda", Glyph.Building, SectionCompanies),
+            ("Codici", "Giustificativi e codici PAGHE", Glyph.List, SectionCodes),
+            ("Storico", "Le consegne già esportate", Glyph.Clock, SectionHistory),
+            ("Registro", "Cosa è stato fatto e quando", Glyph.File, SectionActivity)
+        };
+        for (var index = 0; index < entries.Length; index++)
+        {
+            var entry = entries[index];
+            var tile = new ToolTile(entry.Title, entry.Subtitle, entry.Glyph)
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, index == entries.Length - 1 ? 0 : 10, 10)
+            };
+            var section = entry.Section;
+            tile.Click += (_, _) => ShowSection(section);
+            tiles.Controls.Add(tile, index, 0);
+        }
+        _dashTiles = tiles;
+        return tiles;
+    }
+
     private Control BuildDashboardInsightsCard()
     {
         var card = new SurfacePanel
@@ -263,9 +317,10 @@ internal sealed partial class MainForm
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        // Le tre righe si dividono lo spazio che resta: nessun vuoto fra una e l'altra.
         for (var row = 0; row < 3; row++)
         {
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 3f));
         }
         layout.Controls.Add(CreateCardTitle("STATO"), 0, 0);
         // Tre righe che servono davvero. Il file sta nella scheda di conversione; il certificato è nelle Impostazioni.

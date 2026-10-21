@@ -30,8 +30,8 @@ internal sealed partial class MainForm
 
     private readonly Label _requestMetricLabel = new();
     private readonly Label _employeeMetricLabel = new();
-    private readonly Label _previewTitleLabel = new();
-    private readonly Label _previewSubtitleLabel = new();
+    private readonly TextBlock _previewTitleLabel = new();
+    private readonly TextBlock _previewSubtitleLabel = new();
     private readonly Label _previewCountLabel = new();
     private readonly RoundedField _previewSearch = new();
     private readonly IconButton _copyXmlButton = new("Copia XML", Glyph.Code);
@@ -99,7 +99,7 @@ internal sealed partial class MainForm
             BackColor = Theme.Surface,
             Margin = Padding.Empty
         };
-        reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+        reviewLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         reviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
         reviewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         reviewCard.Controls.Add(reviewLayout);
@@ -516,23 +516,32 @@ internal sealed partial class MainForm
 
     private Control BuildPreviewHeading()
     {
-        var heading = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Surface, Margin = Padding.Empty };
+        var heading = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Theme.Surface,
+            Margin = Padding.Empty,
+            Padding = new Padding(0, 0, 0, 10)
+        };
+        heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        heading.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        heading.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _previewTitleLabel.Text = "Area di revisione";
-        _previewTitleLabel.AutoSize = true;
-        _previewTitleLabel.Location = new Point(0, 2);
+        _previewTitleLabel.Dock = DockStyle.Top;
         _previewTitleLabel.Font = Theme.Fonts.CardTitle;
         _previewTitleLabel.ForeColor = Theme.Ink;
-        heading.Controls.Add(_previewTitleLabel);
+        _previewTitleLabel.Margin = Padding.Empty;
+        heading.Controls.Add(_previewTitleLabel, 0, 0);
         _previewSubtitleLabel.Text = "Importa un foglio Excel per visualizzare e controllare i movimenti.";
-        _previewSubtitleLabel.AutoSize = false;
-        _previewSubtitleLabel.Location = new Point(0, 34);
-        // Due righe di testo piccolo: nell'area di revisione stretta (barra di
-        // navigazione + card di sinistra) la frase non sta sempre su una riga sola.
-        _previewSubtitleLabel.Height = 32;
-        _previewSubtitleLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        _previewSubtitleLabel.Dock = DockStyle.Top;
         _previewSubtitleLabel.Font = Theme.Fonts.Small;
         _previewSubtitleLabel.ForeColor = Theme.MutedInk;
-        heading.Controls.Add(_previewSubtitleLabel);
+        _previewSubtitleLabel.Margin = new Padding(1, 2, 0, 0);
+        heading.Controls.Add(_previewSubtitleLabel, 0, 1);
         return heading;
     }
 
@@ -629,13 +638,13 @@ internal sealed partial class MainForm
         _movementsGrid.RowHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _movementsGrid.RowHeadersDefaultCellStyle.Font = Theme.Fonts.MonoSmall;
         _movementsGrid.Columns.Add(CreateGridColumn("employee", "Dipendente", 148, true));
-        _movementsGrid.Columns.Add(CreateGridColumn("code", "Codice PAGHE", 100, false));
-        _movementsGrid.Columns.Add(CreateGridColumn("date", "Data movimento", 103, false));
-        _movementsGrid.Columns.Add(CreateGridColumn("policy", "Richiesta originale", 146, true));
+        _movementsGrid.Columns.Add(CreateGridColumn("code", "Cod. PAGHE", 100, false));
+        _movementsGrid.Columns.Add(CreateGridColumn("date", "Data", 103, false));
+        _movementsGrid.Columns.Add(CreateGridColumn("policy", "Richiesta", 146, true));
         _movementsGrid.Columns.Add(CreateGridColumn("reason", "Codice", 65, false));
         _movementsGrid.Columns.Add(CreateGridColumn("hours", "Ore", 47, false));
         _movementsGrid.Columns.Add(CreateGridColumn("minutes", "Min", 44, false));
-        _movementsGrid.Columns.Add(CreateGridColumn("source", "Riga Excel", 67, true));
+        _movementsGrid.Columns.Add(CreateGridColumn("source", "Riga", 67, true));
         // Con la barra di navigazione l'area di revisione è stretta: la barra di
         // scorrimento orizzontale nativa è grigia di sistema (fuori tema), quindi non
         // la si usa. Quando le colonne non entrano si nascondono le meno importanti

@@ -91,12 +91,15 @@ internal sealed partial class MainForm
         _navRail.Margin = Padding.Empty;
         _navRail.SelectionChanged += (_, _) => ApplySection();
 
-        var railHost = new Panel
+        // Barra laterale in stile macOS: pannello arrotondato più scuro della tela, voci a pillola piena.
+        var railHost = new SurfacePanel
         {
             Dock = DockStyle.Fill,
-            BackColor = Theme.Canvas,
+            SurfaceFill = Theme.Sidebar,
+            SurfaceBorder = Theme.Sidebar,
+            Radius = 14,
             Margin = new Padding(0, 0, 12, 0),
-            Padding = Padding.Empty
+            Padding = new Padding(4, 10, 4, 4)
         };
         railHost.Controls.Add(_navRail);
         railHost.Controls.Add(BuildRailFooter());
@@ -333,7 +336,7 @@ internal sealed partial class MainForm
         page.ColumnCount = 1;
         page.Padding = new Padding(0, 0, 4, 0);
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+        page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
 
@@ -608,7 +611,7 @@ internal sealed partial class MainForm
         page.ColumnCount = 1;
         page.Padding = new Padding(0, 0, 4, 0);
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+        page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
 
@@ -1028,36 +1031,37 @@ internal sealed partial class MainForm
 
     private static Control BuildSectionHeading(string title, string subtitle)
     {
+        // Le due righe hanno l'altezza del loro testo (TextBlock): titolo e sottotitolo non si sovrappongono
+        // a nessuna scala dello schermo.
         var heading = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 2,
             BackColor = Theme.Canvas,
-            Margin = Padding.Empty
+            Margin = Padding.Empty,
+            Padding = new Padding(0, 2, 0, 12)
         };
         heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-        heading.Controls.Add(new Label
+        heading.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        heading.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        heading.Controls.Add(new TextBlock
         {
             Text = title,
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
+            Dock = DockStyle.Top,
             ForeColor = Theme.Ink,
             Font = Theme.Fonts.CardTitle,
-            // Il bordo sinistro del testo combacia con quello delle card sotto (il testo ha un piccolo margine suo).
-            Margin = new Padding(-5, 0, 0, 0)
+            Margin = Padding.Empty
         }, 0, 0);
-        heading.Controls.Add(new Label
+        heading.Controls.Add(new TextBlock
         {
             Text = subtitle,
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.TopLeft,
+            Dock = DockStyle.Top,
             ForeColor = Theme.MutedInk,
             Font = Theme.Fonts.Small,
-            AutoEllipsis = true,
-            Margin = new Padding(-3, 0, 0, 0)
+            Margin = new Padding(1, 2, 0, 0)
         }, 0, 1);
         return heading;
     }

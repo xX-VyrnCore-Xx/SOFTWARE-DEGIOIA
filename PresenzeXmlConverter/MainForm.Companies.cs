@@ -10,7 +10,7 @@ namespace PresenzeXmlConverter;
 /// </summary>
 internal sealed partial class MainForm
 {
-    private const string DefaultCompanyHint = "Codice Zucchetti · max 6 caratteri";
+    private const string DefaultCompanyHint = "Codice PAGHE, max 6 caratteri";
 
     private readonly TableLayoutPanel _companiesSection = NewSection();
     private readonly ThemedGrid _companiesGrid = new();
@@ -34,7 +34,7 @@ internal sealed partial class MainForm
         page.ColumnCount = 1;
         page.Padding = new Padding(0, 0, 4, 0);
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+        page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
 
