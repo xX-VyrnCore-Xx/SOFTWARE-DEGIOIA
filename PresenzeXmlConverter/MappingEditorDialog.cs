@@ -27,6 +27,7 @@ internal sealed class MappingEditorDialog : Form
         Size = new Size(900, 620);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        UiScale.GuardAutoScale(this);
         Theme.StyleDialog(this);
 
         _panel.Load(

@@ -183,7 +183,7 @@ internal sealed class RailStatusCard : Control
             true);
         _data = data;
         _version = version;
-        BackColor = Theme.Canvas;
+        BackColor = Theme.Sidebar;
         AccessibleRole = AccessibleRole.Grouping;
         AccessibleName = "Dati locali";
         foreach (var label in new[] { data })
@@ -198,7 +198,7 @@ internal sealed class RailStatusCard : Control
         base.OnPaint(e);
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.Clear(Theme.Canvas);
+        g.Clear(Theme.Sidebar);
 
         // Solo l'essenziale: la versione in basso e, se qualcosa non va nei dati (database temporaneo, non leggibile),
         // una riga di avviso. Backup e azienda stanno già in «Stato» e nelle sezioni: qui non si ripetono.

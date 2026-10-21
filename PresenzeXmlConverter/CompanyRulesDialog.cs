@@ -11,14 +11,14 @@ internal sealed class CompanyRulesDialog : Form
 {
     private readonly int _referenceYear;
     private readonly GenerationOptions _general;
-    private readonly CheckBox _own = new();
+    private readonly ToggleSwitch _own = new();
     private readonly RoundedField _hours = new();
-    private readonly CheckBox _saturdays = new();
-    private readonly CheckBox _autoDetect = new();
+    private readonly ToggleSwitch _saturdays = new();
+    private readonly ToggleSwitch _autoDetect = new();
     private readonly TextBox _holidays = new();
-    private readonly Label _error = new();
-    private readonly Label _holidaysLabel = new();
-    private readonly Label _hoursLabel = new();
+    private readonly TextBlock _error = new() { Wrap = true };
+    private readonly TextBlock _holidaysLabel = new() { Wrap = true };
+    private readonly TextBlock _hoursLabel = new();
 
     public CompanyRulesDialog(CompanyRecord company, GenerationOptions generalOptions, int referenceYear)
     {
@@ -32,54 +32,59 @@ internal sealed class CompanyRulesDialog : Form
         ShowInTaskbar = false;
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(560, 430);
+        UiScale.GuardAutoScale(this);
+        ClientSize = new Size(580, 480);
         Theme.StyleDialog(this);
 
+        // Righe alte quanto il loro contenuto: nessuna altezza in pixel scritta a mano.
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 9,
-            Padding = new Padding(20, 16, 20, 8),
+            Padding = new Padding(24, 20, 24, 8),
             BackColor = Theme.Canvas
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        foreach (var height in new[] { 40, 34, 24, 46, 34, 34, 24, 90, 24 })
+        void AddRow(Control control)
         {
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+            layout.RowCount++;
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.Controls.Add(control, 0, layout.RowCount - 1);
         }
 
-        layout.Controls.Add(new Label
+        AddRow(new TextBlock
         {
             Dock = DockStyle.Fill,
+            Wrap = true,
             Text = "Come si calcolano le ore per questa azienda. Senza regole proprie valgono quelle generali delle Impostazioni.",
             ForeColor = Theme.MutedInk,
-            Font = Theme.Fonts.Small
-        }, 0, 0);
+            Font = Theme.Fonts.Small,
+            Margin = new Padding(0, 0, 0, 8)
+        });
 
         StyleCheck(_own, "Usa regole proprie per questa azienda");
         _own.CheckedChanged += (_, _) => UpdateEnabled();
-        layout.Controls.Add(_own, 0, 1);
+        AddRow(_own);
 
         _hoursLabel.Text = "Ore di una giornata standard";
         StyleLabel(_hoursLabel);
-        layout.Controls.Add(_hoursLabel, 0, 2);
+        AddRow(_hoursLabel);
         _hours.MaxLength = 5;
         _hours.Dock = DockStyle.Fill;
         _hours.InputFont = Theme.Fonts.Field;
         _hours.Placeholder = "es. 8  oppure  7,5";
         _hours.Input.AccessibleName = "Ore di una giornata standard dell'azienda";
-        _hours.Margin = new Padding(0, 2, 0, 8);
-        layout.Controls.Add(_hours, 0, 3);
+        _hours.Margin = new Padding(0, 4, 0, 8);
+        AddRow(_hours);
 
         StyleCheck(_saturdays, "Il sabato è sempre lavorativo");
-        layout.Controls.Add(_saturdays, 0, 4);
+        AddRow(_saturdays);
         StyleCheck(_autoDetect, "Rileva in automatico sabati e ore dalle date (consigliato)");
-        layout.Controls.Add(_autoDetect, 0, 5);
+        AddRow(_autoDetect);
 
         _holidaysLabel.Text = "Chiusure aziendali (una data per riga o separate da virgola, es. 02/06, 24/12)";
         StyleLabel(_holidaysLabel);
-        layout.Controls.Add(_holidaysLabel, 0, 6);
+        AddRow(_holidaysLabel);
         _holidays.Multiline = true;
         _holidays.BorderStyle = BorderStyle.None;
         _holidays.BackColor = Theme.FieldFill;
@@ -92,30 +97,33 @@ internal sealed class CompanyRulesDialog : Form
             SurfaceFill = Theme.FieldFill,
             SurfaceBorder = Theme.DividerStrong,
             Radius = 8,
-            Padding = new Padding(8, 4, 8, 4),
-            Margin = new Padding(0, 2, 0, 6)
+            Padding = new Padding(8, 6, 8, 6),
+            Margin = new Padding(0, 4, 0, 6),
+            Height = 96
         };
         _holidays.Dock = DockStyle.Fill;
         frame.Controls.Add(_holidays);
-        layout.Controls.Add(frame, 0, 7);
+        AddRow(frame);
 
         _error.Dock = DockStyle.Fill;
         _error.ForeColor = Theme.DangerInk;
         _error.Font = Theme.Fonts.Small;
-        layout.Controls.Add(_error, 0, 8);
+        _error.Margin = new Padding(0, 4, 0, 0);
+        AddRow(_error);
 
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Bottom,
-            Height = 56,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.RightToLeft,
             BackColor = Theme.Canvas,
-            Padding = new Padding(12)
+            Padding = new Padding(16, 12, 16, 14)
         };
         var save = Theme.CreateButton("Salva regole", Theme.ButtonTone.Primary);
-        save.Size = new Size(150, 36);
+        save.Size = new Size(150, 38);
         var cancel = Theme.CreateButton("Annulla", Theme.ButtonTone.Neutral);
-        cancel.Size = new Size(120, 36);
+        cancel.Size = new Size(120, 38);
         cancel.DialogResult = DialogResult.Cancel;
         save.Click += (_, _) => TryCommit();
         actions.Controls.Add(save);
@@ -139,19 +147,18 @@ internal sealed class CompanyRulesDialog : Form
     {
         box.Text = text;
         box.Dock = DockStyle.Fill;
-        box.TextAlign = ContentAlignment.MiddleLeft;
         box.ForeColor = Theme.InkSecondary;
         box.Font = Theme.Fonts.Small;
         box.Margin = Padding.Empty;
         box.AccessibleName = text;
     }
 
-    private static void StyleLabel(Label label)
+    private static void StyleLabel(TextBlock label)
     {
         label.Dock = DockStyle.Fill;
-        label.TextAlign = ContentAlignment.BottomLeft;
         label.ForeColor = Theme.InkSecondary;
         label.Font = Theme.Fonts.Small;
+        label.Margin = new Padding(0, 8, 0, 0);
     }
 
     private void Fill(CompanyRules rules)

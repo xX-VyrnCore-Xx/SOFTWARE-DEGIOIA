@@ -37,7 +37,7 @@ internal sealed partial class MainForm
         page.Padding = new Padding(0, 0, 4, 0);
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         // Le altezze di questa pagina cambiano con il contenuto (vedi ApplyDashboardLayout): niente riquadri vuoti.
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+        page.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 300));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -130,9 +130,9 @@ internal sealed partial class MainForm
         var page = _dashboardSection;
         page.SuspendLayout();
         _dashMetrics.Visible = layout.ShowMetrics;
-        page.RowStyles[1] = new RowStyle(SizeType.Absolute, layout.ShowMetrics ? 102 : 0);
+        page.RowStyles[1] = new RowStyle(SizeType.Absolute, layout.ShowMetrics ? this.Px(102) : 0);
         _dashBottom.Visible = layout.ShowBottom;
-        page.RowStyles[2] = new RowStyle(SizeType.Absolute, layout.ShowBottom ? 246 : 300);
+        page.RowStyles[2] = new RowStyle(SizeType.Absolute, this.Px(layout.ShowBottom ? 246 : 300));
         page.RowStyles[3] = new RowStyle(SizeType.Percent, 100);
         _dashInsightsCard.Visible = layout.ShowInsights;
         _dashBottom.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, layout.ShowInsights ? 62 : 100);

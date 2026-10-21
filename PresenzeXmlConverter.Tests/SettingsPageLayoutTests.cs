@@ -1,139 +1,58 @@
 namespace PresenzeXmlConverter.Tests;
 
 /// <summary>
-/// Le schede del dialogo Impostazioni non devono mai chiedere più spazio di
-/// quello che hanno: una scheda più bassa delle righe che contiene schiaccia i
-/// campi e taglia l'ultima riga di testo (era già successo una volta,
-/// con una scheda alta 150 px per righe che ne chiedevano 142). Tenendo
-/// le altezze in <see cref="SettingsPageLayout"/> il conto si verifica qui,
-/// senza schermo, e il dialogo non ha bisogno di barre di scorrimento: quelle
-/// native di Windows restano grigie e fuori tema.
+/// Le schede del dialogo Impostazioni non devono mai chiedere più spazio di quello che hanno. Prima ogni
+/// riga aveva un'altezza in pixel scritta a mano (e un conto per verificarla): bastava un carattere più
+/// grande, per esempio con la scala dello schermo al 125%, perché il titolo si sovrapponesse al sottotitolo
+/// e l'ultima riga di testo venisse tagliata. Ora le righe sono alte quanto il loro contenuto
+/// (<c>SizeType.AutoSize</c>): qui si verificano i limiti della finestra e che nessuna riga sia tornata fissa;
+/// che ogni scheda entri davvero lo misura il test grafico, sul dialogo vero.
 /// </summary>
 public class SettingsPageLayoutTests
 {
-    /// <summary>Altezza del campo di testo arrotondato, senza i suoi margini.</summary>
-    private const int FieldHeight = 36;
-
-    /// <summary>Margini verticali del campo (2 sopra, 8 sotto): li dichiara il dialogo.</summary>
-    private const int FieldMargins = 10;
-
-    /// <summary>Altezza di un pulsante compatto.</summary>
-    private const int ButtonHeight = 34;
-
-    /// <summary>Altezza di una riga di testo con i font piccoli della palette.</summary>
-    private const int TextLineHeight = 16;
-
     /// <summary>Altezza utile di un'area di lavoro 1024x768 con la barra delle applicazioni.</summary>
     private const int SmallestWorkingArea = 728;
 
     [Fact]
-    public void EveryPageFitsAtTheMinimumWindowSize()
-    {
-        var clientHeight = SettingsPageLayout.MinimumWindowHeight - SettingsPageLayout.WindowFrameHeight;
-        foreach (var page in SettingsPageLayout.Pages)
-        {
-            Assert.True(
-                SettingsPageLayout.Fits(clientHeight, page),
-                $"Scheda alta {SettingsPageLayout.PageHeight(page)} px in uno spazio di " +
-                $"{SettingsPageLayout.AvailablePageHeight(clientHeight)} px: servirebbe una barra di scorrimento.");
-        }
-    }
-
-    [Fact]
-    public void EveryPageFitsAtTheDefaultWindowSize()
-    {
-        foreach (var page in SettingsPageLayout.Pages)
-        {
-            Assert.True(
-                SettingsPageLayout.Fits(SettingsPageLayout.DefaultClientHeight, page),
-                $"La scheda da {SettingsPageLayout.PageHeight(page)} px non entra nella finestra predefinita.");
-        }
-    }
-
-    [Fact]
-    public void EveryRowLeavesRoomForWhatItHosts()
-    {
-        // Campi, pulsanti e caselle: le righe devono contenere il controllo e i suoi margini.
-        Assert.True(SettingsPageLayout.FieldRow >= FieldHeight + FieldMargins);
-        Assert.True(SettingsPageLayout.ActionRow >= ButtonHeight);
-        Assert.True(SettingsPageLayout.CheckRow >= TextLineHeight);
-        Assert.True(SettingsPageLayout.HolidaysRow >= FieldHeight + FieldMargins);
-
-        // Righe di testo: mai meno di una riga, e per i testi guida almeno due,
-        // perché una frase lunga va a capo.
-        Assert.True(SettingsPageLayout.HintRow >= TextLineHeight * 2);
-        Assert.True(SettingsPageLayout.FieldLabelRow >= TextLineHeight * 2);
-        Assert.True(SettingsPageLayout.NoteRow >= TextLineHeight * 2);
-        Assert.True(SettingsPageLayout.StatusRow >= TextLineHeight * 2);
-        Assert.True(SettingsPageLayout.SignatureRow >= TextLineHeight);
-    }
-
-    [Fact]
-    public void EveryDeclaredRowIsPositiveAndThePaddingIsEven()
-    {
-        foreach (var page in SettingsPageLayout.Pages)
-        {
-            Assert.NotEmpty(page);
-            Assert.All(page, height => Assert.True(height > 0, $"Riga di altezza {height}."));
-        }
-        Assert.True(SettingsPageLayout.PagePadding > 0);
-        Assert.Equal(0, SettingsPageLayout.PagePadding % 2);
-    }
-
-    [Fact]
     public void TheDialogFitsOnTheSmallestScreenUsedByTheRunner()
     {
-        // Una finestra più alta dell'area di lavoro verrebbe tagliata dal sistema.
         Assert.True(
             SettingsPageLayout.MinimumWindowHeight + SettingsPageLayout.WindowFrameHeight <= SmallestWorkingArea,
             "La finestra minima non entrerebbe in un'area di lavoro 1024x768.");
         Assert.True(
             SettingsPageLayout.DefaultClientHeight + SettingsPageLayout.WindowFrameHeight <= SmallestWorkingArea,
             "La finestra predefinita non entrerebbe in un'area di lavoro 1024x768.");
+        Assert.True(SettingsPageLayout.DefaultClientWidth >= SettingsPageLayout.MinimumWindowWidth);
+        Assert.True(SettingsPageLayout.DefaultClientHeight >= SettingsPageLayout.MinimumWindowHeight);
     }
 
     [Fact]
-    public void TheFooterLeavesRoomForItsButtons()
+    public void TheButtonsAreTallEnoughForTheirText()
     {
-        // Il piè di pagina è fatto dal messaggio di errore più i pulsanti: con una
-        // riga sola per entrambi i pulsanti da 34 px finivano in 30 px utili e il
-        // bordo inferiore veniva tagliato.
-        Assert.Equal(
-            SettingsPageLayout.FooterMessageRow + SettingsPageLayout.ActionButtonHeight,
-            SettingsPageLayout.FooterRow);
-        Assert.True(SettingsPageLayout.FooterMessageRow >= TextLineHeight);
+        Assert.True(SettingsPageLayout.ActionButtonHeight >= 34);
     }
 
     /// <summary>
-    /// Ogni scheda si costruisce dalle righe condivise e il dialogo non usa
-    /// barre di scorrimento: sono due proprietà del sorgente, non del singolo
-    /// calcolo, e vanno verificate sul file vero (come per la finestra principale).
+    /// Nessuna riga a altezza fissa e nessuna barra di scorrimento: sono proprietà del sorgente, non del
+    /// singolo calcolo, e vanno verificate sul file vero (la guardia gira in CI, dove i sorgenti sono accanto ai test).
     /// </summary>
     [Fact]
-    public void TheDialogBuildsEveryPageFromTheSharedLayoutAndNeverScrolls()
+    public void TheDialogHasNoFixedRowHeightsAndNeverScrolls()
     {
         var path = Path.Combine(FindSourceRoot(), "PresenzeXmlConverter", "SettingsDialog.cs");
         Assert.True(File.Exists(path), $"Sorgente del dialogo non trovato: {path}");
         var text = File.ReadAllText(path);
 
-        foreach (var page in new[] { "ConversionRows", "UpdateRows", "NotificationRows", "GeneralRows" })
-        {
-            Assert.Contains($"CreatePage(SettingsPageLayout.{page})", text, StringComparison.Ordinal);
-        }
-        // Anche il contorno della finestra (intestazione, piè di pagina, spaziatura
-        // della card) arriva da lì: i conti e il dialogo non possono separarsi.
-        foreach (var shared in new[] { "HeaderRow", "FooterRow", "FooterMessageRow", "ActionButtonHeight", "ShellPadding", "WindowPadding" })
-        {
-            Assert.Contains($"SettingsPageLayout.{shared}", text, StringComparison.Ordinal);
-        }
+        Assert.DoesNotContain("SizeType.Absolute", text, StringComparison.Ordinal);
+        Assert.Equal(5, System.Text.RegularExpressions.Regex.Matches(text, @"CreatePage\(\)").Count - 1);
         Assert.DoesNotContain("AutoScroll = true", text, StringComparison.Ordinal);
         Assert.DoesNotContain("ScrollBars.Vertical", text, StringComparison.Ordinal);
+        // Niente caselle e pulsanti radio di Windows: gli interruttori e il controllo segmentato dell'app.
+        Assert.DoesNotContain("new CheckBox", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("new RadioButton", text, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// Radice dei sorgenti: la stessa ricerca usata dalle altre guardie, così la
-    /// verifica gira in CI (dove i file veri sono accanto ai test).
-    /// </summary>
+    /// <summary>Radice dei sorgenti: la stessa ricerca usata dalle altre guardie.</summary>
     private static string FindSourceRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

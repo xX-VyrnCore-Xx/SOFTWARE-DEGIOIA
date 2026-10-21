@@ -24,6 +24,7 @@ internal sealed class ColumnMappingDialog : Form
         ClientSize = new Size(700, 396);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        UiScale.GuardAutoScale(this);
         Theme.StyleDialog(this);
 
         // Layout a righe fisse: etichetta e casella non possono mai incolonnarsi

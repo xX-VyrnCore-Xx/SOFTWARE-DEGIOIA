@@ -19,7 +19,6 @@ internal sealed class SurfacePanel : Panel
         BackColor = Theme.Surface;
         DoubleBuffered = true;
         ResizeRedraw = true;
-        UpdateRoundedRegion();
     }
 
     /// <summary>Raggio d'angolo in pixel.</summary>
@@ -29,7 +28,6 @@ internal sealed class SurfacePanel : Panel
         set
         {
             _radius = value;
-            UpdateRoundedRegion();
             Invalidate();
         }
     }
@@ -56,10 +54,18 @@ internal sealed class SurfacePanel : Panel
         }
     }
 
-    protected override void OnResize(EventArgs eventArgs)
+    /// <summary>
+    /// Gli angoli non si ritagliano con una regione (il bordo di una regione è a scalini, senza
+    /// antialiasing): lo sfondo prende il colore di ciò che sta dietro e la card si dipinge sopra,
+    /// con gli angoli lisci.
+    /// </summary>
+    // Il raggio segue la scala dello schermo come tutto il resto.
+    private int R => this.Px(_radius);
+
+    protected override void OnPaintBackground(PaintEventArgs eventArgs)
     {
-        base.OnResize(eventArgs);
-        UpdateRoundedRegion();
+        using var behind = new SolidBrush(Parent?.BackColor ?? Theme.Canvas);
+        eventArgs.Graphics.FillRectangle(behind, ClientRectangle);
     }
 
     protected override void OnPaint(PaintEventArgs eventArgs)
@@ -73,7 +79,12 @@ internal sealed class SurfacePanel : Panel
         eventArgs.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.RoundedRectangle(
             new Rectangle(0, 0, ClientSize.Width - 1, ClientSize.Height - 1),
-            _radius);
+            R);
+        if (!(Theme.IsGlass && _fill.ToArgb() == Theme.Surface.ToArgb()))
+        {
+            using var body = new SolidBrush(_fill);
+            eventArgs.Graphics.FillPath(body, path);
+        }
         if (Theme.IsGlass && _fill.ToArgb() == Theme.Surface.ToArgb())
         {
             PaintGlass(eventArgs.Graphics, path);
@@ -83,24 +94,14 @@ internal sealed class SurfacePanel : Panel
         eventArgs.Graphics.DrawPath(pen, path);
         // Sulle card di superficie, un rilievo morbido sul bordo inferiore (tre strati sempre più tenui): l'effetto
         // di un'ombra vera, che resta dentro i bordi del pannello. Nel tema scuro, invece, un filo di luce in alto.
-        if (_fill.ToArgb() == Theme.Surface.ToArgb() && _radius >= 8 && ClientSize.Width > _radius * 2 + 4)
+        if (_fill.ToArgb() == Theme.Surface.ToArgb() && R >= 8 && ClientSize.Width > R * 2 + 4)
         {
-            var left = _radius;
-            var right = ClientSize.Width - _radius - 1;
+            var left = R;
+            var right = ClientSize.Width - R - 1;
             if (Theme.IsDark)
             {
                 using var light = new Pen(Color.FromArgb(16, 255, 255, 255), 1f);
                 eventArgs.Graphics.DrawLine(light, left, 1.5f, right, 1.5f);
-            }
-            else
-            {
-                var alphas = new[] { 26, 14, 6 };
-                for (var layer = 0; layer < alphas.Length; layer++)
-                {
-                    using var edge = new Pen(Color.FromArgb(alphas[layer], 16, 32, 56), 1f);
-                    var y = ClientSize.Height - 2f - layer;
-                    eventArgs.Graphics.DrawLine(edge, left + layer, y, right - layer, y);
-                }
             }
         }
     }
@@ -135,22 +136,10 @@ internal sealed class SurfacePanel : Panel
         {
             graphics.DrawPath(pen, path);
         }
-        if (ClientSize.Width > (_radius * 2) + 4)
+        if (ClientSize.Width > (R * 2) + 4)
         {
             using var highlight = new Pen(Color.FromArgb(46, 255, 255, 255), 1f);
-            graphics.DrawLine(highlight, _radius, 1.5f, ClientSize.Width - _radius - 1, 1.5f);
+            graphics.DrawLine(highlight, R, 1.5f, ClientSize.Width - R - 1, 1.5f);
         }
-    }
-
-    private void UpdateRoundedRegion()
-    {
-        if (ClientSize.Width < 2 || ClientSize.Height < 2)
-        {
-            return;
-        }
-        using var path = Theme.RoundedRectangle(
-            new Rectangle(0, 0, ClientSize.Width, ClientSize.Height),
-            _radius);
-        Region = new Region(path);
     }
 }

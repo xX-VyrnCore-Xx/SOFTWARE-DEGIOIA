@@ -23,6 +23,7 @@ internal sealed class ReleaseNotesDialog : Form
         Size = new Size(760, 600);
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        UiScale.GuardAutoScale(this);
         Theme.StyleDialog(this);
 
         var root = new TableLayoutPanel
