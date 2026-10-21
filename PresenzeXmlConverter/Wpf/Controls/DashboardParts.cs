@@ -252,18 +252,18 @@ internal sealed class TileButton : Border
             Height = 40,
             CornerRadius = new CornerRadius(12),
             Background = Ui.Brush("Brush.BrandSoft"),
-            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
             Child = _icon
         };
-        var text = new StackPanel { Margin = new Thickness(14, 0, 0, 0) };
-        text.Children.Add(Ui.Text(title, 15, FontWeights.SemiBold));
+        var text = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+        text.Children.Add(Ui.Text(title, 15, FontWeights.SemiBold, trimming: TextTrimming.CharacterEllipsis));
         var sub = Ui.Text(subtitle, 13, ink: "Brush.Muted", wrap: true);
         sub.Margin = new Thickness(0, 2, 0, 0);
         text.Children.Add(sub);
-        var row = Ui.Columns(GridLength.Auto, new GridLength(1, GridUnitType.Star));
-        row.Children.Add(_chip.At(0, 0));
-        row.Children.Add(text.At(0, 1));
-        Child = row;
+        var column = new StackPanel();
+        column.Children.Add(_chip);
+        column.Children.Add(text);
+        Child = column;
 
         MouseEnter += (_, _) => Hover(true);
         MouseLeave += (_, _) => Hover(false);

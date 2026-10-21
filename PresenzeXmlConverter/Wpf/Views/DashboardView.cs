@@ -56,7 +56,7 @@ internal sealed class DashboardView : ScrollViewer
         Security = new StatusRow("Protezione dati", Glyph.Shield);
         Database.SetState("In controllo…", UiTone.Neutral);
         Updates.SetState("In controllo…", UiTone.Neutral);
-        Security.SetState("Archivio protetto sul tuo PC", UiTone.Good);
+        Security.SetState("Dati solo su questo PC", UiTone.Good);
 
         var status = new StackPanel();
         status.Children.Add(Ui.Text("Stato", 18, FontWeights.SemiBold).WithMargin(new Thickness(0, 0, 0, 16)));
@@ -78,7 +78,7 @@ internal sealed class DashboardView : ScrollViewer
         };
         foreach (var item in items)
         {
-            var tile = new TileButton(item.Title, item.Subtitle, item.Glyph) { Margin = new Thickness(0, 0, 14, 0) };
+            var tile = new TileButton(item.Title, item.Subtitle, item.Glyph) { Margin = new Thickness(0, 0, item.Section == 4 ? 0 : 14, 0) };
             var section = item.Section;
             tile.Clicked += (_, _) => openSection(section);
             tiles.Children.Add(tile);

@@ -28,6 +28,16 @@ using Application = System.Windows.Application;
 /// Finestra principale della nuova interfaccia: a sinistra la barra laterale con il marchio e le sezioni,
 /// a destra la pagina scelta. Il cambio di pagina è una dissolvenza con un piccolo scorrimento.
 /// </summary>
+internal static class ShellAlign
+{
+    public static T AlignTop<T>(this T element)
+        where T : FrameworkElement
+    {
+        element.VerticalAlignment = VerticalAlignment.Top;
+        return element;
+    }
+}
+
 internal sealed class ShellWindow : Window
 {
     private static readonly (string Title, Glyph Glyph)[] Sections =
@@ -54,6 +64,7 @@ internal sealed class ShellWindow : Window
         Height = 800;
         FontFamily = Ui.Font;
         Background = Ui.Brush("Brush.Canvas");
+        Foreground = Ui.Brush("Brush.Ink");
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
@@ -143,6 +154,6 @@ internal sealed class ShellWindow : Window
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",
-            Ui.Card(Ui.Text("In arrivo", 16, FontWeights.SemiBold), new Thickness(28)))
+            Ui.Card(Ui.Text("In arrivo", 16, FontWeights.SemiBold), new Thickness(28)).WithMargin(new Thickness(0, 0, 0, 24)).AlignTop())
     };
 }

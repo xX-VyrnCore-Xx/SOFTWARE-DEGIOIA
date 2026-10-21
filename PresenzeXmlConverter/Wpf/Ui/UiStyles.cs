@@ -72,7 +72,6 @@ internal static class UiStyles
   <Style TargetType="TextBlock">
     <Setter Property="FontFamily" Value="{{{UiStyles.FontStack}}}"/>
     <Setter Property="FontSize" Value="14"/>
-    <Setter Property="Foreground" Value="{{{p.Ink}}}"/>
     <Setter Property="TextTrimming" Value="None"/>
   </Style>
 
