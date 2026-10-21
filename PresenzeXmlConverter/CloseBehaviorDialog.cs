@@ -22,9 +22,6 @@ internal sealed class CloseBehaviorDialog : Form
         UiScale.GuardAutoScale(this);
         Theme.StyleDialog(this);
         BackColor = Theme.Surface;
-        // La finestra è alta quanto il suo contenuto: righe di testo e pulsanti non hanno altezze fisse.
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
         var root = new TableLayoutPanel
         {
@@ -86,6 +83,17 @@ internal sealed class CloseBehaviorDialog : Form
         _remember.Font = Theme.Fonts.Small;
         _remember.Margin = new Padding(0, 4, 0, 0);
         root.Controls.Add(_remember, 0, 4);
+
+        // Larghezza fissa e altezza quanto il contenuto: la finestra si adatta al testo (e alla scala dello schermo)
+        // senza altezze scritte a mano per le righe. Va fatto a finestra aperta, quando la scala è definitiva.
+        Shown += (_, _) =>
+        {
+            var needed = root.GetPreferredSize(new Size(ClientSize.Width, 0)).Height;
+            if (needed != ClientSize.Height)
+            {
+                ClientSize = new Size(ClientSize.Width, needed);
+            }
+        };
 
         AcceptButton = trayButton;
         // Esc e la X non devono uscire dal programma: sono un ripensamento, e la
