@@ -33,7 +33,7 @@ internal static class WpfApp
     /// </summary>
     public static Application EnsureApplication()
     {
-        var application = Application.Current ?? new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+        var application = Application.Current ?? new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         if (application.TryFindResource("Brush.Ink") is null)
         {
             application.Resources.MergedDictionaries.Add(UiStyles.Create(UiPalette.Current));

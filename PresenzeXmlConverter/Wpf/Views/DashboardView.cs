@@ -29,7 +29,7 @@ using Application = System.Windows.Application;
 /// </summary>
 internal sealed class DashboardView : ScrollViewer
 {
-    public DashboardView(Action<int> openSection)
+    public DashboardView(Action<int> openSection, Action<string?> importRequested)
     {
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
@@ -40,7 +40,9 @@ internal sealed class DashboardView : ScrollViewer
         Zone.ShowEmpty();
 
         var choose = new Button { Content = "Scegli il foglio Excel", Style = Ui.Style("Primary"), MinWidth = 180 };
-        choose.Click += (_, _) => Zone.RaiseClicked();
+        choose.Click += (_, _) => importRequested(null);
+        Zone.Clicked += (_, _) => importRequested(null);
+        Zone.FileDropped += (_, path) => importRequested(path);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 18, 0, 0) };
         actions.Children.Add(choose);
 

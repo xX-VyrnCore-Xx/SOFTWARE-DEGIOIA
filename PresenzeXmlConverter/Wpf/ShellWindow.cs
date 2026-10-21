@@ -54,8 +54,15 @@ internal sealed class ShellWindow : Window
     private readonly ContentControl _host = new() { Focusable = false };
     private readonly UIElement?[] _pages = new UIElement?[Sections.Length];
 
-    public ShellWindow()
+    private readonly ConversionService _service;
+    private ConversionView? _conversion;
+
+    private readonly Func<IConversionPrompts>? _prompts;
+
+    public ShellWindow(ConversionService service, Func<IConversionPrompts>? prompts = null)
     {
+        _service = service;
+        _prompts = prompts;
         var version = typeof(ShellWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
         Title = $"Vyrn Presence {version}";
         MinWidth = 1000;
@@ -104,18 +111,28 @@ internal sealed class ShellWindow : Window
         };
         sidebar.Children.Add(classic.At(2, 0));
 
-        var root = Ui.Columns(Ui.Px(248), Ui.Star());
+        var root = Ui.Columns(Ui.Px(232), Ui.Star());
         root.Children.Add(sidebar.At(0, 0));
         root.Children.Add(new Border
         {
             BorderBrush = Ui.Brush("Brush.Divider"),
             BorderThickness = new Thickness(1, 0, 0, 0),
-            Child = _host.WithMargin(new Thickness(36, 32, 36, 0))
+            Child = _host.WithMargin(new Thickness(28, 28, 28, 0))
         }.At(0, 1));
         Content = root;
 
         Loaded += (_, _) => _nav.Select(0);
     }
+
+    /// <summary>Apre la schermata di conversione e importa il foglio (se il percorso è nullo ne chiede uno).</summary>
+    public async Task ImportAsync(string? path)
+    {
+        Navigate(1);
+        var view = _conversion ??= new ConversionView(_service, () => this, _prompts);
+        await view.ImportAsync(path);
+    }
+
+    internal ConversionView? Conversion => _conversion;
 
     public int SectionCount => Sections.Length;
 
@@ -150,7 +167,8 @@ internal sealed class ShellWindow : Window
 
     private UIElement CreatePage(int index) => index switch
     {
-        0 => new DashboardView(Navigate),
+        0 => new DashboardView(Navigate, path => _ = ImportAsync(path)),
+        1 => _conversion ??= new ConversionView(_service, () => this, _prompts),
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",

@@ -286,10 +286,10 @@ internal sealed class SettingsDialog : Form
             "Come vengono distribuite le ore della richiesta sui giorni lavorativi."));
 
         AddRow(body, CreateFieldLabel(
-            $"Ore di una giornata standard  (in {_referenceYear} la durata della richiesta viene divisa sui giorni lavorativi)"));
+            $"Ore di una giornata standard (in {_referenceYear} la durata della richiesta viene divisa sui giorni lavorativi)"));
         _hours.MaxLength = 5;
         _hours.Dock = DockStyle.Fill;
-        _hours.InputFont = Theme.Fonts.Field;
+        _hours.InputFont = Theme.Fonts.Ui;
         _hours.Placeholder = "es. 8  oppure  7,5";
         _hours.Value = Options.HoursPerDay.ToString("0.##", CultureInfo.CurrentCulture);
         _hours.Input.AccessibleName = "Ore di una giornata standard";
@@ -376,7 +376,7 @@ internal sealed class SettingsDialog : Form
         AddRow(body, CreateFieldLabel("Nome dell'elemento radice del file XML (la prima riga dopo <?xml …?>)"));
         _xmlRoot.MaxLength = 64;
         _xmlRoot.Dock = DockStyle.Fill;
-        _xmlRoot.InputFont = Theme.Fonts.Field;
+        _xmlRoot.InputFont = Theme.Fonts.Ui;
         _xmlRoot.Placeholder = "es. Dipendenti";
         _xmlRoot.Value = Format.RootElement;
         _xmlRoot.Input.AccessibleName = "Nome dell'elemento radice";
@@ -386,7 +386,7 @@ internal sealed class SettingsDialog : Form
         AddRow(body, CreateFieldLabel("Spazio dei nomi (xmlns) dell'elemento radice: lascia vuoto se il file non ne ha"));
         _xmlNamespace.MaxLength = 300;
         _xmlNamespace.Dock = DockStyle.Fill;
-        _xmlNamespace.InputFont = Theme.Fonts.Small;
+        _xmlNamespace.InputFont = Theme.Fonts.Ui;
         _xmlNamespace.Placeholder = "es. http://www.esempio.it/schema";
         _xmlNamespace.Value = Format.Namespace;
         _xmlNamespace.Input.AccessibleName = "Spazio dei nomi del file XML";
@@ -536,7 +536,7 @@ internal sealed class SettingsDialog : Form
             "Cosa fa il programma quando chiudi la finestra, dove tiene i dati e come sono protetti."));
 
         AddRow(body, CreateFieldLabel(
-            "Quando chiudi la finestra con la X  (in background nel tray ricevi gli avvisi degli aggiornamenti)"));
+            "Quando chiudi la finestra con la X (in background nel tray ricevi gli avvisi degli aggiornamenti)"));
         _closeChoice.AddItem("Chiedi ogni volta", string.Empty);
         _closeChoice.AddItem("Resta in background (tray)", "tray");
         _closeChoice.AddItem("Esci dal programma", "exit");
@@ -547,7 +547,7 @@ internal sealed class SettingsDialog : Form
         AddRow(body, _closeChoice);
 
         AddRow(body, CreateFieldLabel(
-            "Aspetto dell'app  (la scelta si applica al prossimo avvio: chiudi e riapri il programma)"));
+            "Aspetto dell'app (la scelta si applica al prossimo avvio: chiudi e riapri il programma)"));
         _themeChoice.AddItem("Chiaro", ThemeMode.Light);
         _themeChoice.AddItem("Scuro", ThemeMode.Dark);
         _themeChoice.AddItem("Come Windows", ThemeMode.System);
@@ -662,7 +662,7 @@ internal sealed class SettingsDialog : Form
             "Token personale (facoltativo, se quello incluso è scaduto). Fine-grained, permesso Contents → Read-only."));
         _token.MaxLength = 400;
         _token.Dock = DockStyle.Fill;
-        _token.InputFont = Theme.Fonts.Field;
+        _token.InputFont = Theme.Fonts.Ui;
         _token.Placeholder = "github_pat_… oppure ghp_…";
         _token.Input.UseSystemPasswordChar = true;
         _token.Input.Text = UpdateService.ResolveUserToken() ?? string.Empty;

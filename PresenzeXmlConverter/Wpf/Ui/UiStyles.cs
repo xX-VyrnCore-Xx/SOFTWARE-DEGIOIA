@@ -323,6 +323,94 @@ internal static class UiStyles
     </Style.Triggers>
   </Style>
 
+  <!-- Tabelle -->
+  <Style TargetType="DataGridColumnHeader">
+    <Setter Property="Foreground" Value="{{{p.Muted}}}"/>
+    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Height" Value="38"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="DataGridColumnHeader">
+          <Border Background="{{{p.Sunken}}}" Padding="12,0">
+            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="DataGridCell">
+    <Setter Property="Foreground" Value="{{{p.Ink}}}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="DataGridCell">
+          <Border Background="Transparent" Padding="12,0" SnapsToDevicePixels="True">
+            <ContentPresenter VerticalAlignment="Center"/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="DataGridRow">
+    <Setter Property="Background" Value="{{{p.Surface}}}"/>
+    <Setter Property="MinHeight" Value="38"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="ValidationErrorTemplate" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="DataGridRow">
+          <Border Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+            <SelectiveScrollingGrid>
+              <SelectiveScrollingGrid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </SelectiveScrollingGrid.ColumnDefinitions>
+              <DataGridCellsPresenter Grid.Column="1" ItemsPanel="{TemplateBinding ItemsPanel}"
+                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+            </SelectiveScrollingGrid>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Style.Triggers>
+      <Trigger Property="AlternationIndex" Value="1">
+        <Setter Property="Background" Value="{{{p.AltRow}}}"/>
+      </Trigger>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="{{{p.HoverRow}}}"/>
+      </Trigger>
+      <Trigger Property="IsSelected" Value="True">
+        <Setter Property="Background" Value="{{{p.BrandLite}}}"/>
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style TargetType="DataGrid">
+    <Setter Property="Background" Value="{{{p.Surface}}}"/>
+    <Setter Property="Foreground" Value="{{{p.Ink}}}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="FontFamily" Value="{{{UiStyles.FontStack}}}"/>
+    <Setter Property="FontSize" Value="13.5"/>
+    <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+    <Setter Property="HorizontalGridLinesBrush" Value="{{{p.Divider}}}"/>
+    <Setter Property="HeadersVisibility" Value="Column"/>
+    <Setter Property="RowHeaderWidth" Value="0"/>
+    <Setter Property="AutoGenerateColumns" Value="False"/>
+    <Setter Property="CanUserAddRows" Value="False"/>
+    <Setter Property="CanUserDeleteRows" Value="False"/>
+    <Setter Property="CanUserResizeRows" Value="False"/>
+    <Setter Property="IsReadOnly" Value="True"/>
+    <Setter Property="SelectionMode" Value="Single"/>
+    <Setter Property="SelectionUnit" Value="FullRow"/>
+    <Setter Property="AlternationCount" Value="2"/>
+    <Setter Property="EnableRowVirtualization" Value="True"/>
+    <Setter Property="ColumnHeaderHeight" Value="38"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+  </Style>
+
   <!-- Suggerimenti -->
   <Style TargetType="ToolTip">
     <Setter Property="HasDropShadow" Value="False"/>

@@ -15,7 +15,8 @@ internal static class WpfLauncher
         try
         {
             var app = WpfApp.EnsureApplication();
-            var window = new ShellWindow();
+            var service = new ConversionService(LocalDatabase.OpenWithRecovery().Database);
+            var window = new ShellWindow(service);
             window.ContentRendered += (_, _) => shown = true;
             instance.OnActivationRequested(() => window.Dispatcher.BeginInvoke(() =>
             {
@@ -25,6 +26,8 @@ internal static class WpfLauncher
                 }
                 window.Activate();
             }));
+            // L'app finisce con la finestra principale (nei test resta aperta: un'Application si crea una volta sola).
+            app.ShutdownMode = ShutdownMode.OnMainWindowClose;
             app.Run(window);
             return true;
         }

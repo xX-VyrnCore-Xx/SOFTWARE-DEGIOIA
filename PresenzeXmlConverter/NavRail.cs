@@ -10,7 +10,8 @@ internal enum NavIcon
     Company,
     Codes,
     History,
-    Activity
+    Activity,
+    Pdf
 }
 
 /// <summary>
@@ -359,6 +360,7 @@ internal sealed class NavRail : Control
         NavIcon.Company => Glyph.Building,
         NavIcon.Codes => Glyph.List,
         NavIcon.Activity => Glyph.File,
+        NavIcon.Pdf => Glyph.Folder,
         _ => Glyph.Clock
     };
 

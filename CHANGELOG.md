@@ -4,7 +4,13 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.58.0] - Corrente
+## [1.59.0] - Corrente
+
+### 📄 «Rinomina PDF» nella barra laterale e Impostazioni più coerenti
+- **Rinomina PDF è una sezione della barra laterale** (con la sua pagina nella finestra, non più un dialogo a parte): scegli o trascini lo ZIP, controlli la tabella e salvi. La scorciatoia in Dashboard e il comando Ctrl+K aprono la stessa sezione
+- **Impostazioni**: tutti i campi di testo hanno lo stesso carattere e la stessa altezza (prima alcuni erano in grassetto grande e altri piccoli, e il testo guida sembrava testo vero) e sono spariti i doppi spazi nelle etichette
+
+## [1.58.0]
 
 ### ✨ Nuova interfaccia (anteprima), opzionale e con ripiego automatico
 - **Interfaccia nuova in WPF**: tavolozza chiara e arioso stile macOS, animazioni fluide (barra laterale con pillola che scorre, dissolvenza fra le pagine, riquadri che si sollevano al passaggio del mouse, interruttori animati), barre di scorrimento sottili. In questa versione sono pronte la **barra laterale** e la **Dashboard** (foglio da trascinare, tre passi, stato del sistema, scorciatoie); le altre sezioni arrivano nelle prossime versioni
