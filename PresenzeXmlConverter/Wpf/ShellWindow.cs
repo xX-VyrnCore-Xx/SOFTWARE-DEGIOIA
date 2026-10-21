@@ -57,9 +57,12 @@ internal sealed class ShellWindow : Window
     private readonly ConversionService _service;
     private ConversionView? _conversion;
 
-    public ShellWindow(ConversionService service)
+    private readonly Func<IConversionPrompts>? _prompts;
+
+    public ShellWindow(ConversionService service, Func<IConversionPrompts>? prompts = null)
     {
         _service = service;
+        _prompts = prompts;
         var version = typeof(ShellWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
         Title = $"Vyrn Presence {version}";
         MinWidth = 1000;
@@ -125,7 +128,7 @@ internal sealed class ShellWindow : Window
     public async Task ImportAsync(string? path)
     {
         Navigate(1);
-        var view = _conversion ??= new ConversionView(_service, () => this);
+        var view = _conversion ??= new ConversionView(_service, () => this, _prompts);
         await view.ImportAsync(path);
     }
 
@@ -165,7 +168,7 @@ internal sealed class ShellWindow : Window
     private UIElement CreatePage(int index) => index switch
     {
         0 => new DashboardView(Navigate, path => _ = ImportAsync(path)),
-        1 => _conversion ??= new ConversionView(_service, () => this),
+        1 => _conversion ??= new ConversionView(_service, () => this, _prompts),
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",

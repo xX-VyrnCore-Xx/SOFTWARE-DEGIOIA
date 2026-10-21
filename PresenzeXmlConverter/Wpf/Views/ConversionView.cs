@@ -44,6 +44,7 @@ internal sealed class ConversionView : Grid
 
     private readonly ConversionService _service;
     private readonly Func<Window?> _owner;
+    private readonly Func<IConversionPrompts> _prompts;
     private readonly DropZoneView _drop = new();
     private readonly StepperBar _stepper = new() { Margin = new Thickness(0, 18, 0, 0) };
     private readonly TextBox _company = new();
@@ -63,10 +64,11 @@ internal sealed class ConversionView : Grid
     private int _tab;
     private bool _working;
 
-    public ConversionView(ConversionService service, Func<Window?> owner)
+    public ConversionView(ConversionService service, Func<Window?> owner, Func<IConversionPrompts>? prompts = null)
     {
         _service = service;
         _owner = owner;
+        _prompts = prompts ?? (() => new WpfPrompts(owner()!));
         _status = Ui.Text("Importa un foglio Excel per cominciare.", 13.5, ink: "Brush.Muted", wrap: true);
         _findingsSummary = Ui.Text("Nessuna anteprima ancora.", 13.5, ink: "Brush.Muted", wrap: true);
 
@@ -129,7 +131,7 @@ internal sealed class ConversionView : Grid
         }
         await Work("Lettura del file Excel in corso…", async () =>
         {
-            var loaded = await _service.LoadAsync(path, new WpfPrompts(_owner()!));
+            var loaded = await _service.LoadAsync(path, _prompts());
             if (!loaded)
             {
                 return;
@@ -149,7 +151,7 @@ internal sealed class ConversionView : Grid
         }
         await Work("Generazione dei movimenti e dell'XML in corso…", async () =>
         {
-            var outcome = await _service.GenerateAsync(new WpfPrompts(_owner()!));
+            var outcome = await _service.GenerateAsync(_prompts());
             switch (outcome)
             {
                 case PreviewOutcome.Cancelled:
@@ -178,7 +180,7 @@ internal sealed class ConversionView : Grid
             return;
         }
         var previous = _service.FindPreviousDelivery();
-        if (previous is not null && !new WpfPrompts(_owner()!).ConfirmAlreadyDelivered(previous))
+        if (previous is not null && !_prompts().ConfirmAlreadyDelivered(previous))
         {
             return;
         }
@@ -208,7 +210,7 @@ internal sealed class ConversionView : Grid
         }
         catch (Exception exception) when (ConversionService.IsExpectedInputError(exception) || exception is AggregateException)
         {
-            MessageBox.Show(_owner(), exception.Message, "Salvataggio XML non riuscito", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _prompts().ShowProblem("Salvataggio XML non riuscito", exception.Message);
         }
     }
 
@@ -226,7 +228,7 @@ internal sealed class ConversionView : Grid
                                           exception is InvalidOperationException or System.Net.Http.HttpRequestException)
         {
             SetStatus(exception.Message);
-            MessageBox.Show(_owner(), exception.Message, failureTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+            _prompts().ShowProblem(failureTitle, exception.Message);
         }
         finally
         {

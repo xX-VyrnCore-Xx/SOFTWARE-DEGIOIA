@@ -17,6 +17,9 @@ internal interface IConversionPrompts
 
     /// <summary>Gli stessi movimenti sono già stati esportati: salvare di nuovo?</summary>
     bool ConfirmAlreadyDelivered(ExportRecord previous);
+
+    /// <summary>Un'operazione non è riuscita: lo si dice all'utente (non blocca nulla se l'interfaccia non c'è).</summary>
+    void ShowProblem(string title, string message);
 }
 
 /// <summary>Esito di «Genera anteprima».</summary>

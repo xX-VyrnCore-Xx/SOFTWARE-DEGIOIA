@@ -74,4 +74,7 @@ internal sealed class WpfPrompts : IConversionPrompts
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning,
             MessageBoxResult.No) == MessageBoxResult.Yes;
+
+    public void ShowProblem(string title, string message) =>
+        MessageBox.Show(_owner, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
 }

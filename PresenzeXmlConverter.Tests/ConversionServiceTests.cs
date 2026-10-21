@@ -26,6 +26,10 @@ public class ConversionServiceTests
         }
 
         public bool ConfirmAlreadyDelivered(ExportRecord previous) => true;
+
+        public void ShowProblem(string title, string message)
+        {
+        }
     }
 
     [Fact]
@@ -109,5 +113,9 @@ public class ConversionServiceTests
         public bool CompleteMappings(IReadOnlyList<string> missingEmployees, IReadOnlyList<string> missingPolicies, LocalDatabase database) => false;
 
         public bool ConfirmAlreadyDelivered(ExportRecord previous) => false;
+
+        public void ShowProblem(string title, string message)
+        {
+        }
     }
 }

@@ -162,7 +162,8 @@ public class WpfShellTests
             }
             service.Unload();
 
-            var window = new ShellWindow(service)
+            var prompts = new NoPrompts();
+            var window = new ShellWindow(service, () => prompts)
             {
                 WindowStartupLocation = WindowStartupLocation.Manual,
                 Left = -4000,
@@ -171,11 +172,13 @@ public class WpfShellTests
             window.Show();
             WpfTestHost.Pump();
             WpfTestHost.Await(window.ImportAsync(SampleWorkbook.Path));
+            Assert.Empty(prompts.Problems);
             Assert.Equal(1, window.CurrentSection);
             Assert.True(service.HasWorkbook);
             var view = window.Conversion!;
             WpfTestHost.Await(view.GenerateAsync());
-            Assert.True(service.HasPreview);
+            Assert.True(service.HasPreview, "Nessuna anteprima: " + string.Join(" | ", prompts.Problems));
+            Assert.Empty(prompts.Problems);
             var directory = Environment.GetEnvironmentVariable("PRESENZEFLOW_SCREENSHOT_DIR");
             for (var tab = 0; tab < 3; tab++)
             {
@@ -198,6 +201,10 @@ public class WpfShellTests
 
     private sealed class NoPrompts : IConversionPrompts
     {
+        public List<string> Problems { get; } = [];
+
+        public void ShowProblem(string title, string message) => Problems.Add($"{title}: {message}");
+
         public ColumnSelection? AskColumns(IReadOnlyList<string> headers) => throw new InvalidOperationException("Nessuna domanda attesa.");
 
         public bool ConfirmCodeReplace(string employee, string fileCode, string savedCode) => throw new InvalidOperationException("Nessuna domanda attesa.");
