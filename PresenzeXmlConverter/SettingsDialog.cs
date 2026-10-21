@@ -250,7 +250,7 @@ internal sealed class SettingsDialog : Form
             ColumnCount = 1,
             RowCount = 0,
             BackColor = Theme.Surface,
-            Padding = new Padding(0, 4, 0, 8),
+            Padding = new Padding(0, 14, 0, 10),
             Margin = Padding.Empty
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));

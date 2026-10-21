@@ -317,9 +317,10 @@ internal sealed partial class MainForm
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        // Le tre righe si dividono lo spazio che resta: nessun vuoto fra una e l'altra.
         for (var row = 0; row < 3; row++)
         {
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 3f));
         }
         layout.Controls.Add(CreateCardTitle("STATO"), 0, 0);
         // Tre righe che servono davvero. Il file sta nella scheda di conversione; il certificato è nelle Impostazioni.

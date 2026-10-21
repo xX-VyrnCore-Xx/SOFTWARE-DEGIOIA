@@ -13,7 +13,7 @@ namespace PresenzeXmlConverter;
 internal sealed class MappingEditorPanel : Panel
 {
     private readonly ThemedTabControl _tabs = new();
-    private readonly ThemedGrid _employeesGrid = CreateGrid("Dipendente / nome Excel", "Codice ufficiale PAGHE");
+    private readonly ThemedGrid _employeesGrid = CreateGrid("Dipendente / nome Excel", "Codice PAGHE");
     private readonly ThemedGrid _policiesGrid = CreateGrid(
         "Valore della colonna Policy",
         "Codice giustificativo PAGHE");
@@ -56,7 +56,7 @@ internal sealed class MappingEditorPanel : Panel
         _employeesGrid.Columns[1].FillWeight = 18;
         foreach (var (header, weight, length) in new[]
                  {
-                     ("Ore al giorno", 14f, 5),
+                     ("Ore/giorno", 14f, 5),
                      ("Assunto dal", 16f, 10),
                      ("Fino al", 16f, 10)
                  })

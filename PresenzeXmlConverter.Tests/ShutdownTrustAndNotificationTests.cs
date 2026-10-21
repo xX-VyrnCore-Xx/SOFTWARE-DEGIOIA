@@ -82,7 +82,7 @@ public class ShutdownTrustAndNotificationTests
         // La prova mostra i canali anche con le notifiche spente e le Impostazioni la espongono.
         Assert.Contains("force: true", notifications, StringComparison.Ordinal);
         Assert.Contains("NotificationTestRequested", dialog, StringComparison.Ordinal);
-        Assert.Contains("CreatePage(SettingsPageLayout.NotificationRows)", dialog, StringComparison.Ordinal);
+        Assert.Contains("BuildNotificationsPage()", dialog, StringComparison.Ordinal);
         Assert.Contains("ms-settings:notifications", dialog, StringComparison.Ordinal);
     }
 

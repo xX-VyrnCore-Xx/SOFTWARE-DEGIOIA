@@ -1088,7 +1088,7 @@ internal sealed class StatusRow : Control
         _glyph = glyph;
         AccessibleRole = AccessibleRole.StaticText;
         AccessibleName = title;
-        Height = 30;
+        Height = 46;
     }
 
     public string Title { get; }
@@ -1119,58 +1119,36 @@ internal sealed class StatusRow : Control
             StatusTone.Bad => (Theme.DangerSoft, Theme.DangerInk),
             _ => (Theme.Sunken, Theme.MutedInk)
         };
-        var chipSize = this.Px(24);
+        var chipSize = this.Px(32);
         var chip = new Rectangle(0, (Height - chipSize) / 2, chipSize, chipSize);
-        using (var path = Theme.RoundedRectangle(chip, this.Px(7)))
+        using (var path = Theme.RoundedRectangle(chip, this.Px(9)))
         using (var brush = new SolidBrush(soft))
         {
             graphics.FillPath(brush, path);
         }
-        Glyphs.Draw(graphics, Rectangle.Inflate(chip, -this.Px(6), -this.Px(6)), _glyph, ink, this.Px(1.5f));
+        Glyphs.Draw(graphics, Rectangle.Inflate(chip, -this.Px(8), -this.Px(8)), _glyph, ink, this.Px(1.6f));
 
-        var titleWidth = ModernPalette.Measure(Title, Theme.Fonts.SmallBold).Width;
-        var left = chip.Right + this.Px(10);
+        // Due righe a destra dell'icona: il nome sopra e lo stato sotto, nel colore del suo tono. Lo stato ha tutta
+        // la larghezza che resta (prima stava in una pillola a destra e veniva troncato con i puntini).
+        var left = chip.Right + this.Px(12);
+        var titleHeight = Theme.Fonts.SmallBold.Height;
+        var valueHeight = Theme.Fonts.Small.Height;
+        var total = titleHeight + this.Px(2) + valueHeight;
+        var top = Math.Max(0, (Height - total) / 2);
         UiText.Draw(
             graphics,
             Title,
             Theme.Fonts.SmallBold,
-            new Rectangle(left, 0, Math.Min(titleWidth + this.Px(4), Math.Max(10, Width - left)), Height),
+            new Rectangle(left, top, Math.Max(10, Width - left), titleHeight),
             Theme.Ink,
             ModernPalette.Single);
-        var valueLeft = left + titleWidth + this.Px(12);
-        if (valueLeft < Width - this.Px(20))
-        {
-            if (_tone == StatusTone.Neutral)
-            {
-                UiText.Draw(
-                    graphics,
-                    _value,
-                    Theme.Fonts.Small,
-                    new Rectangle(valueLeft, 0, Width - valueLeft, Height),
-                    ink,
-                    ModernPalette.Single | TextFormatFlags.Right);
-            }
-            else
-            {
-                // Stato buono, da controllare o in errore: il valore sta in una pillola colorata a destra.
-                var pillWidth = Math.Min(Width - valueLeft, ModernPalette.Measure(_value, Theme.Fonts.Small).Width + this.Px(20));
-                var pillHeight = this.Px(22);
-                var pill = new Rectangle(Width - pillWidth, (Height - pillHeight) / 2, pillWidth, pillHeight);
-                using (var pillPath = Theme.RoundedRectangle(pill, pillHeight / 2))
-                using (var pillBrush = new SolidBrush(soft))
-                {
-                    graphics.FillPath(pillBrush, pillPath);
-                }
-                UiText.Draw(
-                    graphics,
-                    _value,
-                    Theme.Fonts.Small,
-                    Rectangle.Inflate(pill, -this.Px(8), 0),
-                    ink,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding |
-                    TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
-            }
-        }
+        UiText.Draw(
+            graphics,
+            _value,
+            Theme.Fonts.Small,
+            new Rectangle(left, top + titleHeight + this.Px(2), Math.Max(10, Width - left), valueHeight),
+            _tone == StatusTone.Neutral ? Theme.MutedInk : ink,
+            ModernPalette.Single);
     }
 }
 

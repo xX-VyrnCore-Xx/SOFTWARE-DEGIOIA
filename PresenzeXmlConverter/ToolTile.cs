@@ -29,7 +29,7 @@ internal sealed class ToolTile : Control
         _glyph = glyph;
         TabStop = true;
         Cursor = Cursors.Hand;
-        Height = 92;
+        Height = 100;
         AccessibleRole = AccessibleRole.PushButton;
         AccessibleName = title;
         AccessibleDescription = subtitle;
@@ -139,40 +139,36 @@ internal sealed class ToolTile : Control
             }
         }
 
-        var pad = this.Px(16);
-        var chipSize = this.Px(40);
+        var pad = this.Px(14);
+        var chipSize = this.Px(36);
         var chip = new Rectangle(bounds.Left + pad, bounds.Top + pad, chipSize, chipSize);
-        using (var chipPath = Theme.RoundedRectangle(chip, this.Px(11)))
+        using (var chipPath = Theme.RoundedRectangle(chip, this.Px(10)))
         using (var chipBrush = new SolidBrush(Mix(Theme.BrandSoft, Theme.Brand, amount)))
         {
             g.FillPath(chipBrush, chipPath);
         }
         var chipInk = Mix(Theme.BrandInk, Color.White, amount);
-        Glyphs.Draw(g, Rectangle.Inflate(chip, -this.Px(10), -this.Px(10)), _glyph, chipInk, this.Px(1.7f));
+        Glyphs.Draw(g, Rectangle.Inflate(chip, -this.Px(9), -this.Px(9)), _glyph, chipInk, this.Px(1.7f));
 
-        var textLeft = chip.Right + this.Px(14);
-        var arrowBox = this.Px(18);
-        var textWidth = Math.Max(10, bounds.Right - textLeft - pad - arrowBox);
+        // Titolo e descrizione a destra dell'icona, sull'intera larghezza che resta (la descrizione può andare su due righe).
+        var textLeft = chip.Right + this.Px(12);
+        var textWidth = Math.Max(10, bounds.Right - textLeft - pad);
+        var titleHeight = Theme.Fonts.TabBold.Height + this.Px(2);
         UiText.Draw(
             g,
             _title,
             Theme.Fonts.TabBold,
-            new Rectangle(textLeft, chip.Top - this.Px(1), textWidth, Theme.Fonts.TabBold.Height + this.Px(4)),
+            new Rectangle(textLeft, bounds.Top + pad - this.Px(2), textWidth, titleHeight),
             Theme.Ink,
             TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-        var subtitleTop = chip.Top + Theme.Fonts.TabBold.Height + this.Px(5);
+        var subtitleTop = bounds.Top + pad - this.Px(2) + titleHeight + this.Px(2);
         UiText.Draw(
             g,
             _subtitle,
             Theme.Fonts.Small,
-            new Rectangle(textLeft, subtitleTop, textWidth, Math.Max(10, bounds.Bottom - subtitleTop - this.Px(10))),
+            new Rectangle(textLeft, subtitleTop, textWidth, Math.Max(10, bounds.Bottom - subtitleTop - this.Px(8))),
             Theme.MutedInk,
             TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-
-        // Freccia che scivola in avanti quando il mouse è sopra.
-        var nudge = (int)Math.Round(this.Px(4) * amount);
-        var arrow = new Rectangle(bounds.Right - pad - arrowBox + nudge, chip.Top + ((chipSize - arrowBox) / 2), arrowBox, arrowBox);
-        Glyphs.Draw(g, arrow, Glyph.Arrow, Mix(Theme.FaintInk, Theme.Brand, amount), this.Px(1.6f));
     }
 
     private static Color Mix(Color from, Color to, float amount) => Color.FromArgb(

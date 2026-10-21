@@ -638,13 +638,13 @@ internal sealed partial class MainForm
         _movementsGrid.RowHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _movementsGrid.RowHeadersDefaultCellStyle.Font = Theme.Fonts.MonoSmall;
         _movementsGrid.Columns.Add(CreateGridColumn("employee", "Dipendente", 148, true));
-        _movementsGrid.Columns.Add(CreateGridColumn("code", "Codice PAGHE", 100, false));
-        _movementsGrid.Columns.Add(CreateGridColumn("date", "Data movimento", 103, false));
-        _movementsGrid.Columns.Add(CreateGridColumn("policy", "Richiesta originale", 146, true));
+        _movementsGrid.Columns.Add(CreateGridColumn("code", "Cod. PAGHE", 100, false));
+        _movementsGrid.Columns.Add(CreateGridColumn("date", "Data", 103, false));
+        _movementsGrid.Columns.Add(CreateGridColumn("policy", "Richiesta", 146, true));
         _movementsGrid.Columns.Add(CreateGridColumn("reason", "Codice", 65, false));
         _movementsGrid.Columns.Add(CreateGridColumn("hours", "Ore", 47, false));
         _movementsGrid.Columns.Add(CreateGridColumn("minutes", "Min", 44, false));
-        _movementsGrid.Columns.Add(CreateGridColumn("source", "Riga Excel", 67, true));
+        _movementsGrid.Columns.Add(CreateGridColumn("source", "Riga", 67, true));
         // Con la barra di navigazione l'area di revisione è stretta: la barra di
         // scorrimento orizzontale nativa è grigia di sistema (fuori tema), quindi non
         // la si usa. Quando le colonne non entrano si nascondono le meno importanti
