@@ -232,15 +232,15 @@ internal sealed partial class MainForm
         var tiles = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 4,
+            ColumnCount = 5,
             RowCount = 1,
             BackColor = Theme.Canvas,
             Margin = Padding.Empty,
             Visible = true
         };
-        for (var column = 0; column < 4; column++)
+        for (var column = 0; column < 5; column++)
         {
-            tiles.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            tiles.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
         }
         tiles.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var entries = new (string Title, string Subtitle, Glyph Glyph, int Section)[]
@@ -248,7 +248,8 @@ internal sealed partial class MainForm
             ("Aziende", "Codice e regole di ogni azienda", Glyph.Building, SectionCompanies),
             ("Codici", "Giustificativi e codici PAGHE", Glyph.List, SectionCodes),
             ("Storico", "Le consegne già esportate", Glyph.Clock, SectionHistory),
-            ("Registro", "Cosa è stato fatto e quando", Glyph.File, SectionActivity)
+            ("Registro", "Cosa è stato fatto e quando", Glyph.File, SectionActivity),
+            ("Rinomina PDF", "Da ZIP, con il codice cliente", Glyph.Sheet, -1)
         };
         for (var index = 0; index < entries.Length; index++)
         {
@@ -259,7 +260,17 @@ internal sealed partial class MainForm
                 Margin = new Padding(0, 0, index == entries.Length - 1 ? 0 : 10, 10)
             };
             var section = entry.Section;
-            tile.Click += (_, _) => ShowSection(section);
+            tile.Click += (_, _) =>
+            {
+                if (section < 0)
+                {
+                    OpenPdfRename();
+                }
+                else
+                {
+                    ShowSection(section);
+                }
+            };
             tiles.Controls.Add(tile, index, 0);
         }
         _dashTiles = tiles;
@@ -447,4 +458,10 @@ internal sealed partial class MainForm
     }
 
     private DropZone? _conversionDropZone;
+
+    private void OpenPdfRename()
+    {
+        using var dialog = new PdfRenameDialog();
+        dialog.ShowDialog(this);
+    }
 }

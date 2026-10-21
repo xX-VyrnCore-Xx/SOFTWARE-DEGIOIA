@@ -13,6 +13,11 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 - L'installer porta con sé le librerie native di WPF; la CI avvia l'eseguibile pubblicato con `--wpf` per verificare che parta
 - La conversione XML non è toccata
 
+### 📄 Rinomina PDF per codice cliente
+- Nuova funzione, dalla Dashboard («Rinomina PDF»), dalla ricerca comandi (Ctrl+K) o trascinando il file: si sceglie uno **ZIP** (o dei PDF) generati da Zucchetti, dove **ogni pagina è un cliente**. Il programma legge il **codice interno in fondo alla pagina** (cifre separate da trattini, es. 123-456-7)
+- **Anteprima con controlli prima di scrivere**: tabella pagina per pagina con lo stato (giusto, da controllare, codice mancante). Segnala **codice mancante**, **più codici sulla stessa riga**, **codice di forma diversa dagli altri**, **codice ripetuto** (il secondo diventa «codice (2)»); i codici si correggono a mano nella tabella e i controlli si rifanno subito
+- Alla conferma crea un **nuovo ZIP** con un PDF per cliente chiamato `codice.pdf` (l'originale non si tocca; le pagine senza codice restano fuori) e poi **lo riapre e verifica ogni file**: una pagina, stesso testo dell'originale, nessun file mancante
+
 ## [1.57.0]
 
 ### 🍎 Grafica rifatta in stile macOS, senza testi tagliati né sovrapposti
