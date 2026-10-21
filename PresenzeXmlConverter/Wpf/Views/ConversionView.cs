@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 
 namespace PresenzeXmlConverter.Wpf;
@@ -302,23 +303,28 @@ internal sealed class ConversionView : Grid
         _busy.Visibility = Visibility.Collapsed;
         _busy.Margin = new Thickness(0, 14, 0, 0);
 
-        _drop.MinHeight = 120;
-        var left = new StackPanel();
-        left.Children.Add(Ui.Text("Foglio presenze", 16, FontWeights.SemiBold).WithMargin(new Thickness(0, 0, 0, 12)));
-        left.Children.Add(_drop);
-        left.Children.Add(Ui.Text("Codice azienda", 13, FontWeights.SemiBold).WithMargin(new Thickness(0, 18, 0, 6)));
-        left.Children.Add(_company);
-        left.Children.Add(_stepper);
-        left.Children.Add(_busy);
-        left.Children.Add(_status.WithMargin(new Thickness(0, 14, 0, 0)));
-        left.Children.Add(Stat("Movimenti", _movementsValue).WithMargin(new Thickness(0, 22, 0, 0)));
-        left.Children.Add(Stat("Dipendenti", _employeesValue).WithMargin(new Thickness(0, 12, 0, 0)));
-        left.Children.Add(Stat("Ore totali", _hoursValue).WithMargin(new Thickness(0, 12, 0, 0)));
-        var leftScroll = new ScrollViewer
-        {
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = left
-        };
+        _drop.MinHeight = 112;
+        _company.MaxWidth = 280;
+        _company.HorizontalAlignment = HorizontalAlignment.Left;
+        _company.MinWidth = 200;
+        var info = new StackPanel { Margin = new Thickness(24, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        info.Children.Add(Ui.Text("Codice azienda", 13, FontWeights.SemiBold).WithMargin(new Thickness(0, 0, 0, 6)));
+        info.Children.Add(_company);
+        info.Children.Add(_stepper.WithMargin(new Thickness(0, 14, 0, 0)));
+        info.Children.Add(_busy);
+        info.Children.Add(_status.WithMargin(new Thickness(0, 10, 0, 0)));
+
+        var stats = new UniformGrid { Columns = 3, Margin = new Thickness(0, 18, 0, 0) };
+        stats.Children.Add(Stat("Movimenti", _movementsValue));
+        stats.Children.Add(Stat("Dipendenti", _employeesValue));
+        stats.Children.Add(Stat("Ore totali", _hoursValue));
+
+        var topCard = Ui.Columns(Ui.Px(300), Ui.Star());
+        topCard.Children.Add(_drop.At(0, 0));
+        topCard.Children.Add(info.At(0, 1));
+        var topStack = new StackPanel();
+        topStack.Children.Add(topCard);
+        topStack.Children.Add(stats);
 
         ConfigureGrids();
         _xmlBox.IsReadOnly = true;
@@ -360,10 +366,11 @@ internal sealed class ConversionView : Grid
         right.Children.Add(tabBar.At(0, 0));
         right.Children.Add(contentCard.At(1, 0));
 
-        var body = Ui.Columns(Ui.Px(330), Ui.Px(20), Ui.Star());
-        body.Margin = new Thickness(0, 0, 0, 24);
-        body.Children.Add(Ui.Card(leftScroll, new Thickness(22)).At(0, 0));
-        body.Children.Add(right.At(0, 2));
+        var body = new Grid { Margin = new Thickness(0, 0, 0, 20) };
+        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        body.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        body.Children.Add(Ui.Card(topStack, new Thickness(22, 20, 22, 20)).WithMargin(new Thickness(0, 0, 0, 18)).At(0, 0));
+        body.Children.Add(right.At(1, 0));
         SelectTab(0);
         return body;
     }
@@ -379,14 +386,14 @@ internal sealed class ConversionView : Grid
 
     private void ConfigureGrids()
     {
-        _movementsGrid.Columns.Add(Column("Dipendente", nameof(MovementRow.Employee), 2.2));
-        _movementsGrid.Columns.Add(Column("Codice", nameof(MovementRow.Code), 1));
-        _movementsGrid.Columns.Add(Column("Data", nameof(MovementRow.Date), 1.1));
-        _movementsGrid.Columns.Add(Column("Giustificativo", nameof(MovementRow.Policy), 1.8));
-        _movementsGrid.Columns.Add(Column("Causale", nameof(MovementRow.Reason), 0.9));
-        _movementsGrid.Columns.Add(Column("Ore", nameof(MovementRow.Hours), 0.6));
-        _movementsGrid.Columns.Add(Column("Min", nameof(MovementRow.Minutes), 0.6));
-        _movementsGrid.Columns.Add(Column("Riga", nameof(MovementRow.SourceRow), 0.6));
+        _movementsGrid.Columns.Add(Column("Dipendente", nameof(MovementRow.Employee), star: 2));
+        _movementsGrid.Columns.Add(Column("Codice", nameof(MovementRow.Code), pixels: 84));
+        _movementsGrid.Columns.Add(Column("Data", nameof(MovementRow.Date), pixels: 104));
+        _movementsGrid.Columns.Add(Column("Giustificativo", nameof(MovementRow.Policy), star: 1.5));
+        _movementsGrid.Columns.Add(Column("Causale", nameof(MovementRow.Reason), pixels: 84));
+        _movementsGrid.Columns.Add(Column("Ore", nameof(MovementRow.Hours), pixels: 60));
+        _movementsGrid.Columns.Add(Column("Min", nameof(MovementRow.Minutes), pixels: 60));
+        _movementsGrid.Columns.Add(Column("Riga", nameof(MovementRow.SourceRow), pixels: 64));
 
         var tone = new Style(typeof(TextBlock));
         tone.Setters.Add(new Setter(TextBlock.ForegroundProperty, new Binding(nameof(FindingRow.Tone))));
@@ -410,11 +417,13 @@ internal sealed class ConversionView : Grid
         });
     }
 
-    private static DataGridTextColumn Column(string header, string property, double weight) => new()
+    private static DataGridTextColumn Column(string header, string property, double star = 0, double pixels = 0) => new()
     {
         Header = header,
         Binding = new Binding(property),
-        Width = new DataGridLength(weight, DataGridLengthUnitType.Star)
+        Width = star > 0
+            ? new DataGridLength(star, DataGridLengthUnitType.Star)
+            : new DataGridLength(pixels)
     };
 
     private void AddTab(StackPanel bar, Grid content, string title, FrameworkElement page)

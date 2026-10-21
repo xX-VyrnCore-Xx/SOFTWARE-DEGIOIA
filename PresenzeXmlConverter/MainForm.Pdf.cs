@@ -14,7 +14,7 @@ internal sealed partial class MainForm
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildSectionHeading(
             "Rinomina PDF per codice cliente",
-            "Scegli o trascina uno ZIP (o dei PDF): ogni pagina è un cliente e il codice si legge in fondo alla pagina. Controlli la tabella e poi salvi un nuovo ZIP."), 0, 0);
+            "Scegli o trascina uno ZIP o dei PDF: il codice cliente si legge in fondo a ogni pagina."), 0, 0);
         page.Controls.Add(new PdfRenamePanel { Dock = DockStyle.Fill, Margin = Padding.Empty }, 0, 1);
         return page;
     }

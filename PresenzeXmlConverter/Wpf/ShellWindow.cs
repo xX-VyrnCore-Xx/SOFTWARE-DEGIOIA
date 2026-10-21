@@ -111,13 +111,13 @@ internal sealed class ShellWindow : Window
         };
         sidebar.Children.Add(classic.At(2, 0));
 
-        var root = Ui.Columns(Ui.Px(248), Ui.Star());
+        var root = Ui.Columns(Ui.Px(232), Ui.Star());
         root.Children.Add(sidebar.At(0, 0));
         root.Children.Add(new Border
         {
             BorderBrush = Ui.Brush("Brush.Divider"),
             BorderThickness = new Thickness(1, 0, 0, 0),
-            Child = _host.WithMargin(new Thickness(36, 32, 36, 0))
+            Child = _host.WithMargin(new Thickness(28, 28, 28, 0))
         }.At(0, 1));
         Content = root;
 

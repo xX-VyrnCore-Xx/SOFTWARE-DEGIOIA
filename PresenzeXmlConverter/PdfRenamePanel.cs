@@ -91,9 +91,9 @@ internal sealed class PdfRenamePanel : UserControl
     {
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Stato", FillWeight = 14, ReadOnly = true });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "File", FillWeight = 22, ReadOnly = true });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Pagina", FillWeight = 8, ReadOnly = true });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Pag.", FillWeight = 7, ReadOnly = true });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Letto", FillWeight = 14, ReadOnly = true });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Codice (modificabile)", FillWeight = 16 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Codice finale", FillWeight = 16 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Nota", FillWeight = 40, ReadOnly = true });
         _grid.CellEndEdit += (_, e) =>
         {

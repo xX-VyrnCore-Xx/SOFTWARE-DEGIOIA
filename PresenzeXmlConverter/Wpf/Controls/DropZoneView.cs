@@ -82,9 +82,11 @@ internal sealed class DropZoneView : Grid
         _icon.VerticalAlignment = VerticalAlignment.Center;
         _title = Ui.Text("Trascina qui il foglio Excel", 17, FontWeights.SemiBold);
         _title.HorizontalAlignment = HorizontalAlignment.Center;
+        _title.TextTrimming = TextTrimming.CharacterEllipsis;
         _title.Margin = new Thickness(0, 14, 0, 0);
         _subtitle = Ui.Text("oppure fai clic per sceglierlo", 13.5, ink: "Brush.Muted");
         _subtitle.HorizontalAlignment = HorizontalAlignment.Center;
+        _subtitle.TextTrimming = TextTrimming.CharacterEllipsis;
         _subtitle.Margin = new Thickness(0, 4, 0, 0);
         var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16), IsHitTestVisible = false };
         stack.Children.Add(_chip);
