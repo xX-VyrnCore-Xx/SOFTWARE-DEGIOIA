@@ -4,6 +4,7 @@ using System.Windows.Controls;
 namespace PresenzeXmlConverter.Wpf;
 
 using Brush = System.Windows.Media.Brush;
+using Clipboard = System.Windows.Clipboard;
 
 /// <summary>Una voce di un menù a comparsa: testo, icona, azione e se è attiva; oppure un separatore.</summary>
 internal sealed record MenuEntry(string? Text, Glyph? Glyph, Action? Click, bool Enabled = true, bool Danger = false)

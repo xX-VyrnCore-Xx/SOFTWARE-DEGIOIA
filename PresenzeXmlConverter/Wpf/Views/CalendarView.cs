@@ -21,6 +21,7 @@ using Orientation = System.Windows.Controls.Orientation;
 using Cursors = System.Windows.Input.Cursors;
 using ToolTip = System.Windows.Controls.ToolTip;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using Pen = System.Windows.Media.Pen;
 
 /// <summary>
 /// Il calendario dell'anteprima: una riga per dipendente e una colonna per giorno, ogni giorno colorato per giustificativo
