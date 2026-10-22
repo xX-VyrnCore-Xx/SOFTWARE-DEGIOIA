@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.70.0] - Corrente
+## [1.71.0] - Corrente
+
+### ✨ Andamento delle ore mese su mese
+- **Storico → Andamento** (nuova interfaccia): grafico a colonne delle ore consegnate mese per mese per ogni azienda (ultimi 12 mesi) e, sotto, il confronto per dipendente fra l'ultimo mese e quello prima: ore, differenza, percentuale e ore di assenza, con chi è cambiato di più in cima
+- Le ore mensili si conservano a ogni esportazione (anche dalla versione classica); esportare di nuovo lo stesso mese lo corregge, gli altri mesi restano
+- Con più aziende si sceglie quale guardare; un dipendente nuovo nell'ultimo mese è indicato come «nuovo»
+- Nuovo passaggio del database (versione 7), applicato in automatico e in una transazione
+
+## [1.70.0]
 
 ### ✨ Controlli su misura per ogni azienda
 - Nella sezione **Aziende** (nuova interfaccia) il pulsante **Controlli…** fissa le soglie con cui il foglio di quell'azienda viene controllato: malattia di fila oltre N giorni, altre assenze di fila oltre N giorni, variazione rispetto all'ultima consegna, tetto di ore al mese per dipendente e **dipendenti attesi** (avviso se mancano nel foglio)

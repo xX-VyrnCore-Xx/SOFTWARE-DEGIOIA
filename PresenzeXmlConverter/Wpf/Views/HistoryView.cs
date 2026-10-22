@@ -49,6 +49,8 @@ internal sealed class HistoryView : Grid, IRefreshablePage
     private readonly Button _copyPath = new() { Content = "Copia percorso" };
     private readonly Button _clear = new() { Content = "Svuota storico" };
     private IReadOnlyList<ExportRecord> _exports = Array.Empty<ExportRecord>();
+    private readonly PillBar _tabs = new(["Consegne", "Andamento"]);
+    private readonly TrendView _trend;
 
     public HistoryView(ConversionService conversion, Func<Window?> owner)
     {
@@ -58,7 +60,8 @@ internal sealed class HistoryView : Grid, IRefreshablePage
         _message = Ui.Text("Doppio clic su una riga: apre la cartella.", 13, ink: "Brush.Muted", wrap: true);
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Children.Add(new PageScaffold("Storico esportazioni", "Ogni file XML salvato, con data, contenuto e cartella di destinazione.", BuildBody()));
+        _trend = new TrendView(conversion.Database, () => conversion.CompanyCode);
+        Children.Add(new PageScaffold("Storico esportazioni", "Ogni file XML salvato, con data, contenuto e cartella di destinazione, e l'andamento delle ore mese per mese.", BuildTabs()));
 
         _open.Style = Ui.Style("Primary");
         _clear.Style = Ui.Style("Danger");
@@ -71,7 +74,49 @@ internal sealed class HistoryView : Grid, IRefreshablePage
         _clear.Click += (_, _) => Clear();
     }
 
-    public void OnShown() => Refresh();
+    public void OnShown()
+    {
+        Refresh();
+        _trend.Refresh();
+    }
+
+    /// <summary>Le due viste dello storico: consegne e andamento (per i test).</summary>
+    internal TrendView Trend => _trend;
+
+    internal PillBar Tabs => _tabs;
+
+    private UIElement BuildTabs()
+    {
+        var deliveries = BuildBody();
+        var trendCard = new Border
+        {
+            Background = Ui.Brush("Brush.Surface"),
+            BorderBrush = Ui.Brush("Brush.Divider"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            ClipToBounds = true,
+            Margin = new Thickness(0, 0, 0, 18),
+            Child = _trend,
+            Visibility = Visibility.Collapsed
+        };
+        var host = new Grid();
+        host.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        host.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        host.Children.Add(_tabs.WithMargin(new Thickness(0, 0, 0, 10)).At(0, 0));
+        host.Children.Add(deliveries.At(1, 0));
+        host.Children.Add(trendCard.At(1, 0));
+        _tabs.SelectionChanged += (_, _) =>
+        {
+            var trend = _tabs.SelectedIndex == 1;
+            deliveries.Visibility = trend ? Visibility.Collapsed : Visibility.Visible;
+            trendCard.Visibility = trend ? Visibility.Visible : Visibility.Collapsed;
+            if (trend)
+            {
+                _trend.Refresh();
+            }
+        };
+        return host;
+    }
 
     private ExportRecord? Selected => (_grid.SelectedItem as ExportRow)?.Record;
 
