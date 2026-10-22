@@ -49,7 +49,7 @@ internal sealed class HistoryView : Grid, IRefreshablePage
     private readonly Button _copyPath = new() { Content = "Copia percorso" };
     private readonly Button _clear = new() { Content = "Svuota storico" };
     private IReadOnlyList<ExportRecord> _exports = Array.Empty<ExportRecord>();
-    private readonly PillBar _tabs = new(["Consegne", "Andamento"]);
+    private readonly PillBar _tabs = new(["Consegne", "Andamento", "Residui"]);
     private readonly TrendView _trend;
     private readonly BalanceView _balance;
 
