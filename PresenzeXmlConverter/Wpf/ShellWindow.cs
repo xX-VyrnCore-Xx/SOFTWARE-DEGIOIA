@@ -47,7 +47,8 @@ internal sealed class ShellWindow : Window
         ("Aziende", Glyph.Building),
         ("Codici", Glyph.Users),
         ("Storico", Glyph.Clock),
-        ("Registro", Glyph.List)
+        ("Registro", Glyph.List),
+        ("Impostazioni", Glyph.Gear)
     ];
 
     private readonly NavRail _nav = new();
@@ -134,6 +135,9 @@ internal sealed class ShellWindow : Window
 
     internal ConversionView? Conversion => _conversion;
 
+    /// <summary>La pagina già creata di una sezione (per i test).</summary>
+    internal UIElement? PageAt(int index) => _pages[index];
+
     public int SectionCount => Sections.Length;
 
     public int CurrentSection => _nav.SelectedIndex;
@@ -174,6 +178,7 @@ internal sealed class ShellWindow : Window
         3 => new CodesView(_service, () => this),
         4 => new HistoryView(_service, () => this),
         5 => new ActivityView(_service, () => this),
+        6 => new SettingsView(_service, () => this),
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",

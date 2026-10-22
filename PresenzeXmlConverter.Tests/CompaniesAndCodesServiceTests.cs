@@ -146,4 +146,53 @@ public class CompaniesAndCodesServiceTests
             Directory.Delete(folder, recursive: true);
         }
     }
+    [Fact]
+    public void SettingsAreValidatedSavedAndReachTheConversion()
+    {
+        var (database, folder) = NewDatabase();
+        try
+        {
+            var conversion = new ConversionService(database);
+            var service = new SettingsService(conversion);
+            var model = service.Load();
+
+            // Valori sbagliati: nessun salvataggio, e il messaggio dice cosa correggere.
+            var badHours = service.Save(model with { HoursText = "abc" });
+            Assert.False(badHours.Succeeded);
+            Assert.Contains("ore", badHours.Error!, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("radice", service.Save(model with { XmlRoot = "con spazi" }).Error!, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("indirizzo", service.Save(model with { XmlNamespace = "non un indirizzo" }).Error!, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Date non riconosciute", service.Save(model with { HolidaysText = "31/02" }).Error!);
+            Assert.Equal(model.HoursText, service.Load().HoursText);
+
+            // Valori buoni: arrivano al servizio di conversione e al database.
+            var saved = service.Save(model with
+            {
+                HoursText = "7,5",
+                IncludeSaturdays = true,
+                HolidaysText = "02/06",
+                AutoUpdate = false,
+                InAppNotifications = false,
+                CloseBehavior = "tray"
+            });
+            Assert.True(saved.Succeeded, saved.Error);
+            Assert.Equal(7.5m, conversion.GlobalOptions.HoursPerDay);
+            Assert.True(conversion.GlobalOptions.IncludeSaturdays);
+
+            var reloaded = new SettingsService(new ConversionService(database)).Load();
+            Assert.Equal(7.5m, decimal.Parse(reloaded.HoursText.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture));
+            Assert.True(reloaded.IncludeSaturdays);
+            Assert.False(reloaded.AutoUpdate);
+            Assert.False(reloaded.InAppNotifications);
+            Assert.Equal("tray", reloaded.CloseBehavior);
+            Assert.Contains("02/06", reloaded.HolidaysText);
+            Assert.Contains(database.GetActivities(), activity => activity.Kind == ActivityKind.Settings);
+
+            Assert.Contains("Stato attuale", service.TokenStatus());
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
 }

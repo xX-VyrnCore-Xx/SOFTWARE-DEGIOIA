@@ -117,7 +117,7 @@ public class WpfShellTests
             };
             window.Show();
             WpfTestHost.Pump();
-            Assert.Equal(6, window.SectionCount);
+            Assert.Equal(7, window.SectionCount);
             var directory = Environment.GetEnvironmentVariable("PRESENZEFLOW_SCREENSHOT_DIR");
             for (var section = 0; section < window.SectionCount; section++)
             {
@@ -211,6 +211,26 @@ public class WpfShellTests
             foreach (var (section, name) in new[] { (2, "Aziende"), (3, "Codici"), (4, "Storico"), (5, "Registro") })
             {
                 window.Navigate(section);
+                WpfTestHost.Pump(450);
+                var bitmap = Render(window);
+                Assert.True(CountMagenta(bitmap) == 0, $"{name}: colori mancanti (magenta).");
+                Assert.True(DistinctColors(bitmap) > 6, $"{name}: pagina vuota.");
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var stream = File.Create(Path.Combine(directory, $"wpf-{name}.png"));
+                    encoder.Save(stream);
+                }
+            }
+            // Impostazioni: ogni scheda, con la stessa pagina che si salva.
+            window.Navigate(6);
+            WpfTestHost.Pump(450);
+            var settings = Assert.IsType<SettingsView>(window.PageAt(6));
+            Assert.Equal(service.GlobalOptions.HoursPerDay.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture), settings.Current.HoursText);
+            foreach (var (tab, name) in new[] { (0, "Impostazioni"), (1, "Impostazioni-Aggiornamenti"), (2, "Impostazioni-FormatoXml"), (3, "Impostazioni-Notifiche"), (4, "Impostazioni-Generale") })
+            {
+                settings.ShowTab(tab);
                 WpfTestHost.Pump(450);
                 var bitmap = Render(window);
                 Assert.True(CountMagenta(bitmap) == 0, $"{name}: colori mancanti (magenta).");

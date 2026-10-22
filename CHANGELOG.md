@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.61.0] - Corrente
+## [1.62.0] - Corrente
+
+### ✨ Nuova interfaccia (anteprima): Impostazioni
+- Sezione **Impostazioni** con cinque schede: **Conversione** (ore della giornata, sabato, rilevamento automatico, presenza 01, chiusure aziendali), **Aggiornamenti** (ricerca automatica, avvio con Windows, token GitHub da verificare e salvare subito), **Formato XML** (radice, spazio dei nomi, un nodo per movimento, lettura da un XML di esempio), **Notifiche** e **Generale** (cosa fa la X, tema, cartella dei dati, backup ora, copie dei codici)
+- Gli stessi controlli e lo stesso salvataggio della finestra classica (`SettingsService` senza finestre, con i suoi test): se cambi le regole o la forma dell'XML l'anteprima già generata va rifatta
+- La barra laterale della nuova interfaccia ha ora tutte le sezioni; l'interfaccia classica non cambia e resta quella di partenza
+
+## [1.61.0]
 
 ### ✨ Nuova interfaccia (anteprima): Storico esportazioni e Registro attività
 - **Storico esportazioni**: ogni XML salvato con data, file, cartella, movimenti e ore; **Apri cartella** (anche con doppio clic), **Verifica file** (identico alla copia consegnata? rispetta ancora il tracciato?), **Salva copia…** dalla copia conservata nel database, **Copia percorso** e **Svuota storico** (i file su disco restano)

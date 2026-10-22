@@ -58,6 +58,26 @@ internal sealed class ConversionService
     /// <summary>Le regole generali (Impostazioni), valide per le aziende senza regole proprie.</summary>
     public GenerationOptions GlobalOptions => _globalOptions;
 
+    /// <summary>Le Impostazioni hanno cambiato le regole generali: valgono dalla prossima anteprima (che va rifatta se già generata).</summary>
+    public void ApplyGlobalOptions(GenerationOptions options)
+    {
+        var changed = !GenerationSettings.AreEquivalent(_globalOptions, options);
+        _globalOptions = options;
+        if (changed)
+        {
+            InvalidateGenerated();
+        }
+    }
+
+    /// <summary>La forma dell'XML o le regole sono cambiate: anteprima e XML già generati non valgono più.</summary>
+    public void InvalidateGenerated()
+    {
+        if (Inspection is not null)
+        {
+            ClearPreview();
+        }
+    }
+
     private string _companyCode;
 
     /// <summary>Il codice azienda in uso per la conversione. Cambiandolo da un'altra sezione la schermata si aggiorna.</summary>
