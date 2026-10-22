@@ -994,6 +994,23 @@ internal sealed partial class MainForm
         try
         {
             var totals = MovementChecks.Summarize(_movements);
+            try
+            {
+                _database.SaveMonthlyTotals(
+                    companyCode,
+                    MonthlyTrend.FromSummary(
+                        companyCode,
+                        MonthlySummary.Build(
+                            _movements,
+                            _generationOptions,
+                            SafeProfiles(() => _database.GetEmployeeProfiles()),
+                            _inspection?.PeriodStart,
+                            _inspection?.PeriodEnd)));
+            }
+            catch (SqliteException)
+            {
+                // L'andamento è un di più: lo storico delle esportazioni si salva lo stesso.
+            }
             // Si conserva ciò che è stato davvero scritto su disco, non l'anteprima:
             // l'XML potrebbe essere stato modificato a mano prima del salvataggio.
             byte[]? delivered = null;

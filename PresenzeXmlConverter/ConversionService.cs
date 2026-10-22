@@ -495,10 +495,25 @@ internal sealed class ConversionService
             _database.SaveSetting("last-export-dir", directory);
         }
         RecordExport(path, companyCode);
+        RecordMonthlyTotals(companyCode);
         Audit(
             ActivityKind.Export,
             $"XML esportato «{Path.GetFileName(path)}»",
             $"azienda {companyCode} · {Movements.Count:N0} movimenti");
+    }
+
+    /// <summary>Conserva le ore mensili consegnate (per l'andamento nello storico); un errore non ferma l'esportazione.</summary>
+    private void RecordMonthlyTotals(string companyCode)
+    {
+        try
+        {
+            _database.SaveMonthlyTotals(companyCode, MonthlyTrend.FromSummary(companyCode, MonthlySummary()));
+        }
+        catch (Exception exception) when (
+            exception is Microsoft.Data.Sqlite.SqliteException or IOException or UnauthorizedAccessException)
+        {
+            // L'andamento è un di più: l'esportazione è già riuscita.
+        }
     }
 
     private void RecordExport(string path, string companyCode)

@@ -1091,6 +1091,89 @@ internal sealed class LocalDatabase
             ? parsed.ToUniversalTime()
             : DateTime.MinValue;
 
+    /// <summary>
+    /// Conserva le ore mensili di un'azienda: per ogni mese presente in <paramref name="totals"/> si sostituisce quanto
+    /// già salvato (una nuova esportazione dello stesso mese corregge la precedente), gli altri mesi restano.
+    /// </summary>
+    public void SaveMonthlyTotals(string companyCode, IReadOnlyList<MonthlyTotal> totals)
+    {
+        companyCode = (companyCode ?? string.Empty).Trim();
+        if (companyCode.Length is 0 or > 6 || totals.Count == 0)
+        {
+            return;
+        }
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        var now = DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        foreach (var month in totals.Select(item => MonthKey(item.Month)).Distinct())
+        {
+            using var delete = connection.CreateCommand();
+            delete.Transaction = transaction;
+            delete.CommandText = "DELETE FROM MonthlyTotals WHERE CompanyCode = $company AND Month = $month;";
+            delete.Parameters.AddWithValue("$company", companyCode);
+            delete.Parameters.AddWithValue("$month", month);
+            delete.ExecuteNonQuery();
+        }
+        foreach (var item in totals)
+        {
+            using var insert = connection.CreateCommand();
+            insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT OR REPLACE INTO MonthlyTotals (CompanyCode, Month, EmployeeCode, EmployeeName, PresenceMinutes, AbsenceMinutes, SavedUtc)
+                VALUES ($company, $month, $code, $name, $presence, $absence, $now);
+                """;
+            insert.Parameters.AddWithValue("$company", companyCode);
+            insert.Parameters.AddWithValue("$month", MonthKey(item.Month));
+            insert.Parameters.AddWithValue("$code", item.EmployeeCode);
+            insert.Parameters.AddWithValue("$name", item.EmployeeName);
+            insert.Parameters.AddWithValue("$presence", item.PresenceMinutes);
+            insert.Parameters.AddWithValue("$absence", item.AbsenceMinutes);
+            insert.Parameters.AddWithValue("$now", now);
+            insert.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    /// <summary>Le ore mensili conservate per l'azienda, in ordine di mese e di nome.</summary>
+    public IReadOnlyList<MonthlyTotal> GetMonthlyTotals(string companyCode)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT CompanyCode, Month, EmployeeCode, EmployeeName, PresenceMinutes, AbsenceMinutes
+            FROM MonthlyTotals WHERE CompanyCode = $company COLLATE NOCASE
+            ORDER BY Month, EmployeeName COLLATE NOCASE;
+            """;
+        command.Parameters.AddWithValue("$company", (companyCode ?? string.Empty).Trim());
+        using var reader = command.ExecuteReader();
+        var rows = new List<MonthlyTotal>();
+        while (reader.Read())
+        {
+            if (DateTime.TryParseExact(reader.GetString(1) + "-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var month))
+            {
+                rows.Add(new MonthlyTotal(reader.GetString(0), month, reader.GetString(2), reader.GetString(3), reader.GetInt32(4), reader.GetInt32(5)));
+            }
+        }
+        return rows;
+    }
+
+    /// <summary>Le aziende per cui ci sono ore mensili conservate, in ordine di codice.</summary>
+    public IReadOnlyList<string> GetMonthlyCompanies()
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT DISTINCT CompanyCode FROM MonthlyTotals ORDER BY CompanyCode COLLATE NOCASE;";
+        using var reader = command.ExecuteReader();
+        var companies = new List<string>();
+        while (reader.Read())
+        {
+            companies.Add(reader.GetString(0));
+        }
+        return companies;
+    }
+
+    private static string MonthKey(DateTime month) => month.ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture);
+
     /// <summary>Aziende salvate, in ordine di codice.</summary>
     public IReadOnlyList<CompanyRecord> GetCompanies()
     {
