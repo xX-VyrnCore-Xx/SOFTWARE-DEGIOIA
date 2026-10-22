@@ -163,7 +163,7 @@ internal sealed class TrayController : IDisposable
     }
 
     /// <summary>Il testo della voce di aggiornamento (per i test).</summary>
-    internal (bool Visible, string Text) UpdateItem => (_updateItem.Visible, _updateItem.Text);
+    internal (bool Visible, string Text) UpdateItem => (_updateItem.Available, _updateItem.Text);
 
     /// <summary>
     /// Un fumetto di Windows. L'icona deve essere registrata prima di poterlo mostrare: se è appena apparsa si attende un istante,
