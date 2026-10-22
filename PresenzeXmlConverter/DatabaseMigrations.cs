@@ -39,11 +39,28 @@ internal static class DatabaseMigrations
                 PRIMARY KEY (CompanyCode, Month, EmployeeCode)
             );
             CREATE INDEX IF NOT EXISTS MonthlyTotals_Company ON MonthlyTotals (CompanyCode, Month);
+            """),
+        new Step(
+            8,
+            "Ore di ogni giustificativo usate da ogni dipendente mese per mese (saldo di ferie e permessi)",
+            """
+            CREATE TABLE IF NOT EXISTS AbsenceTotals (
+                CompanyCode TEXT NOT NULL,
+                Month TEXT NOT NULL,
+                EmployeeCode TEXT NOT NULL,
+                EmployeeName TEXT NOT NULL,
+                Policy TEXT NOT NULL,
+                ReasonCode TEXT NOT NULL,
+                Minutes INTEGER NOT NULL,
+                SavedUtc TEXT NOT NULL,
+                PRIMARY KEY (CompanyCode, Month, EmployeeCode, ReasonCode)
+            );
+            CREATE INDEX IF NOT EXISTS AbsenceTotals_Company ON AbsenceTotals (CompanyCode, Month);
             """)
     ];
 
     /// <summary>La versione che questa build scrive nel database (costante: serve a <c>LocalDatabase.CurrentSchemaVersion</c>).</summary>
-    public const int Latest = 7;
+    public const int Latest = 8;
 
     /// <summary>I passaggi ancora da fare partendo da <paramref name="currentVersion"/>, in ordine.</summary>
     public static IEnumerable<Step> Pending(int currentVersion) =>

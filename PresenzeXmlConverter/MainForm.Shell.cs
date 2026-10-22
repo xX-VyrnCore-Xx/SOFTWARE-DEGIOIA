@@ -996,16 +996,14 @@ internal sealed partial class MainForm
             var totals = MovementChecks.Summarize(_movements);
             try
             {
-                _database.SaveMonthlyTotals(
-                    companyCode,
-                    MonthlyTrend.FromSummary(
-                        companyCode,
-                        MonthlySummary.Build(
-                            _movements,
-                            _generationOptions,
-                            SafeProfiles(() => _database.GetEmployeeProfiles()),
-                            _inspection?.PeriodStart,
-                            _inspection?.PeriodEnd)));
+                var summary = MonthlySummary.Build(
+                    _movements,
+                    _generationOptions,
+                    SafeProfiles(() => _database.GetEmployeeProfiles()),
+                    _inspection?.PeriodStart,
+                    _inspection?.PeriodEnd);
+                _database.SaveMonthlyTotals(companyCode, MonthlyTrend.FromSummary(companyCode, summary));
+                _database.SaveAbsenceTotals(companyCode, LeaveBalance.FromSummary(companyCode, summary));
             }
             catch (SqliteException)
             {

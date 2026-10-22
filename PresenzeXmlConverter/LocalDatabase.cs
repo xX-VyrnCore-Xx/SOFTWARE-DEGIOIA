@@ -378,6 +378,7 @@ internal sealed class LocalDatabase
         // (mai si ricrea la tabella: lo storico esistente resta intatto).
         EnsureColumn(connection, "Companies", "RulesJson", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(connection, "Companies", "ChecksJson", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(connection, "Companies", "LeaveJson", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(connection, "Exports", "Fingerprint", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(connection, "Exports", "SourceName", "TEXT NOT NULL DEFAULT ''");
         using (var fingerprintIndex = connection.CreateCommand())
@@ -1134,6 +1135,93 @@ internal sealed class LocalDatabase
         transaction.Commit();
     }
 
+    /// <summary>Salva le spettanze annuali di ferie e permessi dell'azienda (elenco vuoto = nessuna).</summary>
+    public void SaveCompanyLeave(string code, IReadOnlyList<LeaveRule> rules)
+    {
+        code = (code ?? string.Empty).Trim();
+        if (code.Length is 0 or > 6)
+        {
+            throw new InvalidDataException("Il codice azienda deve contenere da 1 a 6 caratteri.");
+        }
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO Companies (Code, Name, Notes, UpdatedUtc, LeaveJson) VALUES ($code, '', '', $now, $leave)
+            ON CONFLICT(Code) DO UPDATE SET LeaveJson = excluded.LeaveJson, UpdatedUtc = excluded.UpdatedUtc;
+            """;
+        command.Parameters.AddWithValue("$code", code);
+        command.Parameters.AddWithValue("$leave", rules.Count == 0 ? string.Empty : LeaveRule.ToJson(rules));
+        command.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Conserva le ore usate per giustificativo: per ogni mese presente in <paramref name="totals"/> si sostituisce quanto
+    /// già salvato per l'azienda (una nuova esportazione dello stesso mese lo corregge), gli altri mesi restano.
+    /// </summary>
+    public void SaveAbsenceTotals(string companyCode, IReadOnlyList<AbsenceTotal> totals)
+    {
+        companyCode = (companyCode ?? string.Empty).Trim();
+        if (companyCode.Length is 0 or > 6 || totals.Count == 0)
+        {
+            return;
+        }
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        var now = DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        foreach (var month in totals.Select(item => MonthKey(item.Month)).Distinct())
+        {
+            using var delete = connection.CreateCommand();
+            delete.Transaction = transaction;
+            delete.CommandText = "DELETE FROM AbsenceTotals WHERE CompanyCode = $company AND Month = $month;";
+            delete.Parameters.AddWithValue("$company", companyCode);
+            delete.Parameters.AddWithValue("$month", month);
+            delete.ExecuteNonQuery();
+        }
+        foreach (var item in totals)
+        {
+            using var insert = connection.CreateCommand();
+            insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT OR REPLACE INTO AbsenceTotals (CompanyCode, Month, EmployeeCode, EmployeeName, Policy, ReasonCode, Minutes, SavedUtc)
+                VALUES ($company, $month, $code, $name, $policy, $reason, $minutes, $now);
+                """;
+            insert.Parameters.AddWithValue("$company", companyCode);
+            insert.Parameters.AddWithValue("$month", MonthKey(item.Month));
+            insert.Parameters.AddWithValue("$code", item.EmployeeCode);
+            insert.Parameters.AddWithValue("$name", item.EmployeeName);
+            insert.Parameters.AddWithValue("$policy", item.Policy);
+            insert.Parameters.AddWithValue("$reason", item.ReasonCode);
+            insert.Parameters.AddWithValue("$minutes", item.Minutes);
+            insert.Parameters.AddWithValue("$now", now);
+            insert.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    /// <summary>Le ore usate per giustificativo conservate per l'azienda, in ordine di mese e di nome.</summary>
+    public IReadOnlyList<AbsenceTotal> GetAbsenceTotals(string companyCode)
+    {
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT CompanyCode, Month, EmployeeCode, EmployeeName, Policy, ReasonCode, Minutes
+            FROM AbsenceTotals WHERE CompanyCode = $company COLLATE NOCASE
+            ORDER BY Month, EmployeeName COLLATE NOCASE, ReasonCode;
+            """;
+        command.Parameters.AddWithValue("$company", (companyCode ?? string.Empty).Trim());
+        using var reader = command.ExecuteReader();
+        var rows = new List<AbsenceTotal>();
+        while (reader.Read())
+        {
+            if (DateTime.TryParseExact(reader.GetString(1) + "-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var month))
+            {
+                rows.Add(new AbsenceTotal(reader.GetString(0), month, reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetInt32(6)));
+            }
+        }
+        return rows;
+    }
+
     /// <summary>Le ore mensili conservate per l'azienda, in ordine di mese e di nome.</summary>
     public IReadOnlyList<MonthlyTotal> GetMonthlyTotals(string companyCode)
     {
@@ -1179,7 +1267,7 @@ internal sealed class LocalDatabase
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT Code, Name, Notes, RulesJson, ChecksJson FROM Companies ORDER BY Code COLLATE NOCASE;";
+        command.CommandText = "SELECT Code, Name, Notes, RulesJson, ChecksJson, LeaveJson FROM Companies ORDER BY Code COLLATE NOCASE;";
         using var reader = command.ExecuteReader();
         var companies = new List<CompanyRecord>();
         while (reader.Read())
@@ -1189,7 +1277,8 @@ internal sealed class LocalDatabase
                 reader.GetString(1),
                 reader.GetString(2),
                 CompanyRules.TryParse(reader.GetString(3)),
-                ValidationRules.TryParse(reader.GetString(4))));
+                ValidationRules.TryParse(reader.GetString(4)),
+                LeaveRule.TryParseJson(reader.GetString(5)) is { Count: > 0 } leave ? leave : null));
         }
         return companies;
     }

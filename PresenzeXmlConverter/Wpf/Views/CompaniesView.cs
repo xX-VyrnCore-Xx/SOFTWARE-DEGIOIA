@@ -49,6 +49,7 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
     private readonly Button _save = new() { Content = "Salva azienda" };
     private readonly Button _rules = new() { Content = "Regole…" };
     private readonly Button _checks = new() { Content = "Controlli…" };
+    private readonly Button _leave = new() { Content = "Ferie e permessi…" };
     private readonly Button _use = new() { Content = "Usa per la conversione" };
     private readonly Button _delete = new() { Content = "Elimina" };
     private bool _loading;
@@ -86,6 +87,7 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
         _save.Click += (_, _) => SaveFromForm();
         _rules.Click += (_, _) => EditRules();
         _checks.Click += (_, _) => EditChecks();
+        _leave.Click += (_, _) => EditLeave();
         _use.Click += (_, _) => UseSelected();
         _delete.Click += (_, _) => DeleteSelected();
         _conversion.CompanyCodeChanged += (_, _) => { if (IsLoaded) { Refresh(); } };
@@ -127,7 +129,7 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
         form.Children.Add(Ui.Text("Note", 13, FontWeights.SemiBold).WithMargin(new Thickness(0, 14, 0, 6)));
         form.Children.Add(_notes);
         var buttons = new WrapPanel { Margin = new Thickness(0, 18, 0, 0) };
-        foreach (var button in new[] { _save, _rules, _checks, _use, _delete })
+        foreach (var button in new[] { _save, _rules, _checks, _leave, _use, _delete })
         {
             button.Margin = new Thickness(0, 0, 8, 8);
             buttons.Children.Add(button);
@@ -199,6 +201,7 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
         var has = Selected is not null;
         _rules.IsEnabled = has;
         _checks.IsEnabled = has;
+        _leave.IsEnabled = has;
         _use.IsEnabled = has;
         _delete.IsEnabled = has;
     }
@@ -278,6 +281,31 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
         catch (Exception exception) when (ConversionService.IsExpectedInputError(exception))
         {
             MessageBox.Show(owner, exception.Message, "Impossibile salvare i controlli", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void EditLeave()
+    {
+        if (Selected is not { } company || _owner() is not { } owner)
+        {
+            return;
+        }
+        try
+        {
+            var dialog = new CompanyLeaveWindow(company);
+            if (!dialog.ShowOn(owner))
+            {
+                return;
+            }
+            _service.SaveLeave(company, dialog.Rules);
+            Refresh();
+            _message.Text = dialog.Rules.Count == 0
+                ? $"L'azienda {company.Code} non ha spettanze di ferie e permessi."
+                : $"Spettanze dell'azienda {company.Code} salvate: i residui compaiono in Storico → Residui.";
+        }
+        catch (Exception exception) when (ConversionService.IsExpectedInputError(exception))
+        {
+            MessageBox.Show(owner, exception.Message, "Impossibile salvare le spettanze", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

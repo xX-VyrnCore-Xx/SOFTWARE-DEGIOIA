@@ -35,7 +35,7 @@ internal sealed record DailyMovement(
     string? OfficialCode = null);
 
 /// <summary>Un'azienda dell'anagrafica: il codice è quello ufficiale PAGHE (max 6 caratteri).</summary>
-internal sealed record CompanyRecord(string Code, string Name, string Notes, CompanyRules? Rules = null, ValidationRules? Checks = null)
+internal sealed record CompanyRecord(string Code, string Name, string Notes, CompanyRules? Rules = null, ValidationRules? Checks = null, IReadOnlyList<LeaveRule>? Leave = null)
 {
     /// <summary>«AZ001 · Rossi Srl», oppure solo il codice se la ragione sociale manca.</summary>
     public string Label => Name.Length == 0 ? Code : $"{Code} · {Name}";
