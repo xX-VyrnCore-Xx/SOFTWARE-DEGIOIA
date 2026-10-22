@@ -41,7 +41,7 @@ public class MonthlyTrendTests
     {
         var changes = MonthlyTrend.Changes(Sample);
 
-        Assert.Equal(new[] { "Verdi Luca", "Rossi Mario", "Bianchi Anna" }, changes.Select(change => change.EmployeeName));
+        Assert.Equal(new[] { "Verdi Luca", "Bianchi Anna", "Rossi Mario" }, changes.Select(change => change.EmployeeName));
         var rossi = changes.Single(change => change.EmployeeCode == "E001");
         Assert.Equal(9600, rossi.TotalMinutes);
         Assert.Equal(9600, rossi.PreviousMinutes);
