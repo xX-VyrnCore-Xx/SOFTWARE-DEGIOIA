@@ -14,6 +14,12 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 - Barra delle anomalie in alto (giorni oltre la giornata, giorni insoliti, totali diversi dal teorico) con «Vai al primo / al prossimo» che porta al giorno giusto
 - La legenda dei colori è sotto il calendario; la larghezza dei giorni si adatta alla finestra
 
+### 🐛 Correzioni grafiche e aggiornamenti in tempo reale
+- **Riga selezionata in magenta** (per esempio il codice nelle tabelle dei Codici): mancava un colore del tema, ora c'è; un controllo automatico verifica che ogni colore usato nel codice esista
+- **Il tema cambia subito**: scegliendo Chiaro, Scuro, Come Windows o Vetro nelle Impostazioni la finestra si ridisegna senza riavviare, restando nella stessa pagina e con il lavoro in corso (file importato, anteprima) intatto; con «Come Windows» segue anche il cambio del tema di sistema a programma aperto
+- **Icona degli aggiornamenti in alto a destra**: mostra la versione installata e lo stato in tempo reale (aggiornato, controllo in corso con icona che gira, nuova versione, download con percentuale e barra); il pulsante cerca subito o, se c'è una versione pronta, la installa
+- Il download dell'aggiornamento avanza anche nella barra delle applicazioni di Windows, e lo stato nelle Impostazioni → Aggiornamenti si aggiorna da solo
+
 ### ✨ Menù e icona nel tray più curati
 - **Icona nel tray**: con un aggiornamento pronto compare un pallino verde sull'icona (oltre al suggerimento), alla misura giusta per lo schermo
 - **Menù del tray** con testata (nome, versione e stato degli aggiornamenti), accesso rapido a **Nuova conversione** e **Storico esportazioni**, voci raggruppate e senza più il ritorno alla classica

@@ -54,6 +54,7 @@ internal static class UiStyles
   <SolidColorBrush x:Key="Brush.DividerStrong" Color="{{{p.DividerStrong}}}"/>
   <SolidColorBrush x:Key="Brush.Brand" Color="{{{p.Brand}}}"/>
   <SolidColorBrush x:Key="Brush.BrandSoft" Color="{{{p.BrandSoft}}}"/>
+  <SolidColorBrush x:Key="Brush.BrandLite" Color="{{{p.BrandLite}}}"/>
   <SolidColorBrush x:Key="Brush.BrandInk" Color="{{{p.BrandInk}}}"/>
   <SolidColorBrush x:Key="Brush.Success" Color="{{{p.Success}}}"/>
   <SolidColorBrush x:Key="Brush.SuccessSoft" Color="{{{p.SuccessSoft}}}"/>

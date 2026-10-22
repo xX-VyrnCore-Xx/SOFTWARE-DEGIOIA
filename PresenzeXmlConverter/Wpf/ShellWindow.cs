@@ -51,8 +51,11 @@ internal sealed class ShellWindow : Window
         ("Impostazioni", Glyph.Gear)
     ];
 
-    private readonly NavRail _nav = new();
-    private readonly ContentControl _host = new() { Focusable = false };
+    private NavRail _nav = new();
+    private ContentControl _host = new() { Focusable = false };
+    private readonly Grid _layers = new();
+    private readonly string _version = typeof(ShellWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+    private UpdateChip _chip = null!;
     private readonly UIElement?[] _pages = new UIElement?[Sections.Length];
 
     private readonly ConversionService _service;
@@ -64,18 +67,37 @@ internal sealed class ShellWindow : Window
     {
         _service = service;
         _prompts = prompts;
-        var version = typeof(ShellWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
-        Title = $"Vyrn Presence {version}";
+        Title = $"Vyrn Presence {_version}";
         MinWidth = 1000;
         MinHeight = 680;
         Width = 1280;
         Height = 800;
         FontFamily = Ui.Font;
-        Background = Ui.Brush("Brush.Canvas");
-        Foreground = Ui.Brush("Brush.Ink");
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
+        TaskbarItemInfo = new System.Windows.Shell.TaskbarItemInfo();
+
+        BuildShell();
+        Content = _layers;
+        Notifier = new WpfNotifier(this, _toasts, service.Database);
+
+        Loaded += (_, _) =>
+        {
+            _nav.Select(0);
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnSystemPreferenceChanged;
+        };
+        Closed += (_, _) => Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnSystemPreferenceChanged;
+    }
+
+    /// <summary>Costruisce (o ricostruisce, dopo un cambio di tema) la barra laterale, la barra in alto con l'icona degli aggiornamenti e l'area delle pagine.</summary>
+    private void BuildShell()
+    {
+        Background = Ui.Brush("Brush.Canvas");
+        Foreground = Ui.Brush("Brush.Ink");
+        _nav = new NavRail();
+        _host = new ContentControl { Focusable = false };
+        Array.Clear(_pages);
 
         foreach (var (title, glyph) in Sections)
         {
@@ -94,7 +116,7 @@ internal sealed class ShellWindow : Window
         });
         var names = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         names.Children.Add(Ui.Text("Vyrn Presence", 15, FontWeights.SemiBold));
-        names.Children.Add(Ui.Text($"Versione {version}", 12, ink: "Brush.Muted"));
+        names.Children.Add(Ui.Text("Presenze per Zucchetti", 12, ink: "Brush.Muted"));
         brand.Children.Add(names);
 
         var sidebar = new Grid { Background = Ui.Brush("Brush.Sidebar") };
@@ -108,25 +130,144 @@ internal sealed class ShellWindow : Window
         bottom.Children.Add(BuildUpdateBanner());
         sidebar.Children.Add(bottom.At(2, 0));
 
+        _chip = new UpdateChip(_version);
+        _chip.Clicked += async (_, _) => await OnChipClickedAsync();
+        var area = new Grid();
+        area.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        area.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        area.Children.Add(_chip.WithMargin(new Thickness(28, 16, 28, 0)).At(0, 0));
+        area.Children.Add(_host.WithMargin(new Thickness(28, 12, 28, 0)).At(1, 0));
+
         var root = Ui.Columns(Ui.Px(232), Ui.Star());
         root.Children.Add(sidebar.At(0, 0));
         root.Children.Add(new Border
         {
             BorderBrush = Ui.Brush("Brush.Divider"),
             BorderThickness = new Thickness(1, 0, 0, 0),
-            Child = _host.WithMargin(new Thickness(28, 28, 28, 0))
+            Child = area
         }.At(0, 1));
-        var layers = new Grid();
-        layers.Children.Add(root);
-        layers.Children.Add(_toasts);
-        Content = layers;
-        Notifier = new WpfNotifier(this, _toasts, service.Database);
-
-        Loaded += (_, _) => _nav.Select(0);
+        _layers.Children.Clear();
+        _layers.Children.Add(root);
+        _layers.Children.Add(_toasts);
+        RefreshUpdateUi();
     }
 
-    private readonly Border _updateBanner = new() { Visibility = Visibility.Collapsed };
-    private readonly TextBlock _updateBannerText = Ui.Text(string.Empty, 13, FontWeights.SemiBold, "Brush.BrandInk", wrap: true);
+    /// <summary>
+    /// Applica subito il tema scelto nelle Impostazioni (nessun riavvio): ricarica la tavolozza, ricostruisce la finestra
+    /// e riporta l'utente dov'era, con il lavoro in corso (file importato, anteprima) intatto.
+    /// </summary>
+    internal void ApplyTheme()
+    {
+        var section = Math.Max(0, _nav.SelectedIndex);
+        var settingsTab = (_pages[SettingsSection] as SettingsView)?.CurrentTab ?? 0;
+        var previous = _conversion;
+        ThemePreference.ApplyAtStartup();
+        var merged = Application.Current.Resources.MergedDictionaries;
+        var old = merged.FirstOrDefault(dictionary => dictionary.Contains("Brush.Ink"));
+        var fresh = UiStyles.Create(UiPalette.Current);
+        if (old is null)
+        {
+            merged.Add(fresh);
+        }
+        else
+        {
+            merged[merged.IndexOf(old)] = fresh;
+        }
+        _conversion = null;
+        BuildShell();
+        if (previous is not null)
+        {
+            _conversion = new ConversionView(_service, () => this, _prompts, Notifier);
+            _conversion.RestoreFrom(previous);
+        }
+        _nav.Select(section);
+        if (section == SettingsSection)
+        {
+            ShowSettingsTab(settingsTab);
+        }
+    }
+
+    private void OnSystemPreferenceChanged(object? sender, Microsoft.Win32.UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category != Microsoft.Win32.UserPreferenceCategory.General)
+        {
+            return;
+        }
+        // Con «Come Windows» il tema segue il sistema anche a programma aperto.
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (ThemePreference.Load() == ThemeMode.System && ThemePreference.SystemIsDark() != Theme.IsDark)
+            {
+                ApplyTheme();
+            }
+        });
+    }
+
+    private async Task OnChipClickedAsync()
+    {
+        if (Updates is not { } updates)
+        {
+            return;
+        }
+        if (updates.Pending is not null)
+        {
+            await updates.InstallPendingAsync();
+            return;
+        }
+        await updates.CheckAsync(userInitiated: true);
+    }
+
+    /// <summary>Aggiorna in tempo reale l'icona in alto a destra, il riquadro della barra laterale e l'avanzamento nella barra delle applicazioni.</summary>
+    private void RefreshUpdateUi()
+    {
+        ShowPendingUpdate();
+        var info = TaskbarItemInfo;
+        if (Updates is not { } updates)
+        {
+            _chip.Show(UpdateChipState.UpToDate, "Aggiornato", 0);
+            return;
+        }
+        if (updates.Progress is { } progress)
+        {
+            var downloading = progress.Step == UpdateStep.Download;
+            _chip.Show(
+                UpdateChipState.Downloading,
+                downloading ? $"Download {progress.Percent}%" : UpdateSteps.Label(progress.Step),
+                downloading ? progress.Percent : 100);
+            if (info is not null)
+            {
+                info.ProgressState = downloading ? System.Windows.Shell.TaskbarItemProgressState.Normal : System.Windows.Shell.TaskbarItemProgressState.Indeterminate;
+                info.ProgressValue = progress.Percent / 100.0;
+            }
+            return;
+        }
+        if (info is not null)
+        {
+            info.ProgressState = System.Windows.Shell.TaskbarItemProgressState.None;
+        }
+        if (updates.IsChecking)
+        {
+            _chip.Show(UpdateChipState.Checking, "Controllo in corso…", 0);
+        }
+        else if (updates.Pending is { } pending)
+        {
+            _chip.Show(UpdateChipState.Available, $"Nuova versione {pending.Version.ToString(3)}", 0);
+        }
+        else if (updates.StatusIsWarning)
+        {
+            _chip.Show(UpdateChipState.Problem, "Controllo non riuscito", 0);
+        }
+        else
+        {
+            _chip.Show(UpdateChipState.UpToDate, "Aggiornato", 0);
+        }
+    }
+
+    /// <summary>Lo stato dell'icona degli aggiornamenti (per i test).</summary>
+    internal (UpdateChipState State, string Text, int Percent, bool ButtonEnabled) ChipSnapshot => _chip.Snapshot;
+
+    private Border _updateBanner = new() { Visibility = Visibility.Collapsed };
+    private TextBlock _updateBannerText = Ui.Text(string.Empty, 13, FontWeights.SemiBold, "Brush.BrandInk", wrap: true);
 
     /// <summary>Il ciclo degli aggiornamenti (null nei test e quando l'avvio non l'ha creato).</summary>
     internal UpdateController? Updates { get; private set; }
@@ -134,6 +275,8 @@ internal sealed class ShellWindow : Window
     /// <summary>Un riquadro in fondo alla barra laterale: dice che c'è una versione nuova e la installa con un clic.</summary>
     private Border BuildUpdateBanner()
     {
+        _updateBanner = new Border { Visibility = Visibility.Collapsed };
+        _updateBannerText = Ui.Text(string.Empty, 13, FontWeights.SemiBold, "Brush.BrandInk", wrap: true);
         var button = new Button { Content = "Aggiorna", Style = Ui.Style("Primary"), Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
         button.Click += async (_, _) =>
         {
@@ -157,9 +300,11 @@ internal sealed class ShellWindow : Window
     internal void AttachUpdates(UpdateController updates)
     {
         Updates = updates;
-        updates.PendingChanged += ShowPendingUpdate;
+        updates.PendingChanged += RefreshUpdateUi;
+        updates.ProgressChanged += () => Dispatcher.BeginInvoke(RefreshUpdateUi);
         updates.StatusChanged += () =>
         {
+            RefreshUpdateUi();
             if (_pages[0] is DashboardView dashboard)
             {
                 dashboard.ShowUpdates(updates.StatusText, updates.StatusIsWarning);
@@ -181,7 +326,7 @@ internal sealed class ShellWindow : Window
         }
         // Tornando alla finestra dopo un po' si controlla subito se c'è una versione nuova.
         Activated += (_, _) => updates.RequestCheck(staleOnly: true);
-        ShowPendingUpdate();
+        RefreshUpdateUi();
     }
 
     /// <summary>Apre la scheda indicata delle Impostazioni (1 = Aggiornamenti).</summary>

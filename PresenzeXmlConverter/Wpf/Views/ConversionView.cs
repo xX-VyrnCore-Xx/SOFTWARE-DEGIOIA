@@ -72,6 +72,7 @@ internal sealed class ConversionView : Grid
     private readonly List<(Border Pill, TextBlock Text, FrameworkElement Page)> _tabs = new();
     private int _tab;
     private bool _working;
+    private (string Name, string Detail)? _loaded;
     private readonly WpfNotifier? _notifier;
 
     public ConversionView(ConversionService service, Func<Window?> owner, Func<IConversionPrompts>? prompts = null, WpfNotifier? notifier = null)
@@ -157,7 +158,8 @@ internal sealed class ConversionView : Grid
             {
                 return;
             }
-            _drop.ShowLoaded(Path.GetFileName(path), $"{_service.Requests.Count:N0} richieste · foglio «{_service.Inspection?.SheetName}»");
+            _loaded = (Path.GetFileName(path), $"{_service.Requests.Count:N0} richieste · foglio «{_service.Inspection?.SheetName}»");
+            _drop.ShowLoaded(_loaded.Value.Name, _loaded.Value.Detail);
             _stepper.Current = 1;
             ShowPreview();
             SetStatus("File importato. Controlla il codice azienda e genera l'anteprima.");
@@ -263,6 +265,24 @@ internal sealed class ConversionView : Grid
     }
 
     private void SetStatus(string text) => _status.Text = text;
+
+    /// <summary>Riprende lo stato di una schermata precedente (dopo un cambio di tema la pagina si ricostruisce: il lavoro in corso resta).</summary>
+    internal void RestoreFrom(ConversionView previous)
+    {
+        if (!_service.HasWorkbook)
+        {
+            return;
+        }
+        _loaded = previous._loaded;
+        if (_loaded is { } loaded)
+        {
+            _drop.ShowLoaded(loaded.Name, loaded.Detail);
+        }
+        _stepper.Current = previous._stepper.Current;
+        ShowPreview();
+        SelectTab(previous._tab);
+        SetStatus(previous._status.Text);
+    }
 
     /// <summary>
     /// Conversione finita: con la finestra in uso basta il cartellino; altrimenti l'avviso invita a tornare e chiede anche
