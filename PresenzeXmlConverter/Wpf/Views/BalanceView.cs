@@ -98,6 +98,7 @@ internal sealed class BalanceView : Grid
     /// <summary>Rilegge le aziende e gli anni con ore usate e mostra l'azienda in uso (o la prima).</summary>
     public void Refresh()
     {
+        Trace += "R";
         _filling = true;
         try
         {
@@ -110,6 +111,7 @@ internal sealed class BalanceView : Grid
             {
                 companies = Array.Empty<string>();
             }
+            Trace += $"c{companies.Count}";
             _companies.ItemsSource = companies;
             _companies.Visibility = companies.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
             var current = _service.CompanyCode.Trim();
@@ -124,6 +126,9 @@ internal sealed class BalanceView : Grid
         }
         FillYears();
     }
+
+    /// <summary>Traccia di diagnostica (per i test).</summary>
+    internal string Trace { get; private set; } = string.Empty;
 
     /// <summary>Il testo di sintesi (per i test).</summary>
     internal string SummaryText => _summary.Text;
@@ -145,6 +150,7 @@ internal sealed class BalanceView : Grid
                 years = Array.Empty<int>();
             }
         }
+        Trace += $"y{years.Count}";
         _year = _year is { } keep && years.Contains(keep) ? keep : years.Count > 0 ? years[0] : (int?)null;
         _filling = true;
         try
