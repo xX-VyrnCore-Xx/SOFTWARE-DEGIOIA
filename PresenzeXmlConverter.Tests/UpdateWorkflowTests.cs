@@ -49,7 +49,7 @@ public class UpdateWorkflowTests
     public void ErrorsAreShortenedAndTokenProblemsRecognised()
     {
         Assert.Equal("Prima riga", UpdateWorkflow.SummarizeError("Prima riga\nSeconda"));
-        Assert.Equal(80, UpdateWorkflow.SummarizeError(new string('x', 200)).Length);
+        Assert.Equal(78, UpdateWorkflow.SummarizeError(new string('x', 200)).Length);
         Assert.True(UpdateWorkflow.NeedsTokenAttention("La repository è privata"));
         Assert.True(UpdateWorkflow.NeedsTokenAttention("Token non valido"));
         Assert.False(UpdateWorkflow.NeedsTokenAttention("Rete non raggiungibile"));

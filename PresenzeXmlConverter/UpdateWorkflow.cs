@@ -68,7 +68,8 @@ internal static class UpdateWorkflow
     public static WhatsNewPlan PlanWhatsNew(Version current, string? lastRunVersion, string? pendingVersion, string? pendingNotes)
     {
         var pending = UpdateService.ParseVersion(pendingVersion);
-        if (pending is not null && current >= pending)
+        // Si confronta con la normalizzazione delle versioni (1.65.0 e 1.65.0.0 sono la stessa): il confronto diretto le distingue.
+        if (pending is not null && !UpdateService.IsNewer(pending, current))
         {
             return string.IsNullOrWhiteSpace(pendingNotes)
                 ? Fallback(current, lastRunVersion, clearPending: true)
@@ -84,7 +85,7 @@ internal static class UpdateWorkflow
             return new WhatsNewPlan(WhatsNewKind.None, null, clearPending);
         }
         var previous = UpdateService.ParseVersion(lastRunVersion);
-        return previous is null || current <= previous
+        return previous is null || !UpdateService.IsNewer(current, previous)
             ? new WhatsNewPlan(WhatsNewKind.None, null, clearPending)
             : new WhatsNewPlan(WhatsNewKind.FetchedNotes, null, clearPending);
     }
