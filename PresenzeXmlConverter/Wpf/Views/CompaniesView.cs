@@ -96,10 +96,10 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
 
     private UIElement BuildBody()
     {
-        _grid.Columns.Add(new DataGridTextColumn { Header = "", Binding = new Binding(nameof(CompanyRow.InUse)), Width = new DataGridLength(44) });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "Codice", Binding = new Binding(nameof(CompanyRow.Code)), Width = new DataGridLength(96) });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "Ragione sociale", Binding = new Binding(nameof(CompanyRow.Name)), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "Regole", Binding = new Binding(nameof(CompanyRow.Rules)), Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "", Binding = new Binding(nameof(CompanyRow.InUse)), Width = new DataGridLength(40) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "Codice", Binding = new Binding(nameof(CompanyRow.Code)), Width = new DataGridLength(84) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "Ragione sociale", Binding = new Binding(nameof(CompanyRow.Name)), Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "Regole", Binding = new Binding(nameof(CompanyRow.Rules)), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
 
         var listCard = new Grid();
         listCard.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -134,7 +134,7 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
         form.Children.Add(_message.WithMargin(new Thickness(0, 6, 0, 0)));
         var formScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = form };
 
-        var body = Ui.Columns(Ui.Star(1.5), Ui.Px(20), Ui.Px(330));
+        var body = Ui.Columns(Ui.Star(1.5), Ui.Px(20), Ui.Px(300));
         body.Margin = new Thickness(0, 0, 0, 20);
         body.Children.Add(list.At(0, 0));
         body.Children.Add(Ui.Card(formScroll, new Thickness(22)).At(0, 2));

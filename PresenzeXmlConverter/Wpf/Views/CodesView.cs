@@ -120,7 +120,7 @@ internal sealed class CodesView : Grid, IRefreshablePage
             IsReadOnly = true,
             Width = new DataGridLength(withProfile ? 2.4 : 2, DataGridLengthUnitType.Star)
         });
-        grid.Columns.Add(EditableColumn(withProfile ? "Codice PAGHE" : "Codice giustificativo", nameof(CodeRow.Code), star: 1));
+        grid.Columns.Add(EditableColumn(withProfile ? "Codice PAGHE" : "Codice giustificativo", nameof(CodeRow.Code), star: 1.3));
         if (withProfile)
         {
             grid.Columns.Add(EditableColumn("Ore/giorno", nameof(CodeRow.Hours), pixels: 110));
