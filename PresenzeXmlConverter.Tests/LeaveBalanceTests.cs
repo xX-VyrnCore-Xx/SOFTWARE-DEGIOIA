@@ -295,7 +295,7 @@ public class WpfLeaveTests
                 WpfTestHost.Pump(450);
 
                 var rows = view.Balance.Rows;
-                Assert.Equal(2, rows.Count);
+                Assert.True(rows.Count == 2, "Residui: " + view.Balance.SummaryText);
                 Assert.Equal("Rossi Mario", rows[0].Employee);
                 Assert.Equal("Oltre", rows[0].Status);
                 Assert.Equal("−8 h", rows[0].Remaining);
