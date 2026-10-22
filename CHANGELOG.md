@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.64.0] - Corrente
+## [1.65.0] - Corrente
+
+### ✨ Nuova interfaccia (anteprima): aggiornamenti
+- **Controllo automatico** all'avvio (ritardato), ogni dieci minuti anche con la finestra nel tray, al ritorno della rete e alla fine della sospensione, e quando si torna alla finestra dopo un po'; «Cerca aggiornamenti ora» e lo stato nelle Impostazioni → Aggiornamenti
+- **Una nuova versione si annuncia con un avviso** (cartellino, fumetto di Windows, lampeggio), mai con una finestra a sorpresa; un riquadro in fondo alla barra laterale e la voce in cima al menu del tray la installano con un clic; una versione rimandata non si ripropone a ogni avvio
+- **Novità e avanzamento** in finestre della nuova interfaccia: note della Release impaginate, i quattro passi (scaricamento, controllo del file, verifica della firma, installazione) con barra e «Annulla» fino all'installazione
+- **Dopo l'aggiornamento** si mostrano le novità salvate prima del riavvio (senza rete)
+- Il download è lo stesso percorso sicuro della versione classica, ora in `UpdateInstaller` senza finestre e con i suoi test: cartella privata e nome casuale, checksum SHA-256 obbligatorio se la Release lo dichiara, firma Authenticode, certificato diverso solo con conferma
+
+## [1.64.0]
 
 ### ✨ Nuova interfaccia (anteprima): notifiche e tray
 - **Avvisi dentro la finestra** (conversione completata, file salvato) come cartellini in basso a destra: si ritirano da soli, si fermano col mouse, un clic apre il file

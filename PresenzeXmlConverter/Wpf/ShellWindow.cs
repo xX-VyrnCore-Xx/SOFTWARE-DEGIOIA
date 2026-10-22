@@ -110,7 +110,10 @@ internal sealed class ShellWindow : Window
             UiMode.Save(UiKind.Classic);
             MessageBox.Show(this, "Alla prossima apertura Vyrn Presence userà l'interfaccia classica.", Title, MessageBoxButton.OK, MessageBoxImage.Information);
         };
-        sidebar.Children.Add(classic.At(2, 0));
+        var bottom = new StackPanel();
+        bottom.Children.Add(BuildUpdateBanner());
+        bottom.Children.Add(classic);
+        sidebar.Children.Add(bottom.At(2, 0));
 
         var root = Ui.Columns(Ui.Px(232), Ui.Star());
         root.Children.Add(sidebar.At(0, 0));
@@ -128,6 +131,92 @@ internal sealed class ShellWindow : Window
 
         Loaded += (_, _) => _nav.Select(0);
     }
+
+    private readonly Border _updateBanner = new() { Visibility = Visibility.Collapsed };
+    private readonly TextBlock _updateBannerText = Ui.Text(string.Empty, 13, FontWeights.SemiBold, "Brush.BrandInk", wrap: true);
+
+    /// <summary>Il ciclo degli aggiornamenti (null nei test e quando l'avvio non l'ha creato).</summary>
+    internal UpdateController? Updates { get; private set; }
+
+    /// <summary>Un riquadro in fondo alla barra laterale: dice che c'è una versione nuova e la installa con un clic.</summary>
+    private Border BuildUpdateBanner()
+    {
+        var button = new Button { Content = "Aggiorna", Style = Ui.Style("Primary"), Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        button.Click += async (_, _) =>
+        {
+            if (Updates is { } updates)
+            {
+                await updates.InstallPendingAsync();
+            }
+        };
+        var inner = new StackPanel();
+        inner.Children.Add(_updateBannerText);
+        inner.Children.Add(button);
+        _updateBanner.Background = Ui.Brush("Brush.BrandSoft");
+        _updateBanner.CornerRadius = new CornerRadius(12);
+        _updateBanner.Padding = new Thickness(14, 12, 14, 12);
+        _updateBanner.Margin = new Thickness(12, 0, 12, 4);
+        _updateBanner.Child = inner;
+        return _updateBanner;
+    }
+
+    /// <summary>Dà alla finestra il ciclo degli aggiornamenti: banner nella barra laterale, comandi del tray, controllo al ritorno alla finestra.</summary>
+    internal void AttachUpdates(UpdateController updates)
+    {
+        Updates = updates;
+        updates.PendingChanged += ShowPendingUpdate;
+        updates.StatusChanged += () =>
+        {
+            if (_pages[0] is DashboardView dashboard)
+            {
+                dashboard.ShowUpdates(updates.StatusText, updates.StatusIsWarning);
+            }
+        };
+        updates.ExitRequested += () => Dispatcher.BeginInvoke(ExitApplication);
+        if (Tray is { } tray)
+        {
+            tray.CheckUpdatesRequested += () => Dispatcher.BeginInvoke(async () =>
+            {
+                RestoreFromTray();
+                await updates.CheckAsync(userInitiated: true);
+            });
+            tray.InstallUpdateRequested += () => Dispatcher.BeginInvoke(async () =>
+            {
+                RestoreFromTray();
+                await updates.InstallPendingAsync();
+            });
+        }
+        // Tornando alla finestra dopo un po' si controlla subito se c'è una versione nuova.
+        Activated += (_, _) => updates.RequestCheck(staleOnly: true);
+        ShowPendingUpdate();
+    }
+
+    /// <summary>Apre la scheda indicata delle Impostazioni (1 = Aggiornamenti).</summary>
+    internal void ShowSettingsTab(int tab)
+    {
+        Navigate(SettingsSection);
+        (PageAt(SettingsSection) as SettingsView)?.ShowTab(tab);
+    }
+
+    private DashboardView NewDashboard()
+    {
+        var dashboard = new DashboardView(Navigate, path => _ = ImportAsync(path));
+        if (Updates is { } updates)
+        {
+            dashboard.ShowUpdates(updates.StatusText, updates.StatusIsWarning);
+        }
+        return dashboard;
+    }
+
+    private void ShowPendingUpdate()
+    {
+        var pending = Updates?.Pending;
+        _updateBanner.Visibility = pending is null ? Visibility.Collapsed : Visibility.Visible;
+        _updateBannerText.Text = pending is null ? string.Empty : $"Aggiornamento {pending.Version.ToString(3)} disponibile";
+    }
+
+    /// <summary>Il testo e la visibilità del riquadro di aggiornamento (per i test).</summary>
+    internal (bool Visible, string Text) UpdateBannerState => (_updateBanner.Visibility == Visibility.Visible, _updateBannerText.Text);
 
     private readonly ToastLayer _toasts = new();
     private bool _forceClose;
@@ -295,6 +384,7 @@ internal sealed class ShellWindow : Window
             return;
         }
         _closedForReal = true;
+        Updates?.Stop();
         try
         {
             _toasts.Clear();
@@ -365,13 +455,13 @@ internal sealed class ShellWindow : Window
 
     private UIElement CreatePage(int index) => index switch
     {
-        0 => new DashboardView(Navigate, path => _ = ImportAsync(path)),
+        0 => NewDashboard(),
         1 => _conversion ??= new ConversionView(_service, () => this, _prompts, Notifier),
         2 => new CompaniesView(_service, () => this),
         3 => new CodesView(_service, () => this),
         4 => new HistoryView(_service, () => this),
         5 => new ActivityView(_service, () => this),
-        6 => new SettingsView(_service, () => this, () => Notifier),
+        6 => new SettingsView(_service, () => this, () => Notifier, () => Updates),
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",

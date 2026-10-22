@@ -24,6 +24,18 @@ internal static class WpfLauncher
             {
                 window.AttachTray(tray);
             }
+            var updates = new UpdateController(
+                service.Database,
+                window.Notifier,
+                new WpfUpdateUi(window, () => window.Dispatcher.BeginInvoke(() =>
+                {
+                    window.RestoreFromTray();
+                    window.Navigate(ShellWindow.SettingsSection);
+                    window.ShowSettingsTab(1);
+                })),
+                () => service.HasPreview && service.FindPreviousDelivery() is null);
+            window.AttachUpdates(updates);
+            updates.Start();
             instance.OnActivationRequested(() => window.Dispatcher.BeginInvoke(window.RestoreFromTray));
             // Chiusura della sessione di Windows (spegnimento, disconnessione): niente tray, il programma esce.
             app.SessionEnding += (_, _) => window.ForceCloseOnSessionEnd();
