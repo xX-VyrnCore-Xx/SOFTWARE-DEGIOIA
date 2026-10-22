@@ -147,7 +147,7 @@ public class LiveUiTests
 
             Assert.Same(GridColumns.Trimmed, plain.ElementStyle);
             Assert.NotSame(GridColumns.Trimmed, number.ElementStyle);
-            Assert.Contains(number.HeaderStyle.Setters.OfType<Setter>(), setter => Equals(setter.Value, HorizontalAlignment.Right));
+            Assert.Contains(number.HeaderStyle.Setters.OfType<Setter>(), setter => Equals(setter.Value, System.Windows.HorizontalAlignment.Right));
         });
     }
 }
