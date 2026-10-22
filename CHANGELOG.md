@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.60.0] - Corrente
+## [1.61.0] - Corrente
+
+### ✨ Nuova interfaccia (anteprima): Storico esportazioni e Registro attività
+- **Storico esportazioni**: ogni XML salvato con data, file, cartella, movimenti e ore; **Apri cartella** (anche con doppio clic), **Verifica file** (identico alla copia consegnata? rispetta ancora il tracciato?), **Salva copia…** dalla copia conservata nel database, **Copia percorso** e **Svuota storico** (i file su disco restano)
+- **Registro attività**: cosa è stato fatto, con ricerca per testo, filtro per tipo, **Esporta CSV…** delle voci mostrate e **Svuota registro**
+- Con queste due sezioni la barra laterale della nuova interfaccia è completa; restano le Impostazioni. L'interfaccia classica non cambia
+- Dietro le sezioni ci sono `HistoryService` e `ActivityService` senza finestre, con i loro test
+
+## [1.60.0]
 
 ### ✨ Nuova interfaccia (anteprima): Aziende e Gestione codici
 - **Aziende**: elenco con l'azienda in uso, modulo per codice (1-6 caratteri), ragione sociale e note; pulsanti per **Regole…** (le stesse della finestra classica), **Usa per la conversione** (la schermata di Conversione si aggiorna subito) ed **Elimina**
