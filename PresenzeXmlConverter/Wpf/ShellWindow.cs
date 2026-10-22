@@ -104,15 +104,8 @@ internal sealed class ShellWindow : Window
         sidebar.Children.Add(brand.At(0, 0));
         sidebar.Children.Add(_nav.WithMargin(new Thickness(12, 0, 12, 0)).At(1, 0));
 
-        var classic = new Button { Content = "Torna all'interfaccia classica", Style = Ui.Style("Ghost"), Margin = new Thickness(12, 8, 12, 18) };
-        classic.Click += (_, _) =>
-        {
-            UiMode.Save(UiKind.Classic);
-            MessageBox.Show(this, "Alla prossima apertura Vyrn Presence userà l'interfaccia classica.", Title, MessageBoxButton.OK, MessageBoxImage.Information);
-        };
-        var bottom = new StackPanel();
+        var bottom = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
         bottom.Children.Add(BuildUpdateBanner());
-        bottom.Children.Add(classic);
         sidebar.Children.Add(bottom.At(2, 0));
 
         var root = Ui.Columns(Ui.Px(232), Ui.Star());
@@ -246,12 +239,6 @@ internal sealed class ShellWindow : Window
         {
             RestoreFromTray();
             Navigate(SettingsSection);
-        });
-        tray.ClassicRequested += () => Dispatcher.BeginInvoke(() =>
-        {
-            UiMode.Save(UiKind.Classic);
-            RestoreFromTray();
-            Notifier.Notify(ToastKind.Info, "Interfaccia classica", "Alla prossima apertura Vyrn Presence userà l'interfaccia classica.");
         });
         tray.Message += text => Dispatcher.BeginInvoke(() => Notifier.Notify(ToastKind.Info, "Vyrn Presence", text));
     }
@@ -464,7 +451,7 @@ internal sealed class ShellWindow : Window
         6 => new SettingsView(_service, () => this, () => Notifier, () => Updates),
         _ => new PageScaffold(
             Sections[index].Title,
-            "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",
+            "Questa sezione arriva nella prossima versione.",
             Ui.Card(Ui.Text("In arrivo", 16, FontWeights.SemiBold), new Thickness(28)).WithMargin(new Thickness(0, 0, 0, 24)).AlignTop())
     };
 }

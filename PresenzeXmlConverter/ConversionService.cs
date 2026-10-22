@@ -459,6 +459,17 @@ internal sealed class ConversionService
                 Inspection?.PeriodStart,
                 Inspection?.PeriodEnd);
 
+    /// <summary>Il calendario dei movimenti generati, giorno per giorno (nullo senza anteprima).</summary>
+    public CalendarModel? BuildCalendar() =>
+        Movements.Count == 0
+            ? null
+            : CalendarModel.Create(
+                Movements,
+                Options,
+                Safe(() => _database.GetEmployeeProfiles()),
+                Inspection?.PeriodStart,
+                Inspection?.PeriodEnd);
+
     /// <summary>Report PDF del mese (totali, assenze e giorni da controllare), pronto da salvare.</summary>
     public byte[] BuildMonthlyReportPdf(DateTime generated)
     {

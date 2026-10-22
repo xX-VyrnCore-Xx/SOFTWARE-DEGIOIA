@@ -5,7 +5,7 @@ namespace PresenzeXmlConverter.Wpf;
 /// <summary>
 /// Avvio della nuova interfaccia. Qualunque errore prima che la finestra sia comparsa (librerie grafiche assenti,
 /// stile non valido, ...) viene scritto nel registro degli errori e restituisce <c>false</c>: chi chiama apre allora
-/// l'interfaccia classica, così il programma parte sempre.
+/// chi chiama mostra il messaggio d'errore con il percorso del registro.
 /// </summary>
 internal static class WpfLauncher
 {
@@ -18,11 +18,7 @@ internal static class WpfLauncher
             var app = WpfApp.EnsureApplication();
             var service = new ConversionService(LocalDatabase.OpenWithRecovery().Database);
             var window = new ShellWindow(service) { ManageLifecycle = true };
-            window.ContentRendered += (_, _) =>
-            {
-                shown = true;
-                UiMode.ModernStartSucceeded();
-            };
+            window.ContentRendered += (_, _) => shown = true;
             tray = TryCreateTray(window, service.Database, log);
             if (tray is not null)
             {
@@ -50,7 +46,6 @@ internal static class WpfLauncher
                 // Avvio con Windows: resta nel tray senza aprire la finestra (gli aggiornamenti arrivano lo stesso).
                 tray.Visible = true;
                 shown = true;
-                UiMode.ModernStartSucceeded();
                 app.Run();
             }
             else

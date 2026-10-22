@@ -68,7 +68,6 @@ internal sealed class TrayController : IDisposable
             _database.SaveSetting(CloseBehaviorPolicy.Setting, string.Empty);
             Message?.Invoke("Alla chiusura della finestra il programma tornerà a chiedere come comportarsi.");
         }, dpi);
-        ThemedMenus.Add(menu, "Torna all'interfaccia classica", Glyph.Dashboard, (_, _) => ClassicRequested?.Invoke(), dpi);
         menu.Items.Add(new ToolStripSeparator());
         ThemedMenus.Add(menu, "Esci definitivamente", Glyph.Arrow, (_, _) => ExitRequested?.Invoke(), dpi, Theme.DangerInk);
         _icon.ContextMenuStrip = menu;
@@ -102,8 +101,6 @@ internal sealed class TrayController : IDisposable
     public event Action? InstallUpdateRequested;
 
     public event Action? SettingsRequested;
-
-    public event Action? ClassicRequested;
 
     /// <summary>Un messaggio breve per chi guarda la finestra (le scelte del menu lo usano per confermare).</summary>
     public event Action<string>? Message;

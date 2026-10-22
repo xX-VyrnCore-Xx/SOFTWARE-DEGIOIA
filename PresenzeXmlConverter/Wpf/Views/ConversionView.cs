@@ -62,6 +62,7 @@ internal sealed class ConversionView : Grid
     private readonly TextBlock _hoursValue = Ui.Text("—", 22, FontWeights.SemiBold);
     private readonly DataGrid _movementsGrid = new();
     private readonly DataGrid _findingsGrid = new();
+    private readonly CalendarView _calendar = new();
     private readonly DataGrid _summaryGrid = new();
     private readonly TextBlock _summaryNote;
     private readonly Button _pdfButton = new() { Content = "Salva PDF" };
@@ -184,7 +185,7 @@ internal sealed class ConversionView : Grid
             ShowPreview();
             _stepper.Current = 2;
             var (errors, warnings, _) = _service.FindingCounts;
-            SelectTab(errors > 0 ? 2 : 0);
+            SelectTab(errors > 0 ? 3 : 0);
             SetStatus(errors > 0
                 ? $"{errors:N0} errori e {warnings:N0} attenzioni da verificare nella scheda Controlli."
                 : warnings > 0
@@ -335,8 +336,9 @@ internal sealed class ConversionView : Grid
             : rows.Count == 0
                 ? "Nessun problema rilevato nei movimenti e nel foglio importato."
                 : $"{errors:N0} errori · {warnings:N0} attenzioni · {notes:N0} note";
-        _tabs[2].Text.Text = rows.Count == 0 ? "Controlli" : $"Controlli ({rows.Count:N0})";
+        _tabs[3].Text.Text = rows.Count == 0 ? "Controlli" : $"Controlli ({rows.Count:N0})";
         FillSummary();
+        _calendar.SetModel(_service.BuildCalendar());
         UpdateButtons();
     }
 
@@ -411,6 +413,7 @@ internal sealed class ConversionView : Grid
         var tabBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 14) };
         var content = new Grid();
         AddTab(tabBar, content, "Movimenti", _movementsGrid);
+        AddTab(tabBar, content, "Calendario", _calendar);
         AddTab(tabBar, content, "XML", _xmlBox);
         AddTab(tabBar, content, "Controlli", findingsPage);
         AddTab(tabBar, content, "Riepilogo", summaryPage);
