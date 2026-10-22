@@ -1,10 +1,11 @@
 using System.Windows;
 using System.Windows.Controls;
+
+namespace PresenzeXmlConverter.Wpf;
+
 using Application = System.Windows.Application;
 using TextBlock = System.Windows.Controls.TextBlock;
 using DataGrid = System.Windows.Controls.DataGrid;
-
-namespace PresenzeXmlConverter.Wpf;
 
 /// <summary>
 /// Rifiniture comuni delle tabelle: il testo che non sta in una cella finisce con i puntini (mai tagliato di netto) e le colonne
