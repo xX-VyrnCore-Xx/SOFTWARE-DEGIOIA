@@ -54,7 +54,7 @@ jobs:
         env:
           # Le schermate si salvano solo nelle esecuzioni manuali (vedi sotto).
           PRESENZEFLOW_SCREENSHOT_DIR: ${{ github.event_name == 'workflow_dispatch' && format('{0}\screenshots', github.workspace) || '' }}
-        run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release
+        run: dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj -c Release --blame-hang-timeout 4m --blame-hang-dump-type none --logger "console;verbosity=normal"
 
       # Solo a richiesta: le stesse schermate a 125% di scala (processo a parte,
       # perche' la scala si imposta una volta sola per processo). Non ferma la CI.
