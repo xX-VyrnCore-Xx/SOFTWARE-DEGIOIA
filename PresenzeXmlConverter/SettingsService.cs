@@ -153,10 +153,7 @@ internal sealed class SettingsService
         }
 
         var equivalent = GenerationSettings.AreEquivalent(previous, options);
-        if (equivalent)
-        {
-            Audit("Impostazioni salvate", GenerationSettings.Describe(options));
-        }
+        Audit("Impostazioni salvate", GenerationSettings.Describe(options));
         var message = themeFailed
             ? "Impostazioni salvate, ma la scelta del tema non si è potuta salvare: resta quello di prima."
             : themeChanged
