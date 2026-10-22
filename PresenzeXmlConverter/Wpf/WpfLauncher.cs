@@ -17,7 +17,8 @@ internal static class WpfLauncher
         {
             var app = WpfApp.EnsureApplication();
             var service = new ConversionService(LocalDatabase.OpenWithRecovery().Database);
-            var window = new ShellWindow(service) { ManageLifecycle = true };
+            // Il programma si apre a schermo intero (finestra massimizzata); l'avvio con Windows resta nel tray.
+            var window = new ShellWindow(service) { ManageLifecycle = true, WindowState = WindowState.Maximized };
             window.ContentRendered += (_, _) => shown = true;
             tray = TryCreateTray(window, service.Database, log);
             if (tray is not null)

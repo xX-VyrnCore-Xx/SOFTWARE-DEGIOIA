@@ -4,7 +4,12 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.74.0] - Corrente
+## [1.75.0] - Corrente
+
+### ✨ Avvio a schermo intero
+- Il programma si apre con la finestra massimizzata (a tutto schermo, barra delle applicazioni compresa); l'avvio automatico con Windows continua a restare nel tray
+
+## [1.74.0]
 
 ### ✨ Una sola interfaccia e il calendario in anteprima
 - **Vyrn Presence usa solo la nuova interfaccia**: non esiste più il ritorno alla classica (tolti il pulsante nella barra laterale, la voce nel menu del tray e l'avvio `--classic`); se la finestra non riesce ad aprirsi il programma lo dice con il percorso del registro degli errori
