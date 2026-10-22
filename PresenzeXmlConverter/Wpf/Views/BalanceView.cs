@@ -24,6 +24,8 @@ internal sealed class BalanceView : Grid
     private readonly TextBlock _summary;
     private readonly DataGrid _grid = new();
     private bool _filling;
+    private string? _company;
+    private int? _year;
 
     public BalanceView(ConversionService service)
     {
@@ -68,17 +70,19 @@ internal sealed class BalanceView : Grid
             ElementStyle = tone
         });
         Children.Add(_grid.At(1, 0));
-        _companies.SelectionChanged += (_, _) =>
+        _companies.SelectionChanged += (_, args) =>
         {
-            if (!_filling)
+            if (!_filling && args.AddedItems.Count > 0 && args.AddedItems[0] is string company)
             {
+                _company = company;
                 FillYears();
             }
         };
-        _years.SelectionChanged += (_, _) =>
+        _years.SelectionChanged += (_, args) =>
         {
-            if (!_filling)
+            if (!_filling && args.AddedItems.Count > 0 && args.AddedItems[0] is int year)
             {
+                _year = year;
                 ShowSelected();
             }
         };
@@ -106,13 +110,13 @@ internal sealed class BalanceView : Grid
             {
                 companies = Array.Empty<string>();
             }
-            var selected = _companies.SelectedItem as string;
             _companies.ItemsSource = companies;
             _companies.Visibility = companies.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
             var current = _service.CompanyCode.Trim();
-            _companies.SelectedItem = companies.FirstOrDefault(code => string.Equals(code, selected, StringComparison.OrdinalIgnoreCase))
+            _company = companies.FirstOrDefault(code => string.Equals(code, _company, StringComparison.OrdinalIgnoreCase))
                 ?? companies.FirstOrDefault(code => string.Equals(code, current, StringComparison.OrdinalIgnoreCase))
                 ?? companies.FirstOrDefault();
+            _companies.SelectedItem = _company;
         }
         finally
         {
@@ -129,35 +133,24 @@ internal sealed class BalanceView : Grid
 
     private void FillYears()
     {
+        IReadOnlyList<int> years = Array.Empty<int>();
+        if (_company is { } company)
+        {
+            try
+            {
+                years = LeaveBalance.Years(_service.Database.GetAbsenceTotals(company));
+            }
+            catch (Exception exception) when (ConversionService.IsExpectedInputError(exception))
+            {
+                years = Array.Empty<int>();
+            }
+        }
+        _year = _year is { } keep && years.Contains(keep) ? keep : years.Count > 0 ? years[0] : (int?)null;
         _filling = true;
         try
         {
-            IReadOnlyList<int> years = Array.Empty<int>();
-            if (_companies.SelectedItem is string company)
-            {
-                try
-                {
-                    years = LeaveBalance.Years(_service.Database.GetAbsenceTotals(company));
-                }
-                catch (Exception exception) when (ConversionService.IsExpectedInputError(exception))
-                {
-                    years = Array.Empty<int>();
-                }
-            }
-            var selected = _years.SelectedItem as int?;
             _years.ItemsSource = years;
-            if (selected is { } keep && years.Contains(keep))
-            {
-                _years.SelectedItem = keep;
-            }
-            else if (years.Count > 0)
-            {
-                _years.SelectedItem = years[0];
-            }
-            else
-            {
-                _years.SelectedItem = null;
-            }
+            _years.SelectedItem = _year;
         }
         finally
         {
@@ -169,12 +162,12 @@ internal sealed class BalanceView : Grid
     private void ShowSelected()
     {
         _grid.ItemsSource = null;
-        if (_companies.SelectedItem is not string company)
+        if (_company is not { } company)
         {
             _summary.Text = "Per vedere i residui indica le spettanze di ferie e permessi nella sezione Aziende (pulsante «Ferie e permessi…»).";
             return;
         }
-        if (_years.SelectedItem is not int year)
+        if (_year is not { } year)
         {
             _summary.Text = $"Azienda {company}: nessuna ora usata conservata. Si riempie con le esportazioni.";
             return;
