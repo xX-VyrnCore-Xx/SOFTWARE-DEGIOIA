@@ -69,7 +69,7 @@ internal sealed class ConversionView : Grid
     {
         _service = service;
         _owner = owner;
-        _prompts = prompts ?? (() => new WpfPrompts(owner()!));
+        _prompts = prompts ?? (() => new WpfPrompts(owner()!, service));
         _status = Ui.Text("Importa un foglio Excel per cominciare.", 13.5, ink: "Brush.Muted", wrap: true);
         _findingsSummary = Ui.Text("Nessuna anteprima ancora.", 13.5, ink: "Brush.Muted", wrap: true);
 

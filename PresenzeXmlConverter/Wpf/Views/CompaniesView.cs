@@ -236,8 +236,8 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
         }
         try
         {
-            using var dialog = new CompanyRulesDialog(company, _conversion.GlobalOptions, DateTime.Today.Year);
-            if (dialog.ShowDialog(WpfInterop.Owner(owner)) != System.Windows.Forms.DialogResult.OK)
+            var dialog = new CompanyRulesWindow(company, _conversion.GlobalOptions, DateTime.Today.Year);
+            if (!dialog.ShowOn(owner))
             {
                 return;
             }

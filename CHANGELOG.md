@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.62.0] - Corrente
+## [1.63.0] - Corrente
+
+### ✨ Nuova interfaccia (anteprima): finestre di dialogo in WPF
+- **Associa le colonne**, **Regole di conversione** dell'azienda e **Completa i codici mancanti** sono ora finestre della nuova interfaccia (stesso stile, elenchi a discesa e interruttori nuovi), non più le finestre classiche ospitate
+- I controlli sono gli stessi di prima (cinque colonne diverse; ore, date e chiusure valide) e stanno in `DialogLogic`, con i loro test
+- Chiudere i codici con «Annulla» non butta via quelli già scritti: si salvano da soli anche a metà
+
+## [1.62.0]
 
 ### ✨ Nuova interfaccia (anteprima): Impostazioni
 - Sezione **Impostazioni** con cinque schede: **Conversione** (ore della giornata, sabato, rilevamento automatico, presenza 01, chiusure aziendali), **Aggiornamenti** (ricerca automatica, avvio con Windows, token GitHub da verificare e salvare subito), **Formato XML** (radice, spazio dei nomi, un nodo per movimento, lettura da un XML di esempio), **Notifiche** e **Generale** (cosa fa la X, tema, cartella dei dati, backup ora, copie dei codici)
