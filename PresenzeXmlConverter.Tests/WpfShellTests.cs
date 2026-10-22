@@ -308,7 +308,7 @@ public class WpfShellTests
         }
     }
 
-    private static BitmapSource Render(Window window)
+    internal static BitmapSource Render(Window window)
     {
         var content = (FrameworkElement)window.Content;
         var width = (int)Math.Ceiling(content.ActualWidth);
@@ -318,7 +318,7 @@ public class WpfShellTests
         return bitmap;
     }
 
-    private static int CountMagenta(BitmapSource bitmap)
+    internal static int CountMagenta(BitmapSource bitmap)
     {
         var pixels = Pixels(bitmap);
         var count = 0;
@@ -332,7 +332,7 @@ public class WpfShellTests
         return count;
     }
 
-    private static int DistinctColors(BitmapSource bitmap)
+    internal static int DistinctColors(BitmapSource bitmap)
     {
         var pixels = Pixels(bitmap);
         var seen = new HashSet<int>();

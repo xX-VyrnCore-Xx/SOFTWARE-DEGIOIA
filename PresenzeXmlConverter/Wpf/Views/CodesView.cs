@@ -46,7 +46,7 @@ internal sealed class CodesView : Grid, IRefreshablePage
     private bool _dirty;
     private bool _loaded;
 
-    public CodesView(ConversionService conversion, Func<Window?> owner)
+    public CodesView(ConversionService conversion, Func<Window?> owner, bool inDialog = false)
     {
         _conversion = conversion;
         _service = new CodesService(conversion.Database);
@@ -58,11 +58,30 @@ internal sealed class CodesView : Grid, IRefreshablePage
         var save = new Button { Content = "Salva abbinamenti", Style = Ui.Style("Primary") };
         var reload = new Button { Content = "Ricarica" };
         var delete = new Button { Content = "Elimina riga", Style = Ui.Style("Danger") };
-        var page = new PageScaffold("Gestione codici", "Gli abbinamenti fra i valori del foglio e i codici ufficiali PAGHE.", BuildBody());
-        page.AddAction(reload);
-        page.AddAction(delete);
-        page.AddAction(save);
-        Children.Add(page);
+        if (inDialog)
+        {
+            // Dentro una finestra di dialogo: niente titolo di pagina; i pulsanti stanno in una riga sopra le tabelle.
+            var bar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+            foreach (var button in new[] { reload, delete })
+            {
+                button.Margin = new Thickness(0, 0, 8, 0);
+                bar.Children.Add(button);
+            }
+            var stack = new Grid();
+            stack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            stack.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            stack.Children.Add(bar.At(0, 0));
+            stack.Children.Add(BuildBody().At(1, 0));
+            Children.Add(stack);
+        }
+        else
+        {
+            var page = new PageScaffold("Gestione codici", "Gli abbinamenti fra i valori del foglio e i codici ufficiali PAGHE.", BuildBody());
+            page.AddAction(reload);
+            page.AddAction(delete);
+            page.AddAction(save);
+            Children.Add(page);
+        }
 
         save.Click += (_, _) => SaveNow();
         reload.Click += (_, _) => Load(force: true);
@@ -78,6 +97,13 @@ internal sealed class CodesView : Grid, IRefreshablePage
     }
 
     public void OnShown() => Load(force: false);
+
+    /// <summary>Salva quanto scritto (anche a metà) e dice quanti codici richiesti dal foglio mancano ancora.</summary>
+    internal int CommitAndCountMissing()
+    {
+        SaveNow();
+        return _service.CountMissing();
+    }
 
     private DataGrid CurrentGrid => _tabs[0].Page.Visibility == Visibility.Visible ? _employees : _policies;
 
