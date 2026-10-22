@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.68.0] - Corrente
+## [1.69.0] - Corrente
+
+### ✨ Importazione da file CSV
+- **Si importano anche file CSV e TSV** (oltre a .xlsx e .xlsm): dal pulsante «Scegli il foglio» o trascinandoli sulla finestra, nella nuova interfaccia e nella classica
+- Separatore (`;` di Excel italiano, `,`, tabulazione o `|`) e codifica (UTF-8 o Windows) si riconoscono dal contenuto; virgolette, a capo dentro le celle, date `gg/mm/aaaa` e numeri con la virgola si leggono come nel foglio Excel
+- Stesso riconoscimento delle colonne e stessi controlli del foglio Excel (malattia in giorni compresa); limiti di 50 MB, 100.000 righe e 256 colonne
+
+## [1.68.0]
 
 ### ✨ Riepilogo mensile e PDF nella nuova interfaccia
 - Nuova scheda **Riepilogo** nella conversione: ore del mese di ogni dipendente (presenza, assenza, totale), con ore teoriche, differenza e giorni scoperti quando le presenze automatiche sono accese

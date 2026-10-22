@@ -374,6 +374,10 @@ internal static class AttendanceWorkbookReader
     /// </summary>
     public static IReadOnlyList<string> ListSheetNames(string path)
     {
+        if (CsvImport.IsCsv(path))
+        {
+            return [CsvImport.SheetName];
+        }
         ValidateWorkbookArchive(path);
         using var workbook = new XLWorkbook(path);
         return workbook.Worksheets
@@ -390,8 +394,18 @@ internal static class AttendanceWorkbookReader
 
     public static WorkbookInspection Inspect(string path, string? sheetName)
     {
+        if (CsvImport.IsCsv(path))
+        {
+            using var csv = CsvImport.ToWorkbook(path);
+            return InspectWorkbook(csv, sheetName);
+        }
         ValidateWorkbookArchive(path);
         using var workbook = new XLWorkbook(path);
+        return InspectWorkbook(workbook, sheetName);
+    }
+
+    private static WorkbookInspection InspectWorkbook(XLWorkbook workbook, string? sheetName)
+    {
         if (workbook.Worksheets.Count == 0)
         {
             throw new InvalidDataException("Il file Excel non contiene fogli.");
