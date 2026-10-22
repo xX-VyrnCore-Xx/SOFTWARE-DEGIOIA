@@ -120,16 +120,209 @@ internal sealed class ShellWindow : Window
             BorderThickness = new Thickness(1, 0, 0, 0),
             Child = _host.WithMargin(new Thickness(28, 28, 28, 0))
         }.At(0, 1));
-        Content = root;
+        var layers = new Grid();
+        layers.Children.Add(root);
+        layers.Children.Add(_toasts);
+        Content = layers;
+        Notifier = new WpfNotifier(this, _toasts, service.Database);
 
         Loaded += (_, _) => _nav.Select(0);
     }
+
+    private readonly ToastLayer _toasts = new();
+    private bool _forceClose;
+    private bool _closedForReal;
+
+    /// <summary>Gli avvisi dell'applicazione: cartellino nella finestra, lampeggio nella barra e fumetto di Windows.</summary>
+    internal WpfNotifier Notifier { get; }
+
+    /// <summary>L'icona nel tray (null nei test e quando l'avvio non l'ha creata).</summary>
+    internal TrayController? Tray { get; private set; }
+
+    /// <summary>
+    /// Con il ciclo di vita attivo la X della finestra chiede (o ricorda) se restare nel tray o uscire, e la chiusura vera
+    /// fa la manutenzione dei dati e ferma l'applicazione. I test lasciano questa opzione spenta.
+    /// </summary>
+    internal bool ManageLifecycle { get; set; }
+
+    /// <summary>Dà alla finestra la sua icona nel tray e ne collega i comandi.</summary>
+    internal void AttachTray(TrayController tray)
+    {
+        Tray = tray;
+        Notifier.Tray = tray;
+        tray.KeepVisible = () => !IsVisible;
+        tray.OpenRequested += () => Dispatcher.BeginInvoke(RestoreFromTray);
+        tray.ExitRequested += () => Dispatcher.BeginInvoke(ExitApplication);
+        tray.SettingsRequested += () => Dispatcher.BeginInvoke(() =>
+        {
+            RestoreFromTray();
+            Navigate(SettingsSection);
+        });
+        tray.ClassicRequested += () => Dispatcher.BeginInvoke(() =>
+        {
+            UiMode.Save(UiKind.Classic);
+            RestoreFromTray();
+            Notifier.Notify(ToastKind.Info, "Interfaccia classica", "Alla prossima apertura Vyrn Presence userà l'interfaccia classica.");
+        });
+        tray.Message += text => Dispatcher.BeginInvoke(() => Notifier.Notify(ToastKind.Info, "Vyrn Presence", text));
+    }
+
+    /// <summary>I cartellini visibili (per i test).</summary>
+    internal IReadOnlyList<(ToastKind Kind, string Title, string Message)> VisibleToasts => _toasts.Visible;
+
+    /// <summary>Chiude i cartellini (per i test).</summary>
+    internal void ClearToasts() => _toasts.Clear();
+
+    /// <summary>La sezione delle Impostazioni (l'ultima della barra laterale).</summary>
+    internal static int SettingsSection => Sections.Length - 1;
+
+    /// <summary>Riporta la finestra davanti (dal tray, da ridotta a icona o da un secondo avvio del programma).</summary>
+    internal void RestoreFromTray()
+    {
+        if (!IsVisible)
+        {
+            Show();
+        }
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        Activate();
+        Topmost = true;
+        Topmost = false;
+        if (Tray is { } tray && tray.Visible)
+        {
+            tray.Visible = false;
+        }
+    }
+
+    /// <summary>Nasconde la finestra e lascia il programma in background con l'icona nel tray.</summary>
+    internal void MinimizeToTray()
+    {
+        if (Tray is null)
+        {
+            WindowState = WindowState.Minimized;
+            return;
+        }
+        Hide();
+        Tray.Visible = true;
+        Tray.ShowBalloon(
+            "Vyrn Presence in background",
+            "Il programma resta attivo in tray: riceverai una notifica quando una conversione termina.",
+            milliseconds: 4000);
+    }
+
+    /// <summary>Chiude il programma per davvero (non nel tray).</summary>
+    internal void ExitApplication()
+    {
+        _forceClose = true;
+        try
+        {
+            Close();
+        }
+        finally
+        {
+            if (!_closedForReal && ManageLifecycle)
+            {
+                FinishClosing();
+            }
+        }
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (ManageLifecycle && !_forceClose)
+        {
+            var action = CloseBehaviorPolicy.Decide(ReadCloseSetting(), userClosing: true, forceClose: false);
+            if (action == CloseAction.Ask)
+            {
+                var choice = CloseChoiceWindow.Ask(this, out var remember);
+                if (choice is null)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+                action = choice.Value;
+                var remembered = CloseBehaviorPolicy.ToSetting(action, remember);
+                if (remembered.Length > 0)
+                {
+                    try
+                    {
+                        Notifier.Database.SaveSetting(CloseBehaviorPolicy.Setting, remembered);
+                    }
+                    catch (Microsoft.Data.Sqlite.SqliteException)
+                    {
+                        // La scelta vale per questa volta.
+                    }
+                }
+            }
+            if (action == CloseAction.MinimizeToTray)
+            {
+                e.Cancel = true;
+                MinimizeToTray();
+                return;
+            }
+        }
+        base.OnClosing(e);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        if (ManageLifecycle)
+        {
+            FinishClosing();
+        }
+    }
+
+    private string? ReadCloseSetting()
+    {
+        try
+        {
+            return Notifier.Database.GetSetting(CloseBehaviorPolicy.Setting);
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Chiusura vera: operazioni «di cortesia» (copie di sicurezza, icona del tray) che non devono mai bloccare l'uscita.</summary>
+    private void FinishClosing()
+    {
+        if (_closedForReal)
+        {
+            return;
+        }
+        _closedForReal = true;
+        try
+        {
+            _toasts.Clear();
+            Notifier.Database.MaintainOnExit();
+            CodesAutoBackup.Run(Notifier.Database, DateTime.Now);
+        }
+        catch (Exception)
+        {
+            // Salvataggio best-effort: niente deve impedire la chiusura.
+        }
+        try
+        {
+            Tray?.Dispose();
+        }
+        catch (Exception)
+        {
+        }
+        Application.Current?.Shutdown();
+    }
+
+    /// <summary>Un'app che si chiude con la sessione di Windows (spegnimento, disconnessione) non deve restare nel tray.</summary>
+    internal void ForceCloseOnSessionEnd() => _forceClose = true;
 
     /// <summary>Apre la schermata di conversione e importa il foglio (se il percorso è nullo ne chiede uno).</summary>
     public async Task ImportAsync(string? path)
     {
         Navigate(1);
-        var view = _conversion ??= new ConversionView(_service, () => this, _prompts);
+        var view = _conversion ??= new ConversionView(_service, () => this, _prompts, Notifier);
         await view.ImportAsync(path);
     }
 
@@ -173,12 +366,12 @@ internal sealed class ShellWindow : Window
     private UIElement CreatePage(int index) => index switch
     {
         0 => new DashboardView(Navigate, path => _ = ImportAsync(path)),
-        1 => _conversion ??= new ConversionView(_service, () => this, _prompts),
+        1 => _conversion ??= new ConversionView(_service, () => this, _prompts, Notifier),
         2 => new CompaniesView(_service, () => this),
         3 => new CodesView(_service, () => this),
         4 => new HistoryView(_service, () => this),
         5 => new ActivityView(_service, () => this),
-        6 => new SettingsView(_service, () => this),
+        6 => new SettingsView(_service, () => this, () => Notifier),
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",

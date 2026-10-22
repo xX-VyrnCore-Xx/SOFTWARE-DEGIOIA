@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.63.0] - Corrente
+## [1.64.0] - Corrente
+
+### ✨ Nuova interfaccia (anteprima): notifiche e tray
+- **Avvisi dentro la finestra** (conversione completata, file salvato) come cartellini in basso a destra: si ritirano da soli, si fermano col mouse, un clic apre il file
+- **Icona nel tray** con il menu della versione classica (Apri, Cerca aggiornamenti, Impostazioni, Notifiche di Windows, Avvia con Windows, «Alla chiusura chiedi di nuovo», Torna all'interfaccia classica, Esci) e **fumetti di Windows** quando la finestra non è in uso; un clic sul fumetto riapre la finestra
+- **La X della finestra** chiede se restare in background o uscire (si può ricordare la scelta, come nella classica); un secondo avvio del programma riporta la finestra davanti; l'avvio con Windows (`--tray`) parte nel tray senza finestra
+- **«Prova le notifiche»** nelle Impostazioni; all'uscita copie di sicurezza e manutenzione dei dati come nella finestra classica
+- Le regole (quando basta il cartellino, quando servono lampeggio e fumetto, cosa fa la X) stanno in `NotificationPolicy`, con i loro test
+
+## [1.63.0]
 
 ### ✨ Nuova interfaccia (anteprima): finestre di dialogo in WPF
 - **Associa le colonne**, **Regole di conversione** dell'azienda e **Completa i codici mancanti** sono ora finestre della nuova interfaccia (stesso stile, elenchi a discesa e interruttori nuovi), non più le finestre classiche ospitate

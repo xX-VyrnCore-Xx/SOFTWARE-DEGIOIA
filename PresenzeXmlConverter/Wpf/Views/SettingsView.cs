@@ -41,6 +41,7 @@ internal sealed class SettingsView : Grid, IRefreshablePage
 
     private readonly SettingsService _service;
     private readonly Func<Window?> _owner;
+    private readonly Func<WpfNotifier?>? _notifier;
     private readonly PillBar _tabs = new(TabTitles);
     private readonly ContentControl _page = new() { Focusable = false };
     private readonly UIElement[] _pages;
@@ -77,9 +78,10 @@ internal sealed class SettingsView : Grid, IRefreshablePage
     private static readonly string?[] CloseTags = [string.Empty, "tray", "exit"];
     private static readonly ThemeMode[] ThemeModes = [ThemeMode.Light, ThemeMode.Dark, ThemeMode.System, ThemeMode.Glass];
 
-    public SettingsView(ConversionService conversion, Func<Window?> owner)
+    public SettingsView(ConversionService conversion, Func<Window?> owner, Func<WpfNotifier?>? notifier = null)
     {
         _service = new SettingsService(conversion);
+        _notifier = notifier;
         _owner = owner;
         _pages = [BuildConversion(), BuildUpdates(), BuildXml(), BuildNotifications(), BuildGeneral()];
         _save.Style = Ui.Style("Primary");
@@ -188,11 +190,13 @@ internal sealed class SettingsView : Grid, IRefreshablePage
     {
         var windows = new Button { Content = "Impostazioni di Windows" };
         windows.Click += (_, _) => OpenWindowsNotificationSettings();
+        var test = new Button { Content = "Prova le notifiche", Style = Ui.Style("Primary") };
+        test.Click += (_, _) => _notifier?.Invoke()?.Test(_inApp.IsChecked == true, _system.IsChecked == true);
         return Column(
             Hint("Avvisi per conversione completata, file salvato e aggiornamenti. Quelli di Windows arrivano solo quando la finestra non è in primo piano."),
             _inApp,
             _system,
-            Buttons(windows),
+            Buttons(test, windows),
             Note("Se le notifiche di Windows non compaiono, controlla Assistente focus e le notifiche di «Vyrn Presence» nelle impostazioni di Windows."));
     }
 

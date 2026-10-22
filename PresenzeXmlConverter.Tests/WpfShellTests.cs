@@ -310,11 +310,16 @@ public class WpfShellTests
 
     internal static BitmapSource Render(Window window)
     {
+        // Si disegna la radice visiva della finestra (con il suo sfondo e senza tagliare i margini del contenuto):
+        // disegnando solo il contenuto, un margine lo spostava e tagliava il bordo destro e inferiore.
         var content = (FrameworkElement)window.Content;
-        var width = (int)Math.Ceiling(content.ActualWidth);
-        var height = (int)Math.Ceiling(content.ActualHeight);
+        var target = VisualTreeHelper.GetChildrenCount(window) > 0 && VisualTreeHelper.GetChild(window, 0) is FrameworkElement root
+            ? root
+            : content;
+        var width = (int)Math.Ceiling(target.ActualWidth);
+        var height = (int)Math.Ceiling(target.ActualHeight);
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(content);
+        bitmap.Render(target);
         return bitmap;
     }
 
