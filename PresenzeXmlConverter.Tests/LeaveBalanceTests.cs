@@ -290,12 +290,14 @@ public class WpfLeaveTests
                     new AbsenceTotal("AZ001", new DateTime(2026, 3, 1), "E001", "Verdi Luca", "Ferie", "FE", 40 * 60),
                     new AbsenceTotal("AZ001", new DateTime(2026, 3, 1), "E002", "Rossi Mario", "Ferie", "FE", 88 * 60)
                 ]);
+                var diagnostic = string.Join(",", database.GetCompanies().Select(item => item.Code + ":" + (item.Leave?.Count ?? -1))) +
+                                 " assenze=" + database.GetAbsenceTotals("AZ001").Count;
                 view.Tabs.Select(0);
                 view.Tabs.Select(2);
                 WpfTestHost.Pump(450);
 
                 var rows = view.Balance.Rows;
-                Assert.True(rows.Count == 2, "Residui: " + view.Balance.SummaryText);
+                Assert.True(rows.Count == 2, "Residui: " + view.Balance.SummaryText + " | " + diagnostic);
                 Assert.Equal("Rossi Mario", rows[0].Employee);
                 Assert.Equal("Oltre", rows[0].Status);
                 Assert.Equal("−8 h", rows[0].Remaining);
