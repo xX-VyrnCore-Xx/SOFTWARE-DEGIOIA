@@ -137,7 +137,7 @@ dotnet test .\PresenzeXmlConverter.Tests\PresenzeXmlConverter.Tests.csproj
 dotnet publish .\PresenzeXmlConverter\PresenzeXmlConverter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\dist\app
 
 # Compila l'installer Windows (richiede Inno Setup 6.3 o successivo, lanciare dalla root del progetto)
-# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.66.0.exe
+# iscc .\Installer.iss  ->  dist\PresenzeFlow-Setup-1.67.0.exe
 ```
 
 La compilazione elimina automaticamente i vecchi `dist\PresenzeFlow-Setup-*.exe`: nella cartella `dist` resta quindi **sempre e solo l'ultima build** (mentre `dist\app` e le cartelle `bin`/`obj` sono ignorate da git, vedi `.gitignore`).

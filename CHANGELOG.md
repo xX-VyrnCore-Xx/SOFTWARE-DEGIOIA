@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.66.0] - Corrente
+## [1.67.0] - Corrente
+
+### ✨ Controlli più intelligenti sul foglio
+- **Richieste sovrapposte**: due richieste dello stesso dipendente che si sovrappongono (ad esempio ferie e malattia negli stessi giorni) o la stessa richiesta scritta due volte si segnalano con le righe del foglio e i giorni in comune
+- **Malattie molto lunghe**: una malattia (anche a pezzi attaccati) oltre 30 giorni di fila si segnala per un controllo
+- **Confronto con l'ultima consegna**: se dipendenti od ore cambiano di oltre il 30% rispetto all'ultima consegna della stessa azienda, compare una nota (di solito un foglio incompleto o un mese sbagliato)
+- Festivi, sabati e domeniche, ore oltre la giornata e codici mancanti erano già controllati e restano
+
+## [1.66.0]
 
 ### ✨ La nuova interfaccia diventa quella di serie
 - **Vyrn Presence si apre con la nuova interfaccia**; chi aveva già scelto la classica la mantiene

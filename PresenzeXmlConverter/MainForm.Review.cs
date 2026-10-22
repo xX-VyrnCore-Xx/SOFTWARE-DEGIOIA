@@ -159,6 +159,10 @@ internal sealed partial class MainForm
                 // non va segnalato come anomalia.
                 _generationOptions.IncludeSaturdays || _generationOptions.AutoDetect));
             findings.AddRange(MovementChecks.CompareWithSource(movements, _requests));
+            findings.AddRange(RequestChecks.Review(_requests));
+            findings.AddRange(RequestChecks.CompareWithPreviousDelivery(
+                MovementChecks.Summarize(movements),
+                PreviousDeliveryOfThisCompany(movements)));
             findings.AddRange(MovementChecks.CheckMonthlyHours(
                 movements,
                 _generationOptions,
@@ -354,6 +358,27 @@ internal sealed partial class MainForm
         catch (Microsoft.Data.Sqlite.SqliteException)
         {
             return new Dictionary<string, EmployeeProfile>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>L'ultima consegna della stessa azienda con movimenti diversi da questi (null = nessuna).</summary>
+    private ExportRecord? PreviousDeliveryOfThisCompany(IReadOnlyList<DailyMovement> movements)
+    {
+        var company = _companyCode.Value.Trim();
+        if (company.Length == 0)
+        {
+            return null;
+        }
+        try
+        {
+            var fingerprint = ExportHistory.Fingerprint(_companyCode.Value, movements);
+            return _database.GetExports(30)
+                .FirstOrDefault(record => string.Equals(record.CompanyCode, company, StringComparison.OrdinalIgnoreCase) &&
+                                          !string.Equals(record.Fingerprint, fingerprint, StringComparison.Ordinal));
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException)
+        {
+            return null;
         }
     }
 }

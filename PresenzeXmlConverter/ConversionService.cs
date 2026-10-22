@@ -290,6 +290,10 @@ internal sealed class ConversionService
             Options.HoursPerDay,
             Options.IncludeSaturdays || Options.AutoDetect));
         findings.AddRange(MovementChecks.CompareWithSource(Movements, Requests));
+        findings.AddRange(RequestChecks.Review(Requests));
+        findings.AddRange(RequestChecks.CompareWithPreviousDelivery(
+            MovementChecks.Summarize(Movements),
+            PreviousDeliveryOfThisCompany()));
         findings.AddRange(MovementChecks.CheckMonthlyHours(
             Movements,
             Options,
@@ -298,6 +302,27 @@ internal sealed class ConversionService
             Inspection?.PeriodEnd));
         _ = employees;
         return findings.OrderBy(finding => finding.Severity).Take(MaximumFindingsShown).ToArray();
+    }
+
+    /// <summary>L'ultima consegna della stessa azienda con movimenti diversi da questi (null = nessuna).</summary>
+    private ExportRecord? PreviousDeliveryOfThisCompany()
+    {
+        var company = CompanyCode.Trim();
+        if (company.Length == 0)
+        {
+            return null;
+        }
+        var fingerprint = ExportHistory.Fingerprint(CompanyCode, Movements);
+        try
+        {
+            return _database.GetExports(30)
+                .FirstOrDefault(record => string.Equals(record.CompanyCode, company, StringComparison.OrdinalIgnoreCase) &&
+                                          !string.Equals(record.Fingerprint, fingerprint, StringComparison.Ordinal));
+        }
+        catch (Exception exception) when (IsExpectedInputError(exception))
+        {
+            return null;
+        }
     }
 
     private static T Safe<T>(Func<T> read)
