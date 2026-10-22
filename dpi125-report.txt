@@ -1,0 +1,1 @@
+MainForm: DeviceDpi=120, finestra 1044x788.
