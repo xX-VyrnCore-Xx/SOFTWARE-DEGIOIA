@@ -4,7 +4,13 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.75.0] - Corrente
+## [1.76.0] - Corrente
+
+### 🐛 Esportare e importare codici e aziende
+- Nella nuova interfaccia è tornato il pulsante **Trasferisci ▾** in **Gestione codici** e in **Aziende**: esporta in un file i codici, le ore dei dipendenti e le aziende (con le regole) per usarli su un altro PC, importa da un file unendo i dati (prima si fa una copia di sicurezza) e apre la cartella delle copie automatiche
+- Esportazioni e importazioni finiscono nel registro attività
+
+## [1.75.0]
 
 ### ✨ Avvio a schermo intero
 - Il programma si apre con la finestra massimizzata (a tutto schermo, barra delle applicazioni compresa); l'avvio automatico con Windows continua a restare nel tray

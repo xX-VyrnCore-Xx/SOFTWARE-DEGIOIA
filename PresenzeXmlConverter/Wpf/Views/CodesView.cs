@@ -55,6 +55,7 @@ internal sealed class CodesView : Grid, IRefreshablePage
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+        var transfer = new TransferButton(conversion, owner, text => _status.Text = text, () => Load(force: true));
         var save = new Button { Content = "Salva abbinamenti", Style = Ui.Style("Primary") };
         var reload = new Button { Content = "Ricarica" };
         var delete = new Button { Content = "Elimina riga", Style = Ui.Style("Danger") };
@@ -62,7 +63,7 @@ internal sealed class CodesView : Grid, IRefreshablePage
         {
             // Dentro una finestra di dialogo: niente titolo di pagina; i pulsanti stanno in una riga sopra le tabelle.
             var bar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
-            foreach (var button in new[] { reload, delete })
+            foreach (var button in new[] { transfer.Button, reload, delete })
             {
                 button.Margin = new Thickness(0, 0, 8, 0);
                 bar.Children.Add(button);
@@ -77,6 +78,7 @@ internal sealed class CodesView : Grid, IRefreshablePage
         else
         {
             var page = new PageScaffold("Gestione codici", "Gli abbinamenti fra i valori del foglio e i codici ufficiali PAGHE.", BuildBody());
+            page.AddAction(transfer.Button);
             page.AddAction(reload);
             page.AddAction(delete);
             page.AddAction(save);
