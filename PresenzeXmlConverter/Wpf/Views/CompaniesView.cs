@@ -67,6 +67,7 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
         var newButton = new Button { Content = "Nuova azienda", Style = Ui.Style("Primary") };
         newButton.Click += (_, _) => ClearForm();
         var page = new PageScaffold("Aziende", "Il codice ufficiale PAGHE, la ragione sociale e le regole di ogni azienda.", BuildBody());
+        page.AddAction(new TransferButton(conversion, owner, text => _message.Text = text, Refresh).Button);
         page.AddAction(newButton);
         Children.Add(page);
 
