@@ -230,16 +230,23 @@ internal sealed class WorkbookInspection
             value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
-    /// <summary>
-    /// Il giustificativo si esprime in giorni: la malattia («Malattia», «Sick leave», «Illness»…) e i permessi retribuiti
-    /// «Milestone». Per queste causali la durata nel file è in giorni, non in ore.
-    /// </summary>
-    internal static bool IsIllnessPolicy(string policy)
+    /// <summary>Il giustificativo è una malattia («Malattia», «Sick leave», «Illness»…)?</summary>
+    internal static bool IsSickPolicy(string policy)
     {
         var value = policy.Trim().ToLowerInvariant();
         return value.Contains("malatt", StringComparison.Ordinal) ||
                value.Contains("illness", StringComparison.Ordinal) ||
-               value.Contains("sick", StringComparison.Ordinal) ||
+               value.Contains("sick", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Il giustificativo si esprime in giorni: la malattia e i permessi retribuiti «Milestone». Per queste causali la
+    /// durata nel file è in giorni, non in ore.
+    /// </summary>
+    internal static bool IsIllnessPolicy(string policy)
+    {
+        var value = policy.Trim().ToLowerInvariant();
+        return IsSickPolicy(policy) ||
                value.Contains("milestone", StringComparison.Ordinal) ||
                value.Contains("permessi retribuiti", StringComparison.Ordinal);
     }
