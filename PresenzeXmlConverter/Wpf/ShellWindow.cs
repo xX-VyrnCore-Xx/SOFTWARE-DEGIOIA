@@ -159,6 +159,7 @@ internal sealed class ShellWindow : Window
         }
         _pages[index] ??= CreatePage(index);
         _host.Content = _pages[index];
+        (_pages[index] as IRefreshablePage)?.OnShown();
         if (_pages[index] is FrameworkElement element)
         {
             UiMotion.FadeIn(element);
@@ -169,6 +170,8 @@ internal sealed class ShellWindow : Window
     {
         0 => new DashboardView(Navigate, path => _ = ImportAsync(path)),
         1 => _conversion ??= new ConversionView(_service, () => this, _prompts),
+        2 => new CompaniesView(_service, () => this),
+        3 => new CodesView(_service, () => this),
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",
