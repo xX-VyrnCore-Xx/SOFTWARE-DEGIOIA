@@ -84,7 +84,7 @@ internal sealed class DropZoneView : Grid
         _title.HorizontalAlignment = HorizontalAlignment.Center;
         _title.TextTrimming = TextTrimming.CharacterEllipsis;
         _title.Margin = new Thickness(0, 14, 0, 0);
-        _subtitle = Ui.Text("oppure fai clic per sceglierlo", 13.5, ink: "Brush.Muted");
+        _subtitle = Ui.Text("Excel (.xlsx, .xlsm) o CSV · oppure fai clic per sceglierlo", 13.5, ink: "Brush.Muted");
         _subtitle.HorizontalAlignment = HorizontalAlignment.Center;
         _subtitle.TextTrimming = TextTrimming.CharacterEllipsis;
         _subtitle.Margin = new Thickness(0, 4, 0, 0);

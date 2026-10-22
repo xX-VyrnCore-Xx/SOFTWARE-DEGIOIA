@@ -703,11 +703,19 @@ public class ConversionTests
     [InlineData(@"C:\x\presenze.csv", false)]
     [InlineData("", false)]
     [InlineData(null, false)]
-    public void BothExcelFormatsAreAcceptedAndNothingElse(string? path, bool expected)
-    {
+    public void BothExcelFormatsAreAcceptedAsWorkbooksAndNothingElse(string? path, bool expected) =>
         Assert.Equal(expected, WorkbookDrop.HasSupportedExtension(path));
+
+    [Theory]
+    [InlineData(@"C:\x\presenze.xlsx", true)]
+    [InlineData(@"C:\x\presenze.csv", true)]
+    [InlineData(@"C:\x\PRESENZE.TSV", true)]
+    [InlineData(@"C:\x\presenze.xls", false)]
+    [InlineData(@"C:\x\presenze.csv.pdf", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void ExcelAndCsvFilesAreAcceptedForImport(string? path, bool expected) =>
         Assert.Equal(expected, WorkbookDrop.LooksLikeWorkbook(path));
-    }
 
     [Fact]
     public void AMacroEnabledWorkbookIsReadLikeAnyOther()

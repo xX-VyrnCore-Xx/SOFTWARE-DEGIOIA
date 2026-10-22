@@ -21,7 +21,8 @@ internal static class WorkbookDrop
     internal static readonly string[] WorkbookExtensions = [".xlsx", ".xlsm"];
 
     /// <summary>Filtro del dialogo di apertura.</summary>
-    internal const string OpenFileFilter = "Fogli Excel (*.xlsx;*.xlsm)|*.xlsx;*.xlsm";
+    internal const string OpenFileFilter =
+        "Fogli Excel e CSV (*.xlsx;*.xlsm;*.csv;*.tsv)|*.xlsx;*.xlsm;*.csv;*.tsv|Fogli Excel (*.xlsx;*.xlsm)|*.xlsx;*.xlsm|File CSV (*.csv;*.tsv)|*.csv;*.tsv";
 
     /// <summary>L'estensione del file è fra quelle supportate (senza distinguere maiuscole)?</summary>
     public static bool HasSupportedExtension(string? path) =>
@@ -29,10 +30,10 @@ internal static class WorkbookDrop
         WorkbookExtensions.Any(extension => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Il percorso è un foglio Excel? Guarda solo il nome: serve a decidere
+    /// Il percorso è un foglio Excel o un file CSV/TSV importabile? Guarda solo il nome: serve a decidere
     /// subito se accettare il trascinamento, anche per file non ancora leggibili.
     /// </summary>
-    public static bool LooksLikeWorkbook(string? path) => HasSupportedExtension(path);
+    public static bool LooksLikeWorkbook(string? path) => HasSupportedExtension(path) || CsvImport.IsCsv(path);
 
     /// <summary>
     /// Primo foglio Excel realmente utilizzabile fra i percorsi trascinati

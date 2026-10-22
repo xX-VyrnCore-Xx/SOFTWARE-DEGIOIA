@@ -174,7 +174,7 @@ internal sealed partial class MainForm
         // 02 File sorgente.
         var file = NewBandCard(new Padding(0, 0, 10, 12));
         var fileLayout = NewBandLayout(file, [20, -1, 30]);
-        fileLayout.Controls.Add(CreateSectionRow("02   FILE SORGENTE", "formato .xlsx / .xlsm"), 0, 0);
+        fileLayout.Controls.Add(CreateSectionRow("02   FILE SORGENTE", "Excel .xlsx / .xlsm o CSV"), 0, 0);
         _conversionDropZone = new DropZone { Dock = DockStyle.Fill, Margin = new Padding(0, 4, 0, 4) };
         _conversionDropZone.Click += async (_, _) => await ImportWorkbookAsync();
         _conversionDropZone.FileDropped += async path => await LoadWorkbookAsync(path);
