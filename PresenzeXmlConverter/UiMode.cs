@@ -1,6 +1,6 @@
 namespace PresenzeXmlConverter;
 
-/// <summary>Quale interfaccia aprire all'avvio: quella classica (WinForms) o la nuova (WPF, anteprima).</summary>
+/// <summary>Quale interfaccia aprire all'avvio: quella classica (WinForms) o la nuova (WPF).</summary>
 internal enum UiKind
 {
     Classic,
@@ -9,8 +9,9 @@ internal enum UiKind
 
 /// <summary>
 /// La scelta dell'interfaccia: un parametro sulla riga di comando (<c>--wpf</c>, <c>--classic</c>) vale per quell'avvio,
-/// altrimenti si legge il file di testo salvato. Senza una scelta resta la classica: la nuova è opt-in finché non è
-/// completa. Solo file e testo, senza finestre, così si verifica con un test.
+/// altrimenti si legge il file di testo salvato. Senza una scelta parte la nuova interfaccia; la classica resta il ripiego:
+/// se la nuova non riesce ad aprirsi (errore o chiusura improvvisa) per due avvii di fila, si torna alla classica da soli.
+/// Solo file e testo, senza finestre, così si verifica con un test.
 /// </summary>
 internal static class UiMode
 {
@@ -39,21 +40,65 @@ internal static class UiMode
         return Load(path);
     }
 
+    /// <summary>Quanti avvii consecutivi della nuova interfaccia senza finestra comparsa bastano per tornare alla classica.</summary>
+    public const int FailedStartsBeforeFallback = 2;
+
+    public static string StartMarkerPath { get; } = Path.Combine(Path.GetDirectoryName(FilePath)!, "ui-start.txt");
+
+    /// <summary>
+    /// Da chiamare prima di aprire la nuova interfaccia: segna un avvio in corso. Restituisce <c>false</c> (e salva la
+    /// classica) se gli ultimi avvii non sono mai arrivati a mostrare la finestra.
+    /// </summary>
+    public static bool BeginModernStart(string? path = null, string? markerPath = null)
+    {
+        var marker = markerPath ?? StartMarkerPath;
+        try
+        {
+            var failed = File.Exists(marker) && int.TryParse(File.ReadAllText(marker).Trim(), out var count) ? count : 0;
+            if (failed >= FailedStartsBeforeFallback)
+            {
+                File.Delete(marker);
+                Save(UiKind.Classic, path);
+                return false;
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(marker)!);
+            File.WriteAllText(marker, (failed + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Senza marcatore non c'è rilevamento dei blocchi, ma l'avvio prosegue.
+        }
+        return true;
+    }
+
+    /// <summary>La nuova interfaccia è comparsa: l'avvio è riuscito.</summary>
+    public static void ModernStartSucceeded(string? markerPath = null)
+    {
+        try
+        {
+            File.Delete(markerPath ?? StartMarkerPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Un marcatore rimasto vale al più un avvio in più in conto.
+        }
+    }
+
     public static UiKind Load(string? path = null)
     {
         try
         {
             var file = path ?? FilePath;
-            if (File.Exists(file) && string.Equals(File.ReadAllText(file).Trim(), "wpf", StringComparison.OrdinalIgnoreCase))
+            if (File.Exists(file) && string.Equals(File.ReadAllText(file).Trim(), "classic", StringComparison.OrdinalIgnoreCase))
             {
-                return UiKind.Modern;
+                return UiKind.Classic;
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            // Un file illeggibile non deve impedire l'avvio: si resta sulla classica.
+            // Un file illeggibile non deve impedire l'avvio: vale la scelta predefinita.
         }
-        return UiKind.Classic;
+        return UiKind.Modern;
     }
 
     public static void Save(UiKind kind, string? path = null)
