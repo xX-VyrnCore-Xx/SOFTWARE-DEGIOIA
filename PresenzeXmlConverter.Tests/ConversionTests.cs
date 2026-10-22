@@ -652,7 +652,7 @@ public class ConversionTests
 
     [Theory]
     [InlineData("16h", 16)]
-    [InlineData("8 ore", 8)]
+    [InlineData("8 h", 8)]
     [InlineData("2 giorni", 16)]
     [InlineData("2", 16)]
     public void IllnessWrittenWithAnExplicitUnitKeepsThatUnit(string text, decimal expectedHours)
