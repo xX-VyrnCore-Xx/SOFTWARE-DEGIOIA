@@ -135,7 +135,10 @@ internal sealed class WorkbookInspection
                 continue;
             }
 
-            var hours = headerIsDayBased || cellIsDayBased ? rawDuration * hoursPerDay : rawDuration;
+            // La malattia si indica in giorni anche quando la colonna è delle ore: «1» sono 8 ore (la giornata), non 1 ora.
+            // Un valore scritto con l'unità («16h», «8 ore») resta in ore.
+            var illnessInDays = IsIllnessPolicy(policyName) && !HasHoursMarker(duration.Text) && !duration.Text.Contains(':');
+            var hours = headerIsDayBased || cellIsDayBased || illnessInDays ? rawDuration * hoursPerDay : rawDuration;
             if (startDate.Date > endDate.Date)
             {
                 problems.Add($"Riga {rowNumber}: la data iniziale è successiva a quella finale.");
@@ -226,6 +229,22 @@ internal sealed class WorkbookInspection
             " ",
             value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
+
+    /// <summary>Il giustificativo è una malattia («Malattia», «Sick leave», «Illness»…)? Per queste causali la durata è in giorni.</summary>
+    internal static bool IsIllnessPolicy(string policy)
+    {
+        var value = policy.Trim().ToLowerInvariant();
+        return value.Contains("malatt", StringComparison.Ordinal) ||
+               value.Contains("illness", StringComparison.Ordinal) ||
+               value.Contains("sick", StringComparison.Ordinal);
+    }
+
+    /// <summary>La cella dice esplicitamente «ore» («16h», «8 ore»): il numero non va moltiplicato per la giornata.</summary>
+    internal static bool HasHoursMarker(string cellText) =>
+        System.Text.RegularExpressions.Regex.IsMatch(
+            cellText,
+            @"\d\s*(?:h|hrs?|hours?|ore|ora)(?![a-z])",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     /// <summary>
     /// Riconosce le intestazioni che esprimono la durata in giorni anziché in ore.

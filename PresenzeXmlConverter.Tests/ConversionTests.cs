@@ -537,7 +537,7 @@ public class ConversionTests
         }
     }
 
-    private static string CreateWorkbookWithDuration(double value, string durationHeader)
+    private static string CreateWorkbookWithDuration(double value, string durationHeader, string policy = "Ferie", string? text = null)
     {
         var path = Path.Combine(Path.GetTempPath(), $"presenze-dur-{Guid.NewGuid():N}.xlsx");
         using var workbook = new XLWorkbook();
@@ -548,10 +548,17 @@ public class ConversionTests
         sheet.Cell(1, 4).Value = "Data fine";
         sheet.Cell(1, 5).Value = durationHeader;
         sheet.Cell(2, 1).Value = "Mario Rossi";
-        sheet.Cell(2, 2).Value = "Ferie";
+        sheet.Cell(2, 2).Value = policy;
         sheet.Cell(2, 3).Value = new DateTime(2026, 8, 17);
         sheet.Cell(2, 4).Value = new DateTime(2026, 8, 17);
-        sheet.Cell(2, 5).Value = value;
+        if (text is null)
+        {
+            sheet.Cell(2, 5).Value = value;
+        }
+        else
+        {
+            sheet.Cell(2, 5).Value = text;
+        }
         workbook.SaveAs(path);
         return path;
     }
@@ -600,6 +607,91 @@ public class ConversionTests
             }
         }
     }
+
+    [Theory]
+    [InlineData("Malattia", 1, 8)]
+    [InlineData("Malattia", 2, 16)]
+    [InlineData("Malattia", 0.5, 4)]
+    [InlineData("Malattia INPS", 3, 24)]
+    [InlineData("Sick leave", 1, 8)]
+    [InlineData("Illness", 1, 8)]
+    [InlineData("Ferie", 1, 1)]
+    [InlineData("Permesso", 2, 2)]
+    public void IllnessIsReadInDaysEvenInAnHoursColumn(string policy, double value, decimal expectedHours)
+    {
+        var path = CreateWorkbookWithDuration(value, "Durata", policy);
+        try
+        {
+            var inspection = AttendanceWorkbookReader.Inspect(path);
+            var request = Assert.Single(inspection.ReadRequests(new ColumnSelection(0, 1, 2, 3, 4)));
+
+            Assert.Equal(expectedHours, request.Hours);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void IllnessDaysFollowTheStandardDayOfTheCompany()
+    {
+        var path = CreateWorkbookWithDuration(2, "Durata", "Malattia");
+        try
+        {
+            var inspection = AttendanceWorkbookReader.Inspect(path);
+            var request = Assert.Single(inspection.ReadRequests(new ColumnSelection(0, 1, 2, 3, 4), hoursPerDay: 7.5m));
+
+            Assert.Equal(15m, request.Hours);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Theory]
+    [InlineData("16h", 16)]
+    [InlineData("8 ore", 8)]
+    [InlineData("2 giorni", 16)]
+    [InlineData("2", 16)]
+    public void IllnessWrittenWithAnExplicitUnitKeepsThatUnit(string text, decimal expectedHours)
+    {
+        var path = CreateWorkbookWithDuration(0, "Durata", "Malattia", text);
+        try
+        {
+            var inspection = AttendanceWorkbookReader.Inspect(path);
+            var request = Assert.Single(inspection.ReadRequests(new ColumnSelection(0, 1, 2, 3, 4)));
+
+            Assert.Equal(expectedHours, request.Hours);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Theory]
+    [InlineData("Malattia", true)]
+    [InlineData("  malattia figlio ", true)]
+    [InlineData("Sick Leave", true)]
+    [InlineData("Illness", true)]
+    [InlineData("Ferie", false)]
+    [InlineData("Permesso", false)]
+    [InlineData("", false)]
+    public void OnlyIllnessPoliciesAreRecognised(string policy, bool expected) =>
+        Assert.Equal(expected, WorkbookInspection.IsIllnessPolicy(policy));
+
+    [Theory]
+    [InlineData("16h", true)]
+    [InlineData("8 ore", true)]
+    [InlineData("7.5 hours", true)]
+    [InlineData("8h30", true)]
+    [InlineData("2", false)]
+    [InlineData("2 giorni", false)]
+    [InlineData("", false)]
+    public void AnExplicitHoursUnitIsRecognised(string text, bool expected) =>
+        Assert.Equal(expected, WorkbookInspection.HasHoursMarker(text));
 
     [Theory]
     [InlineData(@"C:\x\presenze.xlsx", true)]

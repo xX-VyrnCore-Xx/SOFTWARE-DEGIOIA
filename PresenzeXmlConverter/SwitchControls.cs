@@ -115,11 +115,13 @@ internal sealed class ToggleSwitch : CheckBox
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        using (var background = new SolidBrush(BackColor))
+        // Sfondo opaco su tutta l'area sporca (con un margine): a certe scale dello schermo il buffer
+        // di doppio buffering non coincide al pixel con il client e lascerebbe righe scure ai bordi.
+        using (var background = new SolidBrush(Opaque(BackColor)))
         {
-            g.FillRectangle(background, ClientRectangle);
+            g.FillRectangle(background, Rectangle.Union(e.ClipRectangle, ClientRectangle));
         }
+        g.SmoothingMode = SmoothingMode.AntiAlias;
 
         var track = new Rectangle(
             ClientSize.Width - TrackWidth,
@@ -170,6 +172,14 @@ internal sealed class ToggleSwitch : CheckBox
             g.DrawPath(ring, ringPath);
         }
     }
+
+    protected override void OnPaintBackground(PaintEventArgs pevent)
+    {
+        using var background = new SolidBrush(Opaque(BackColor));
+        pevent.Graphics.FillRectangle(background, pevent.ClipRectangle);
+    }
+
+    private Color Opaque(Color color) => color.A == 255 ? color : Theme.Canvas;
 
     private static Color Mix(Color from, Color to, float amount) => Color.FromArgb(
         255,
