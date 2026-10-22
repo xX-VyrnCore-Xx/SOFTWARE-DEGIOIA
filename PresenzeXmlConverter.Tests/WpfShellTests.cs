@@ -183,7 +183,7 @@ public class WpfShellTests
             Assert.True(service.HasPreview, "Nessuna anteprima: " + string.Join(" | ", prompts.Problems));
             Assert.Empty(prompts.Problems);
             var directory = Environment.GetEnvironmentVariable("PRESENZEFLOW_SCREENSHOT_DIR");
-            for (var tab = 0; tab < 3; tab++)
+            for (var tab = 0; tab < 4; tab++)
             {
                 view.ShowTab(tab);
                 WpfTestHost.Pump(450);

@@ -405,6 +405,44 @@ internal sealed class ConversionService
         }
     }
 
+    /// <summary>Totali del mese di ogni dipendente (ore registrate, teoriche, giorni scoperti) sui movimenti generati.</summary>
+    public IReadOnlyList<MonthlySummaryRow> MonthlySummary() =>
+        Movements.Count == 0
+            ? Array.Empty<MonthlySummaryRow>()
+            : global::PresenzeXmlConverter.MonthlySummary.Build(
+                Movements,
+                Options,
+                Safe(() => _database.GetEmployeeProfiles()),
+                Inspection?.PeriodStart,
+                Inspection?.PeriodEnd);
+
+    /// <summary>Report PDF del mese (totali, assenze e giorni da controllare), pronto da salvare.</summary>
+    public byte[] BuildMonthlyReportPdf(DateTime generated)
+    {
+        var company = CompanyCode.Trim();
+        var alerts = CalendarAlerts.Find(Movements, Options, Safe(() => _database.GetEmployeeProfiles()));
+        return MonthlyReport.Build(
+            company.Length > 0 ? $"Azienda {company}" : "Riepilogo dei movimenti generati",
+            MonthlySummary(),
+            alerts,
+            generated);
+    }
+
+    /// <summary>Riepilogo del mese in CSV per Excel (separatore «;», UTF-8 con BOM al salvataggio).</summary>
+    public string BuildMonthlySummaryCsv() => global::PresenzeXmlConverter.MonthlySummary.ToCsv(MonthlySummary());
+
+    /// <summary>Nome suggerito per il report («Report ore 2026-03.pdf», «Riepilogo ore 2026-03.csv»).</summary>
+    public string SuggestedReportFileName(string extension)
+    {
+        var baseName = extension.Equals("csv", StringComparison.OrdinalIgnoreCase) ? "Riepilogo ore" : "Report ore";
+        if (Movements.Count == 0)
+        {
+            return $"{baseName}.{extension}";
+        }
+        var first = Movements.Min(movement => movement.Date);
+        return $"{baseName} {first.Year}-{first.Month:00}.{extension}";
+    }
+
     /// <summary>Nome suggerito per il file XML.</summary>
     public string SuggestedFileName => ExportHistory.SuggestFileName(CompanyCode, SourcePath, Movements.ToList());
 

@@ -34,6 +34,9 @@ internal sealed record MovementRow(string Employee, string Code, string Date, st
 /// <summary>Una riga della tabella dei controlli, con il colore della sua gravità.</summary>
 internal sealed record FindingRow(string Label, string Message, Brush Tone);
 
+/// <summary>Una riga del riepilogo mensile: ore del dipendente in un mese, contro quelle teoriche.</summary>
+internal sealed record SummaryRow(string Employee, string Month, string Presence, string Absence, string Total, string Expected, string Difference, string Uncovered);
+
 /// <summary>
 /// La schermata di conversione della nuova interfaccia: a sinistra il foglio, il codice azienda e i riepiloghi, a destra
 /// le schede Movimenti, XML e Controlli. Tutta la logica sta in <see cref="ConversionService"/> (la stessa della finestra
@@ -59,6 +62,10 @@ internal sealed class ConversionView : Grid
     private readonly TextBlock _hoursValue = Ui.Text("—", 22, FontWeights.SemiBold);
     private readonly DataGrid _movementsGrid = new();
     private readonly DataGrid _findingsGrid = new();
+    private readonly DataGrid _summaryGrid = new();
+    private readonly TextBlock _summaryNote;
+    private readonly Button _pdfButton = new() { Content = "Salva PDF" };
+    private readonly Button _csvButton = new() { Content = "Salva CSV" };
     private readonly TextBox _xmlBox = new();
     private readonly TextBlock _findingsSummary;
     private readonly List<(Border Pill, TextBlock Text, FrameworkElement Page)> _tabs = new();
@@ -74,6 +81,7 @@ internal sealed class ConversionView : Grid
         _prompts = prompts ?? (() => new WpfPrompts(owner()!, service));
         _status = Ui.Text("Importa un foglio Excel per cominciare.", 13.5, ink: "Brush.Muted", wrap: true);
         _findingsSummary = Ui.Text("Nessuna anteprima ancora.", 13.5, ink: "Brush.Muted", wrap: true);
+        _summaryNote = Ui.Text("Genera l'anteprima per vedere le ore del mese di ogni dipendente.", 13.5, ink: "Brush.Muted", wrap: true);
 
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -110,6 +118,8 @@ internal sealed class ConversionView : Grid
         _drop.FileDropped += async (_, path) => await ImportAsync(path);
         _generateButton.Click += async (_, _) => await GenerateAsync();
         _exportButton.Click += (_, _) => Export();
+        _pdfButton.Click += (_, _) => SaveMonthly("pdf");
+        _csvButton.Click += (_, _) => SaveMonthly("csv");
         _drop.ShowEmpty();
         UpdateButtons();
     }
@@ -280,6 +290,8 @@ internal sealed class ConversionView : Grid
         _chooseButton.IsEnabled = !_working;
         _generateButton.IsEnabled = !_working && _service.HasWorkbook && ConversionService.IsValidCompanyCode(_company.Text);
         _exportButton.IsEnabled = !_working && _service.HasPreview;
+        _pdfButton.IsEnabled = !_working && _service.HasPreview;
+        _csvButton.IsEnabled = !_working && _service.HasPreview;
     }
 
     /// <summary>Riempie le tre schede con lo stato corrente del servizio.</summary>
@@ -324,6 +336,7 @@ internal sealed class ConversionView : Grid
                 ? "Nessun problema rilevato nei movimenti e nel foglio importato."
                 : $"{errors:N0} errori · {warnings:N0} attenzioni · {notes:N0} note";
         _tabs[2].Text.Text = rows.Count == 0 ? "Controlli" : $"Controlli ({rows.Count:N0})";
+        FillSummary();
         UpdateButtons();
     }
 
@@ -361,6 +374,7 @@ internal sealed class ConversionView : Grid
         topStack.Children.Add(stats);
 
         ConfigureGrids();
+        ConfigureSummaryGrid();
         _xmlBox.IsReadOnly = true;
         _xmlBox.Style = null;
         _xmlBox.BorderThickness = new Thickness(0);
@@ -379,11 +393,27 @@ internal sealed class ConversionView : Grid
         findingsPage.Children.Add(_findingsSummary.WithMargin(new Thickness(16, 12, 16, 12)).At(0, 0));
         findingsPage.Children.Add(_findingsGrid.At(1, 0));
 
+        var summaryActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 0) };
+        _pdfButton.Margin = new Thickness(0, 0, 8, 0);
+        summaryActions.Children.Add(_pdfButton);
+        summaryActions.Children.Add(_csvButton);
+        var summaryHeader = new Grid { Margin = new Thickness(16, 12, 16, 12) };
+        summaryHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        summaryHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        summaryHeader.Children.Add(_summaryNote.At(0, 0));
+        summaryHeader.Children.Add(summaryActions.At(0, 1));
+        var summaryPage = new Grid();
+        summaryPage.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        summaryPage.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        summaryPage.Children.Add(summaryHeader.At(0, 0));
+        summaryPage.Children.Add(_summaryGrid.At(1, 0));
+
         var tabBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 14) };
         var content = new Grid();
         AddTab(tabBar, content, "Movimenti", _movementsGrid);
         AddTab(tabBar, content, "XML", _xmlBox);
         AddTab(tabBar, content, "Controlli", findingsPage);
+        AddTab(tabBar, content, "Riepilogo", summaryPage);
 
         var contentCard = new Border
         {
@@ -449,6 +479,102 @@ internal sealed class ConversionView : Grid
             Width = new DataGridLength(1, DataGridLengthUnitType.Star),
             ElementStyle = wrap
         });
+    }
+
+    private void ConfigureSummaryGrid()
+    {
+        var right = new Style(typeof(TextBlock));
+        right.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right));
+        _summaryGrid.Columns.Add(Column("Dipendente", nameof(SummaryRow.Employee), star: 2));
+        _summaryGrid.Columns.Add(Column("Mese", nameof(SummaryRow.Month), pixels: 130));
+        foreach (var (header, property) in new[]
+                 {
+                     ("Presenza", nameof(SummaryRow.Presence)),
+                     ("Assenza", nameof(SummaryRow.Absence)),
+                     ("Totale", nameof(SummaryRow.Total)),
+                     ("Teoriche", nameof(SummaryRow.Expected)),
+                     ("Differenza", nameof(SummaryRow.Difference)),
+                     ("Giorni scoperti", nameof(SummaryRow.Uncovered))
+                 })
+        {
+            var column = Column(header, property, pixels: header == "Giorni scoperti" ? 130 : 96);
+            column.ElementStyle = right;
+            _summaryGrid.Columns.Add(column);
+        }
+    }
+
+    /// <summary>Riempie la scheda Riepilogo con le ore del mese di ogni dipendente.</summary>
+    private void FillSummary()
+    {
+        var rows = _service.MonthlySummary();
+        _summaryGrid.ItemsSource = rows
+            .Select(row => new SummaryRow(
+                row.EmployeeName,
+                MonthName(row.Month),
+                HoursText(row.PresenceMinutes),
+                HoursText(row.AbsenceMinutes),
+                HoursText(row.TotalMinutes),
+                row.ExpectedMinutes is { } expected ? HoursText(expected) : "—",
+                row.ExpectedMinutes is { } theoretical ? SignedHoursText(row.TotalMinutes - theoretical) : "—",
+                row.UncoveredDays?.ToString("N0") ?? "—"))
+            .ToList();
+        _summaryNote.Text = rows.Count == 0
+            ? "Genera l'anteprima per vedere le ore del mese di ogni dipendente."
+            : rows.Any(row => row.ExpectedMinutes is not null)
+                ? $"{rows.Count:N0} righe: ore registrate contro quelle teoriche del mese. Salva il report in PDF o il riepilogo in CSV per Excel."
+                : $"{rows.Count:N0} righe. Con le presenze automatiche accese compaiono anche le ore teoriche e i giorni scoperti.";
+    }
+
+    internal static string HoursText(int minutes) => (minutes / 60m).ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("it-IT")) + " h";
+
+    internal static string SignedHoursText(int minutes) =>
+        minutes == 0 ? "—" : (minutes > 0 ? "+" : "−") + HoursText(Math.Abs(minutes));
+
+    private static string MonthName(DateTime month)
+    {
+        var text = month.ToString("MMMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("it-IT"));
+        return char.ToUpper(text[0], System.Globalization.CultureInfo.GetCultureInfo("it-IT")) + text[1..];
+    }
+
+    /// <summary>Salva il report del mese («pdf») o il riepilogo («csv»), chiedendo dove.</summary>
+    private void SaveMonthly(string extension)
+    {
+        if (_working || !_service.HasPreview)
+        {
+            return;
+        }
+        var isPdf = extension == "pdf";
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = isPdf ? "Salva il report delle ore" : "Salva il riepilogo delle ore",
+            Filter = isPdf ? "File PDF (*.pdf)|*.pdf" : "File CSV per Excel (*.csv)|*.csv",
+            DefaultExt = extension,
+            AddExtension = true,
+            FileName = _service.SuggestedReportFileName(extension),
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(_owner()) != true)
+        {
+            return;
+        }
+        try
+        {
+            if (isPdf)
+            {
+                File.WriteAllBytes(dialog.FileName, _service.BuildMonthlyReportPdf(DateTime.Now));
+            }
+            else
+            {
+                File.WriteAllText(dialog.FileName, _service.BuildMonthlySummaryCsv(), new System.Text.UTF8Encoding(true));
+            }
+            var saved = dialog.FileName;
+            SetStatus($"Salvato: {saved}");
+            _notifier?.Notify(ToastKind.Success, "File salvato", $"{Path.GetFileName(saved)} · clic per aprirlo.", () => ShellActions.OpenFile(saved));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _prompts().ShowProblem("Salvataggio non riuscito", exception.Message);
+        }
     }
 
     private static DataGridTextColumn Column(string header, string property, double star = 0, double pixels = 0) => new()

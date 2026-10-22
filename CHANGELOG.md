@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.67.0] - Corrente
+## [1.68.0] - Corrente
+
+### ✨ Riepilogo mensile e PDF nella nuova interfaccia
+- Nuova scheda **Riepilogo** nella conversione: ore del mese di ogni dipendente (presenza, assenza, totale), con ore teoriche, differenza e giorni scoperti quando le presenze automatiche sono accese
+- **Salva PDF** (report del mese con totali, assenze e giorni da controllare) e **Salva CSV** (per Excel): gli stessi file della versione classica, con gli stessi numeri
+- Il nome del file propone il mese dei movimenti («Report ore 2026-03.pdf»)
+
+## [1.67.0]
 
 ### ✨ Controlli più intelligenti sul foglio
 - **Richieste sovrapposte**: due richieste dello stesso dipendente che si sovrappongono (ad esempio ferie e malattia negli stessi giorni) o la stessa richiesta scritta due volte si segnalano con le righe del foglio e i giorni in comune

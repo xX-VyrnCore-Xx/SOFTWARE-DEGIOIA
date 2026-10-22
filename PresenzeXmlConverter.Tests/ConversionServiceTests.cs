@@ -71,6 +71,44 @@ public class ConversionServiceTests
     }
 
     [Fact]
+    public async Task TheMonthlySummaryReportAndCsvComeFromTheSameMovements()
+    {
+        var folder = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var service = new ConversionService(new LocalDatabase(Path.Combine(folder, "app.db"))) { CompanyCode = "AZ001" };
+            var prompts = new FakePrompts();
+            Assert.Empty(service.MonthlySummary());
+            Assert.Equal("Report ore.pdf", service.SuggestedReportFileName("pdf"));
+
+            await service.LoadAsync(SampleWorkbook.Path, prompts);
+            Assert.Equal(PreviewOutcome.Ready, await service.GenerateAsync(prompts));
+
+            var rows = service.MonthlySummary();
+            Assert.NotEmpty(rows);
+            Assert.Equal(
+                service.Movements.Sum(movement => (movement.Hours * 60) + movement.Minutes),
+                rows.Sum(row => row.TotalMinutes));
+
+            var csv = service.BuildMonthlySummaryCsv();
+            Assert.StartsWith("Dipendente;Codice;Mese;", csv);
+            Assert.Equal(rows.Count + 1, csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
+
+            var pdf = service.BuildMonthlyReportPdf(new DateTime(2026, 4, 1, 9, 30, 0));
+            Assert.True(pdf.Length > 500);
+            Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+
+            var first = service.Movements.Min(movement => movement.Date);
+            Assert.Equal($"Report ore {first.Year}-{first.Month:00}.pdf", service.SuggestedReportFileName("pdf"));
+            Assert.Equal($"Riepilogo ore {first.Year}-{first.Month:00}.csv", service.SuggestedReportFileName("csv"));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ARefusedMappingStopsTheGenerationWithoutAPreview()
     {
         var folder = Directory.CreateTempSubdirectory().FullName;
