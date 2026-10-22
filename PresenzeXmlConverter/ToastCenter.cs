@@ -377,7 +377,17 @@ internal static class TaskbarFlash
 
     public static void Flash(Form form)
     {
-        if (!OperatingSystem.IsWindows() || form.IsDisposed || !form.IsHandleCreated)
+        if (form.IsDisposed || !form.IsHandleCreated)
+        {
+            return;
+        }
+        Flash(form.Handle);
+    }
+
+    /// <summary>Fa lampeggiare il pulsante nella barra delle applicazioni di una finestra (anche WPF) fino a quando passa in primo piano.</summary>
+    public static void Flash(IntPtr window)
+    {
+        if (!OperatingSystem.IsWindows() || window == IntPtr.Zero)
         {
             return;
         }
@@ -386,7 +396,7 @@ internal static class TaskbarFlash
             var info = new FlashInfo
             {
                 Size = (uint)Marshal.SizeOf<FlashInfo>(),
-                Window = form.Handle,
+                Window = window,
                 Flags = FlashAll | FlashUntilForeground,
                 Count = uint.MaxValue,
                 Timeout = 0

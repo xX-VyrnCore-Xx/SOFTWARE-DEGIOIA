@@ -38,7 +38,7 @@ static class Program
         try
         {
             // Nuova interfaccia (anteprima) solo se scelta; se non parte, ripiego silenzioso sulla classica.
-            if (UiMode.Choose(args) == UiKind.Modern && Wpf.WpfLauncher.TryRun(instance, TryWriteErrorLog))
+            if (UiMode.Choose(args) == UiKind.Modern && Wpf.WpfLauncher.TryRun(instance, TryWriteErrorLog, StartupLaunch.IsBackgroundStart(args)))
             {
                 return;
             }

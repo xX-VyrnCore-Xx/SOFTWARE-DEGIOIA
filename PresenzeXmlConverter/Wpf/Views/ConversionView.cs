@@ -64,10 +64,12 @@ internal sealed class ConversionView : Grid
     private readonly List<(Border Pill, TextBlock Text, FrameworkElement Page)> _tabs = new();
     private int _tab;
     private bool _working;
+    private readonly WpfNotifier? _notifier;
 
-    public ConversionView(ConversionService service, Func<Window?> owner, Func<IConversionPrompts>? prompts = null)
+    public ConversionView(ConversionService service, Func<Window?> owner, Func<IConversionPrompts>? prompts = null, WpfNotifier? notifier = null)
     {
         _service = service;
+        _notifier = notifier;
         _owner = owner;
         _prompts = prompts ?? (() => new WpfPrompts(owner()!, service));
         _status = Ui.Text("Importa un foglio Excel per cominciare.", 13.5, ink: "Brush.Muted", wrap: true);
@@ -178,6 +180,7 @@ internal sealed class ConversionView : Grid
                 : warnings > 0
                     ? $"{warnings:N0} segnalazioni da verificare: le trovi nella scheda Controlli."
                     : "Anteprima pronta. Controlla i movimenti e l'XML prima di scaricare.");
+            NotifyConversionCompleted(_service.Movements.Count);
         }, "Generazione XML non riuscita");
     }
 
@@ -215,6 +218,8 @@ internal sealed class ConversionView : Grid
             _service.Export(dialog.FileName);
             _stepper.Current = 3;
             SetStatus($"XML salvato: {dialog.FileName}");
+            var saved = dialog.FileName;
+            _notifier?.Notify(ToastKind.Success, "File salvato", $"{Path.GetFileName(saved)} · clic per aprirlo.", () => ShellActions.OpenFile(saved));
         }
         catch (Exception exception) when (ConversionService.IsExpectedInputError(exception) || exception is AggregateException)
         {
@@ -247,6 +252,28 @@ internal sealed class ConversionView : Grid
     }
 
     private void SetStatus(string text) => _status.Text = text;
+
+    /// <summary>
+    /// Conversione finita: con la finestra in uso basta il cartellino; altrimenti l'avviso invita a tornare e chiede anche
+    /// il lampeggio nella barra e il fumetto di Windows.
+    /// </summary>
+    private void NotifyConversionCompleted(int movementCount)
+    {
+        if (_notifier is null)
+        {
+            return;
+        }
+        if (_notifier.IsWindowInUse)
+        {
+            _notifier.Notify(ToastKind.Success, "Conversione completata", $"{movementCount:N0} movimenti pronti. Controlla l'anteprima ed esporta l'XML.");
+            return;
+        }
+        _notifier.Notify(
+            ToastKind.Success,
+            "Conversione completata",
+            $"{movementCount:N0} movimenti pronti. Apri Vyrn Presence per revisionare ed esportare l'XML.",
+            systemNotification: true);
+    }
 
     private void UpdateButtons()
     {
