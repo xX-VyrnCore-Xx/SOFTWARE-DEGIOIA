@@ -159,10 +159,14 @@ internal sealed partial class MainForm
                 // non va segnalato come anomalia.
                 _generationOptions.IncludeSaturdays || _generationOptions.AutoDetect));
             findings.AddRange(MovementChecks.CompareWithSource(movements, _requests));
-            findings.AddRange(RequestChecks.Review(_requests));
+            var validation = ValidationRules.For(_database, _companyCode.Value);
+            findings.AddRange(RequestChecks.Review(_requests, validation));
+            findings.AddRange(RequestChecks.CheckExpectedEmployees(_requests, validation));
+            findings.AddRange(MovementChecks.CheckMonthLimit(movements, validation.MaxMonthHours));
             findings.AddRange(RequestChecks.CompareWithPreviousDelivery(
                 MovementChecks.Summarize(movements),
-                PreviousDeliveryOfThisCompany(movements)));
+                PreviousDeliveryOfThisCompany(movements),
+                validation.ChangePercent));
             findings.AddRange(MovementChecks.CheckMonthlyHours(
                 movements,
                 _generationOptions,

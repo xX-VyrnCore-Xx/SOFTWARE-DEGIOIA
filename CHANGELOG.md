@@ -4,7 +4,15 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.69.0] - Corrente
+## [1.70.0] - Corrente
+
+### ✨ Controlli su misura per ogni azienda
+- Nella sezione **Aziende** (nuova interfaccia) il pulsante **Controlli…** fissa le soglie con cui il foglio di quell'azienda viene controllato: malattia di fila oltre N giorni, altre assenze di fila oltre N giorni, variazione rispetto all'ultima consegna, tetto di ore al mese per dipendente e **dipendenti attesi** (avviso se mancano nel foglio)
+- Si può anche spegnere il controllo delle richieste sovrapposte
+- Ogni azienda ha le sue soglie; senza soglie proprie valgono quelle di serie (le stesse di prima). Le segnalazioni compaiono nella scheda Controlli, anche nell'interfaccia classica
+- Salvare le soglie finisce nel registro attività; cambiare ragione sociale, note o regole di conversione non le cancella
+
+## [1.69.0]
 
 ### ✨ Importazione da file CSV
 - **Si importano anche file CSV e TSV** (oltre a .xlsx e .xlsm): dal pulsante «Scegli il foglio» o trascinandoli sulla finestra, nella nuova interfaccia e nella classica

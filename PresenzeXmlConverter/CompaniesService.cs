@@ -47,6 +47,15 @@ internal sealed class CompaniesService
             rules is null ? string.Empty : GenerationSettings.Describe(rules.ToOptions(DateTime.Today.Year)));
     }
 
+    /// <summary>Salva le soglie dei controlli dell'azienda (di serie = nessuna soglia propria).</summary>
+    public void SaveChecks(CompanyRecord company, ValidationRules rules)
+    {
+        _database.SaveCompanyChecks(company.Code, rules);
+        Audit(
+            $"Controlli dell'azienda {company.Code} " + (rules.IsDefault ? "riportati a quelli di serie" : "salvati"),
+            rules.IsDefault ? string.Empty : rules.Describe());
+    }
+
     /// <summary>L'azienda diventa quella della conversione (il codice si ricorda per la prossima volta).</summary>
     public void UseForConversion(CompanyRecord company)
     {

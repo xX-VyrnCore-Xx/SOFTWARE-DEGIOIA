@@ -62,6 +62,62 @@ internal static class DialogLogic
         return true;
     }
 
+    /// <summary>
+    /// Le soglie dei controlli di un'azienda dai campi di testo: giorni di malattia e di assenza (vuoto o 0 = nessun
+    /// controllo sulle assenze), variazione in percentuale, tetto di ore al mese (vuoto = nessun tetto).
+    /// </summary>
+    public static bool TryBuildValidationRules(
+        string illnessDaysText,
+        string absenceDaysText,
+        string changePercentText,
+        bool checkOverlaps,
+        string maxMonthHoursText,
+        string expectedEmployeesText,
+        out ValidationRules rules,
+        out string? error)
+    {
+        rules = ValidationRules.Default;
+        error = null;
+        if (!int.TryParse(illnessDaysText.Trim(), NumberStyles.None, CultureInfo.CurrentCulture, out var illness) ||
+            illness is < 1 or > ValidationRules.MaximumDays)
+        {
+            error = $"I giorni di malattia da controllare devono essere un numero intero fra 1 e {ValidationRules.MaximumDays}.";
+            return false;
+        }
+        var absence = 0;
+        if (absenceDaysText.Trim().Length > 0 &&
+            (!int.TryParse(absenceDaysText.Trim(), NumberStyles.None, CultureInfo.CurrentCulture, out absence) ||
+             absence > ValidationRules.MaximumDays))
+        {
+            error = $"I giorni di assenza da controllare devono essere un numero intero fra 1 e {ValidationRules.MaximumDays} (vuoto = nessun controllo).";
+            return false;
+        }
+        if (!int.TryParse(changePercentText.Trim(), NumberStyles.None, CultureInfo.CurrentCulture, out var percent) ||
+            percent is < 5 or > ValidationRules.MaximumPercent)
+        {
+            error = $"La variazione rispetto all'ultima consegna deve essere una percentuale intera fra 5 e {ValidationRules.MaximumPercent}.";
+            return false;
+        }
+        var maxHours = 0m;
+        if (maxMonthHoursText.Trim().Length > 0 &&
+            (!decimal.TryParse(maxMonthHoursText.Trim(), NumberStyles.AllowDecimalPoint, CultureInfo.CurrentCulture, out maxHours) ||
+             maxHours < 0m || maxHours > ValidationRules.MaximumMonthHoursLimit))
+        {
+            error = $"Il tetto di ore al mese deve essere un numero fra 0 e {ValidationRules.MaximumMonthHoursLimit:0} (vuoto = nessun tetto).";
+            return false;
+        }
+        rules = new ValidationRules(illness, absence, percent, checkOverlaps, maxHours, expectedEmployeesText.Trim());
+        return true;
+    }
+
+    /// <summary>I campi delle soglie come testo (giorni di assenza e tetto vuoti se non impostati).</summary>
+    public static (string Illness, string Absence, string Percent, string MaxHours, string Expected) FormatValidationRules(ValidationRules rules) =>
+        (rules.LongIllnessDays.ToString(CultureInfo.CurrentCulture),
+            rules.LongAbsenceDays > 0 ? rules.LongAbsenceDays.ToString(CultureInfo.CurrentCulture) : string.Empty,
+            rules.ChangePercent.ToString(CultureInfo.CurrentCulture),
+            rules.MaxMonthHours > 0m ? rules.MaxMonthHours.ToString("0.##", CultureInfo.CurrentCulture) : string.Empty,
+            rules.ExpectedEmployees);
+
     /// <summary>Il testo delle regole nei campi: ore con la cultura corrente, chiusure una per riga.</summary>
     public static (string Hours, string Holidays) FormatRules(CompanyRules rules) =>
         (rules.HoursPerDay.ToString("0.##", CultureInfo.CurrentCulture),

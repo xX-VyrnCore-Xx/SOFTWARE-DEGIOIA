@@ -8,16 +8,11 @@ namespace PresenzeXmlConverter;
 /// </summary>
 internal static class RequestChecks
 {
-    /// <summary>Oltre questi giorni di calendario consecutivi una malattia merita un controllo.</summary>
-    public const int LongIllnessDays = 30;
-
-    /// <summary>Variazione (in percentuale) rispetto all'ultima consegna oltre la quale si avvisa.</summary>
-    public const int PreviousDeliveryChangePercent = 30;
-
     private const int MaximumFindings = 30;
 
-    public static IReadOnlyList<MovementFinding> Review(IReadOnlyList<AttendanceRequest> requests)
+    public static IReadOnlyList<MovementFinding> Review(IReadOnlyList<AttendanceRequest> requests, ValidationRules? rules = null)
     {
+        rules ??= ValidationRules.Default;
         var findings = new List<MovementFinding>();
         foreach (var person in requests
                      .Where(request => request.EndDate.Date >= request.StartDate.Date)
@@ -26,8 +21,15 @@ internal static class RequestChecks
                      .OrderBy(group => group.First().EmployeeName, StringComparer.CurrentCultureIgnoreCase))
         {
             var ordered = person.OrderBy(request => request.StartDate).ThenBy(request => request.SourceRow).ToList();
-            FindOverlaps(ordered, findings);
-            FindLongIllnesses(ordered, findings);
+            if (rules.CheckOverlaps)
+            {
+                FindOverlaps(ordered, findings);
+            }
+            FindLongIllnesses(ordered, findings, rules.LongIllnessDays);
+            if (rules.LongAbsenceDays > 0)
+            {
+                FindLongAbsences(ordered, findings, rules.LongAbsenceDays);
+            }
             if (findings.Count >= MaximumFindings)
             {
                 break;
@@ -62,7 +64,7 @@ internal static class RequestChecks
         }
     }
 
-    private static void FindLongIllnesses(List<AttendanceRequest> ordered, List<MovementFinding> findings)
+    private static void FindLongIllnesses(List<AttendanceRequest> ordered, List<MovementFinding> findings, int limit)
     {
         var sick = ordered.Where(request => WorkbookInspection.IsSickPolicy(request.Policy)).ToList();
         if (sick.Count == 0)
@@ -76,12 +78,12 @@ internal static class RequestChecks
         void Close()
         {
             var days = (runEnd - runStart).Days + 1;
-            if (days > LongIllnessDays)
+            if (days > limit)
             {
                 findings.Add(new MovementFinding(
                     MovementSeverity.Warning,
                     $"“{sick[0].EmployeeName}”: malattia di {days} giorni di fila {Period(runStart, runEnd)} " +
-                    $"(riga {string.Join(", ", rows)}), oltre {LongIllnessDays}. Verifica che sia giusto."));
+                    $"(riga {string.Join(", ", rows)}), oltre {limit}. Verifica che sia giusto."));
             }
         }
         foreach (var request in sick.Skip(1))
@@ -101,10 +103,70 @@ internal static class RequestChecks
     }
 
     /// <summary>
+    /// Assenze (non malattia) lunghe: richieste dello stesso giustificativo attaccate o sovrapposte che superano
+    /// <paramref name="limit"/> giorni di calendario di fila.
+    /// </summary>
+    private static void FindLongAbsences(List<AttendanceRequest> ordered, List<MovementFinding> findings, int limit)
+    {
+        foreach (var policy in ordered
+                     .Where(request => !WorkbookInspection.IsSickPolicy(request.Policy))
+                     .GroupBy(request => request.Policy.Trim(), StringComparer.CurrentCultureIgnoreCase))
+        {
+            var items = policy.OrderBy(request => request.StartDate).ToList();
+            var runStart = items[0].StartDate.Date;
+            var runEnd = items[0].EndDate.Date;
+            var rows = new List<int> { items[0].SourceRow };
+            void Close()
+            {
+                var days = (runEnd - runStart).Days + 1;
+                if (days > limit)
+                {
+                    findings.Add(new MovementFinding(
+                        MovementSeverity.Warning,
+                        $"“{items[0].EmployeeName}”: {policy.Key} per {days} giorni di fila {Period(runStart, runEnd)} " +
+                        $"(riga {string.Join(", ", rows)}), oltre {limit}. Verifica che sia giusto."));
+                }
+            }
+            foreach (var request in items.Skip(1))
+            {
+                if (request.StartDate.Date <= runEnd.AddDays(1))
+                {
+                    runEnd = request.EndDate.Date > runEnd ? request.EndDate.Date : runEnd;
+                    rows.Add(request.SourceRow);
+                    continue;
+                }
+                Close();
+                runStart = request.StartDate.Date;
+                runEnd = request.EndDate.Date;
+                rows = new List<int> { request.SourceRow };
+            }
+            Close();
+        }
+    }
+
+    /// <summary>I dipendenti che l'azienda si aspetta nel foglio ma che non ci sono (nome scritto in qualunque ordine).</summary>
+    public static IReadOnlyList<MovementFinding> CheckExpectedEmployees(IReadOnlyList<AttendanceRequest> requests, ValidationRules rules)
+    {
+        var expected = rules.ExpectedList;
+        if (expected.Count == 0 || requests.Count == 0)
+        {
+            return [];
+        }
+        var present = requests.Select(request => EmployeeNames.Key(request.EmployeeName)).ToHashSet(StringComparer.Ordinal);
+        return expected
+            .Where(name => !present.Contains(EmployeeNames.Key(name)))
+            .Take(MaximumFindings)
+            .Select(name => new MovementFinding(
+                MovementSeverity.Warning,
+                $"“{name}” è tra i dipendenti attesi di questa azienda ma non compare nel foglio."))
+            .ToArray();
+    }
+
+    /// <summary>
     /// Confronta la consegna in preparazione con l'ultima della stessa azienda: un calo o un aumento forte di
     /// dipendenti o ore è quasi sempre un foglio incompleto o un mese sbagliato, ed è una nota, non un errore.
     /// </summary>
-    public static IReadOnlyList<MovementFinding> CompareWithPreviousDelivery(MovementTotals current, ExportRecord? previous)
+    public static IReadOnlyList<MovementFinding> CompareWithPreviousDelivery(MovementTotals current, ExportRecord? previous, int changePercent = ValidationRules.DefaultChangePercent)
     {
         if (previous is null || previous.TotalMinutes <= 0 || current.Movements == 0)
         {
@@ -114,7 +176,7 @@ internal static class RequestChecks
         var when = previous.ExportedAtUtc.ToLocalTime().ToString("dd/MM/yyyy", CultureInfo.CurrentCulture);
         var minutesChange = Percent(current.TotalMinutes, previous.TotalMinutes);
         var employeesChange = previous.Employees > 0 ? Percent(current.Employees, previous.Employees) : 0;
-        if (Math.Abs(minutesChange) >= PreviousDeliveryChangePercent || Math.Abs(employeesChange) >= PreviousDeliveryChangePercent)
+        if (Math.Abs(minutesChange) >= changePercent || Math.Abs(employeesChange) >= changePercent)
         {
             findings.Add(new MovementFinding(
                 MovementSeverity.Note,

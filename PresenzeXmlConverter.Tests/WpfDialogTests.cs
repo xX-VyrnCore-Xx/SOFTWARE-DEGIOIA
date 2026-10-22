@@ -183,6 +183,38 @@ public class WpfDialogTests
     }
 
     [Fact]
+    public void TheCompanyChecksDialogShowsTheDefaultsAndChecksTheFieldsBeforeSaving()
+    {
+        WpfTestHost.Run(() =>
+        {
+            WpfApp.EnsureApplication();
+            var company = new CompanyRecord("AZ001", "Rossi Srl", string.Empty);
+            var dialog = new CompanyChecksWindow(company);
+            ShowOffScreen(dialog.Window);
+            var controls = dialog.Controls;
+            Assert.Equal("30", controls.Illness.Text);
+            Assert.Equal("30", controls.Percent.Text);
+            Assert.Equal(string.Empty, controls.Absence.Text);
+            Assert.True(controls.Overlaps.IsChecked);
+            Shot(dialog.Window, "Dialogo-ControlliAzienda");
+
+            controls.Illness.Text = "0";
+            dialog.Window.Confirm();
+            Assert.False(dialog.Window.Accepted);
+            Assert.Contains("malattia", dialog.Window.ErrorText, StringComparison.OrdinalIgnoreCase);
+
+            controls.Illness.Text = "45";
+            controls.Absence.Text = "15";
+            controls.MaxHours.Text = "180";
+            controls.Overlaps.IsChecked = false;
+            controls.Expected.Text = "Rossi Mario";
+            dialog.Window.Confirm();
+            Assert.True(dialog.Window.Accepted);
+            Assert.Equal(new ValidationRules(45, 15, 30, false, 180m, "Rossi Mario"), dialog.Rules);
+        });
+    }
+
+    [Fact]
     public void TheMissingCodesDialogShowsTheSheetNamesAndKeepsWhatIsTyped()
     {
         WpfTestHost.Run(() =>
