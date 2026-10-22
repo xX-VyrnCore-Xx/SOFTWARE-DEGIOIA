@@ -212,6 +212,41 @@ internal static class UiStyles
     </Setter>
   </Style>
 
+  <!-- Campo del token (testo nascosto) -->
+  <Style TargetType="PasswordBox">
+    <Setter Property="FontFamily" Value="{{{UiStyles.FontStack}}}"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Foreground" Value="{{{p.Ink}}}"/>
+    <Setter Property="Background" Value="{{{p.Field}}}"/>
+    <Setter Property="BorderBrush" Value="{{{p.NeutralBorder}}}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="MinHeight" Value="38"/>
+    <Setter Property="CaretBrush" Value="{{{p.Brand}}}"/>
+    <Setter Property="SelectionBrush" Value="{{{p.BrandLite}}}"/>
+    <Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="PasswordBox">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10">
+            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" Focusable="False"
+                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{{{p.Brand}}}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.5"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- Interruttore (una CheckBox con la grafica di un interruttore) -->
   <Style x:Key="Toggle" TargetType="CheckBox">
     <Setter Property="FontFamily" Value="{{{UiStyles.FontStack}}}"/>

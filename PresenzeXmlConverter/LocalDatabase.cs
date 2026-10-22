@@ -993,20 +993,28 @@ internal sealed class LocalDatabase
     }
 
     /// <summary>Aggiunge una voce al registro delle attività e tiene solo le ultime <see cref="ActivityLog.MaximumEntries"/>.</summary>
-    public void AddActivity(ActivityKind kind, string title, string detail = "", DateTime? atUtc = null)
+    public void AddActivity(ActivityKind kind, string title, string detail = "", DateTime? atUtc = null) =>
+        AddActivities([(kind, title, detail, atUtc ?? DateTime.UtcNow)]);
+
+    /// <summary>
+    /// Registra più attività in una sola transazione (una sola scrittura su disco) e poi tiene solo le ultime:
+    /// serve a chi ne scrive molte di fila, e ai test, dove una transazione per voce costerebbe minuti su un disco lento.
+    /// </summary>
+    public void AddActivities(IReadOnlyList<(ActivityKind Kind, string Title, string Detail, DateTime AtUtc)> entries)
     {
-        var cleanTitle = ActivityLog.CleanTitle(title);
-        if (cleanTitle.Length == 0)
-        {
-            return;
-        }
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction();
-        using (var insert = connection.CreateCommand())
+        foreach (var (kind, title, detail, atUtc) in entries)
         {
+            var cleanTitle = ActivityLog.CleanTitle(title);
+            if (cleanTitle.Length == 0)
+            {
+                continue;
+            }
+            using var insert = connection.CreateCommand();
             insert.Transaction = transaction;
             insert.CommandText = "INSERT INTO Activity (AtUtc, Kind, Title, Detail) VALUES ($at, $kind, $title, $detail);";
-            insert.Parameters.AddWithValue("$at", (atUtc ?? DateTime.UtcNow).ToUniversalTime().ToString("O"));
+            insert.Parameters.AddWithValue("$at", atUtc.ToUniversalTime().ToString("O"));
             insert.Parameters.AddWithValue("$kind", kind.ToString());
             insert.Parameters.AddWithValue("$title", cleanTitle);
             insert.Parameters.AddWithValue("$detail", ActivityLog.CleanDetail(detail));
