@@ -42,6 +42,8 @@ internal sealed class SettingsView : Grid, IRefreshablePage
     private readonly SettingsService _service;
     private readonly Func<Window?> _owner;
     private readonly Func<WpfNotifier?>? _notifier;
+    private readonly Func<UpdateController?>? _updates;
+    private readonly TextBlock _updateStatus = Ui.Text(string.Empty, 13, ink: "Brush.Muted", wrap: true);
     private readonly PillBar _tabs = new(TabTitles);
     private readonly ContentControl _page = new() { Focusable = false };
     private readonly UIElement[] _pages;
@@ -78,10 +80,11 @@ internal sealed class SettingsView : Grid, IRefreshablePage
     private static readonly string?[] CloseTags = [string.Empty, "tray", "exit"];
     private static readonly ThemeMode[] ThemeModes = [ThemeMode.Light, ThemeMode.Dark, ThemeMode.System, ThemeMode.Glass];
 
-    public SettingsView(ConversionService conversion, Func<Window?> owner, Func<WpfNotifier?>? notifier = null)
+    public SettingsView(ConversionService conversion, Func<Window?> owner, Func<WpfNotifier?>? notifier = null, Func<UpdateController?>? updates = null)
     {
         _service = new SettingsService(conversion);
         _notifier = notifier;
+        _updates = updates;
         _owner = owner;
         _pages = [BuildConversion(), BuildUpdates(), BuildXml(), BuildNotifications(), BuildGeneral()];
         _save.Style = Ui.Style("Primary");
@@ -98,7 +101,18 @@ internal sealed class SettingsView : Grid, IRefreshablePage
         ShowTab(0);
     }
 
-    public void OnShown() => Fill(_service.Load());
+    public void OnShown()
+    {
+        Fill(_service.Load());
+        ShowUpdateStatus();
+    }
+
+    private void ShowUpdateStatus()
+    {
+        var updates = _updates?.Invoke();
+        _updateStatus.Text = updates?.StatusText ?? $"Aggiornamenti · versione installata {UpdateWorkflow.RunningVersion.ToString(3)}";
+        _updateStatus.Foreground = Ui.Brush(updates?.StatusIsWarning == true ? "Brush.WarningInk" : "Brush.Muted");
+    }
 
     /// <summary>Apre la scheda indicata (0 = Conversione … 4 = Generale).</summary>
     public void ShowTab(int index)
@@ -159,8 +173,19 @@ internal sealed class SettingsView : Grid, IRefreshablePage
     private UIElement BuildUpdates()
     {
         _tokenStatus.Text = _service.TokenStatus();
+        var checkNow = new Button { Content = "Cerca aggiornamenti ora" };
+        checkNow.Click += async (_, _) =>
+        {
+            if (_updates?.Invoke() is { } updates)
+            {
+                await updates.CheckAsync(userInitiated: true);
+                ShowUpdateStatus();
+            }
+        };
         return Column(
             Hint("Le Release del repository privato si leggono con un token di sola lettura, già incluso nelle versioni ufficiali."),
+            _updateStatus.WithMargin(new Thickness(0, 0, 0, 4)),
+            Buttons(checkNow),
             _autoUpdate,
             _startWithWindows,
             Label("Token personale (facoltativo, se quello incluso è scaduto). Fine-grained, permesso Contents → Read-only."),

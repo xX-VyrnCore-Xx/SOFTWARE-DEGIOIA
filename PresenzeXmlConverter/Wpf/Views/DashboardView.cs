@@ -57,7 +57,7 @@ internal sealed class DashboardView : ScrollViewer
         Updates = new StatusRow("Aggiornamenti", Glyph.Refresh);
         Security = new StatusRow("Protezione dati", Glyph.Shield);
         Database.SetState("Database locale (SQLite)", UiTone.Neutral);
-        Updates.SetState("Gestiti dall'interfaccia classica", UiTone.Neutral);
+        Updates.SetState($"Versione {UpdateWorkflow.RunningVersion.ToString(3)}", UiTone.Neutral);
         Security.SetState("Dati solo su questo PC", UiTone.Good);
 
         var status = new StackPanel();
@@ -91,6 +91,10 @@ internal sealed class DashboardView : ScrollViewer
         page.Children.Add(tiles);
         Content = new PageScaffold("Buongiorno", "Da qui importi le presenze, le controlli e scarichi il file per Zucchetti.", page);
     }
+
+    /// <summary>Lo stato degli aggiornamenti («aggiornato alla 1.65.0 · 10:45», «nuova versione 1.66.0»…).</summary>
+    public void ShowUpdates(string text, bool warning) =>
+        Updates.SetState(text.StartsWith("Aggiornamenti · ", StringComparison.Ordinal) ? text["Aggiornamenti · ".Length..] : text, warning ? UiTone.Warning : UiTone.Neutral);
 
     public DropZoneView Zone { get; }
 
