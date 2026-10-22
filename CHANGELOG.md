@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.65.1] - Corrente
+## [1.66.0] - Corrente
+
+### ✨ La nuova interfaccia diventa quella di serie
+- **Vyrn Presence si apre con la nuova interfaccia**; chi aveva già scelto la classica la mantiene
+- **Ripiego automatico**: se la nuova non riesce ad aprirsi, parte la classica; se non compare la finestra per due avvii di fila, la classica diventa la scelta salvata (l'errore è nel registro)
+- **Tornare alla classica** è sempre possibile: pulsante in fondo alla barra laterale, voce nel menu del tray della classica per riprovare la nuova, oppure l'avvio con `--classic` (e `--wpf` per la nuova)
+
+## [1.65.1]
 
 ### 🐛 Correzioni
 - **Malattia e permessi retribuiti (Milestone) in giorni**: il valore nel file Excel è letto in giorni (1 = una giornata standard, ad esempio 8 ore), anche se la colonna è «ore»; se la cella indica l'unità (ad esempio «4 h») vale quella. Le altre causali restano invariate

@@ -18,7 +18,11 @@ internal static class WpfLauncher
             var app = WpfApp.EnsureApplication();
             var service = new ConversionService(LocalDatabase.OpenWithRecovery().Database);
             var window = new ShellWindow(service) { ManageLifecycle = true };
-            window.ContentRendered += (_, _) => shown = true;
+            window.ContentRendered += (_, _) =>
+            {
+                shown = true;
+                UiMode.ModernStartSucceeded();
+            };
             tray = TryCreateTray(window, service.Database, log);
             if (tray is not null)
             {
@@ -46,6 +50,7 @@ internal static class WpfLauncher
                 // Avvio con Windows: resta nel tray senza aprire la finestra (gli aggiornamenti arrivano lo stesso).
                 tray.Visible = true;
                 shown = true;
+                UiMode.ModernStartSucceeded();
                 app.Run();
             }
             else

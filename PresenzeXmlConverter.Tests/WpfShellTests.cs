@@ -287,24 +287,50 @@ public class WpfShellTests
     }
 
     [Fact]
-    public void TheModernInterfaceIsOptInAndFallsBackToClassic()
+    public void TheModernInterfaceIsTheDefaultAndClassicStaysAvailable()
     {
         var file = Path.Combine(Path.GetTempPath(), $"ui-{Guid.NewGuid():N}.txt");
         try
         {
-            Assert.Equal(UiKind.Classic, UiMode.Choose(Array.Empty<string>(), file));
-            UiMode.Save(UiKind.Modern, file);
             Assert.Equal(UiKind.Modern, UiMode.Choose(Array.Empty<string>(), file));
-            Assert.Equal(UiKind.Classic, UiMode.Choose(new[] { "--classic" }, file));
             UiMode.Save(UiKind.Classic, file);
+            Assert.Equal(UiKind.Classic, UiMode.Choose(Array.Empty<string>(), file));
             Assert.Equal(UiKind.Modern, UiMode.Choose(new[] { "--WPF" }, file));
-            Assert.Equal(UiKind.Classic, UiMode.Load(file));
+            UiMode.Save(UiKind.Modern, file);
+            Assert.Equal(UiKind.Classic, UiMode.Choose(new[] { "--classic" }, file));
+            Assert.Equal(UiKind.Modern, UiMode.Load(file));
             File.WriteAllText(file, "qualsiasi cosa");
-            Assert.Equal(UiKind.Classic, UiMode.Load(file));
+            Assert.Equal(UiKind.Modern, UiMode.Load(file));
         }
         finally
         {
             File.Delete(file);
+        }
+    }
+
+    [Fact]
+    public void RepeatedFailedStartsOfTheModernInterfaceFallBackToClassic()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"ui-{Guid.NewGuid():N}.txt");
+        var marker = Path.Combine(Path.GetTempPath(), $"ui-start-{Guid.NewGuid():N}.txt");
+        try
+        {
+            // Un avvio riuscito azzera il conto.
+            Assert.True(UiMode.BeginModernStart(file, marker));
+            UiMode.ModernStartSucceeded(marker);
+            Assert.False(File.Exists(marker));
+
+            // Due avvii senza finestra: il terzo passa alla classica e lo ricorda.
+            Assert.True(UiMode.BeginModernStart(file, marker));
+            Assert.True(UiMode.BeginModernStart(file, marker));
+            Assert.False(UiMode.BeginModernStart(file, marker));
+            Assert.Equal(UiKind.Classic, UiMode.Load(file));
+            Assert.False(File.Exists(marker));
+        }
+        finally
+        {
+            File.Delete(file);
+            File.Delete(marker);
         }
     }
 
