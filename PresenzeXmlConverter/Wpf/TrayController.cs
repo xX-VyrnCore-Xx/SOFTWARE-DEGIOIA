@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Windows.Threading;
 
@@ -28,9 +29,9 @@ using DataGrid = System.Windows.Controls.DataGrid;
 using Binding = System.Windows.Data.Binding;
 
 /// <summary>
-/// L'icona della nuova interfaccia nell'area di notifica: menu con le stesse voci di quella classica, fumetti di Windows
-/// (cliccandoli si apre la finestra e si esegue l'azione dell'avviso) e suggerimento che dice se c'è un aggiornamento pronto.
-/// Le scelte del menu si scrivono nello stesso database della finestra classica.
+/// L'icona dell'applicazione nell'area di notifica: menu con testata (nome, versione e stato degli aggiornamenti), accesso rapido
+/// a nuova conversione e storico, impostazioni e interruttori; fumetti di Windows (cliccandoli si apre la finestra e si esegue
+/// l'azione dell'avviso); un pallino verde sull'icona e il suggerimento dicono che c'è un aggiornamento pronto.
 /// </summary>
 internal sealed class TrayController : IDisposable
 {
@@ -38,6 +39,10 @@ internal sealed class TrayController : IDisposable
     private readonly string _caption;
     private readonly NotifyIcon _icon = new();
     private readonly ToolStripMenuItem _updateItem;
+    private readonly ToolStripMenuItem _statusItem;
+    private readonly Icon _baseIcon;
+    private readonly int _dpi;
+    private Icon? _badgedIcon;
     private readonly ToolStripMenuItem _notificationsItem;
     private readonly ToolStripMenuItem _startupItem;
     private readonly DispatcherTimer _cleanup = new() { Interval = TimeSpan.FromSeconds(20) };
@@ -48,19 +53,29 @@ internal sealed class TrayController : IDisposable
     {
         _database = database;
         _caption = caption;
+        _baseIcon = icon;
+        _dpi = dpi;
         _icon.Icon = icon;
         _icon.Text = Truncate(caption);
 
         var menu = ThemedMenus.Create(icons: true);
+        // Testata: nome e versione, e sotto lo stato degli aggiornamenti (si legge senza aprire nulla).
+        var header = new ToolStripMenuItem(caption) { Enabled = false, Font = new Font(menu.Font, FontStyle.Bold) };
+        menu.Items.Add(header);
+        _statusItem = new ToolStripMenuItem(StatusText(null)) { Enabled = false };
+        menu.Items.Add(_statusItem);
+        menu.Items.Add(new ToolStripSeparator());
         var open = ThemedMenus.Add(menu, "Apri Vyrn Presence", Glyph.Dashboard, (_, _) => OpenRequested?.Invoke(), dpi, Theme.Brand);
         open.Font = new Font(menu.Font, FontStyle.Bold);
+        ThemedMenus.Add(menu, "Nuova conversione…", Glyph.Transfer, (_, _) => NewConversionRequested?.Invoke(), dpi);
+        ThemedMenus.Add(menu, "Storico esportazioni", Glyph.Clock, (_, _) => HistoryRequested?.Invoke(), dpi);
+        menu.Items.Add(new ToolStripSeparator());
         _updateItem = ThemedMenus.Add(menu, "Installa aggiornamento", Glyph.Download, (_, _) => InstallUpdateRequested?.Invoke(), dpi, Theme.Success);
         _updateItem.Visible = false;
         _updateItem.Font = new Font(menu.Font, FontStyle.Bold);
-        menu.Items.Add(new ToolStripSeparator());
         ThemedMenus.Add(menu, "Cerca aggiornamenti…", Glyph.Refresh, (_, _) => CheckUpdatesRequested?.Invoke(), dpi);
-        ThemedMenus.Add(menu, "Impostazioni…", Glyph.Gear, (_, _) => SettingsRequested?.Invoke(), dpi);
         menu.Items.Add(new ToolStripSeparator());
+        ThemedMenus.Add(menu, "Impostazioni…", Glyph.Gear, (_, _) => SettingsRequested?.Invoke(), dpi);
         _notificationsItem = ThemedMenus.Add(menu, NotificationsText(), Glyph.Alert, (_, _) => ToggleNotifications(), dpi);
         _startupItem = ThemedMenus.Add(menu, StartupText(), Glyph.Clock, (_, _) => ToggleStartup(), dpi);
         ThemedMenus.Add(menu, "Alla chiusura chiedi di nuovo", Glyph.Refresh, (_, _) =>
@@ -68,7 +83,6 @@ internal sealed class TrayController : IDisposable
             _database.SaveSetting(CloseBehaviorPolicy.Setting, string.Empty);
             Message?.Invoke("Alla chiusura della finestra il programma tornerà a chiedere come comportarsi.");
         }, dpi);
-        ThemedMenus.Add(menu, "Torna all'interfaccia classica", Glyph.Dashboard, (_, _) => ClassicRequested?.Invoke(), dpi);
         menu.Items.Add(new ToolStripSeparator());
         ThemedMenus.Add(menu, "Esci definitivamente", Glyph.Arrow, (_, _) => ExitRequested?.Invoke(), dpi, Theme.DangerInk);
         _icon.ContextMenuStrip = menu;
@@ -103,7 +117,9 @@ internal sealed class TrayController : IDisposable
 
     public event Action? SettingsRequested;
 
-    public event Action? ClassicRequested;
+    public event Action? NewConversionRequested;
+
+    public event Action? HistoryRequested;
 
     /// <summary>Un messaggio breve per chi guarda la finestra (le scelte del menu lo usano per confermare).</summary>
     public event Action<string>? Message;
@@ -159,8 +175,33 @@ internal sealed class TrayController : IDisposable
     {
         _updateItem.Visible = version is not null;
         _updateItem.Text = version is null ? "Installa aggiornamento" : $"Installa l'aggiornamento {version.ToString(3)}…";
+        _statusItem.Text = StatusText(version);
         _icon.Text = Truncate(UpdateNotice.TrayTooltip(_caption, version));
+        try
+        {
+            if (version is null)
+            {
+                _icon.Icon = _baseIcon;
+            }
+            else
+            {
+                _badgedIcon ??= TrayIconFactory.WithBadge(_baseIcon, System.Drawing.Color.FromArgb(52, 199, 89), _dpi);
+                _icon.Icon = _badgedIcon;
+            }
+        }
+        catch (Exception exception) when (exception is ArgumentException or ExternalException or InvalidOperationException)
+        {
+            // Senza il pallino l'icona resta quella di sempre: l'avviso c'è comunque nel menu e nel suggerimento.
+            _icon.Icon = _baseIcon;
+        }
     }
+
+    /// <summary>La riga di stato sotto il nome, nel menu.</summary>
+    internal static string StatusText(Version? pending) =>
+        pending is null ? "Nessun aggiornamento in sospeso" : $"Aggiornamento {pending.ToString(3)} pronto da installare";
+
+    /// <summary>La riga di stato mostrata (per i test).</summary>
+    internal string StatusLine => _statusItem.Text ?? string.Empty;
 
     /// <summary>Il testo della voce di aggiornamento (per i test).</summary>
     internal (bool Visible, string Text) UpdateItem => (_updateItem.Available, _updateItem.Text);
@@ -228,6 +269,7 @@ internal sealed class TrayController : IDisposable
         {
             _icon.Visible = false;
             _icon.Dispose();
+            _badgedIcon?.Dispose();
         }
         catch (Exception)
         {

@@ -172,6 +172,42 @@ public class WpfNotificationTests
         });
     }
 
+    [Theory]
+    [InlineData(96, 16)]
+    [InlineData(120, 20)]
+    [InlineData(144, 24)]
+    [InlineData(48, 16)]
+    [InlineData(960, 64)]
+    public void TheTrayIconIsDrawnAtTheSizeOfTheSmallIcon(int dpi, int side)
+    {
+        Assert.Equal(side, TrayIconFactory.SideFor(dpi));
+        using var badged = TrayIconFactory.WithBadge(System.Drawing.SystemIcons.Application, System.Drawing.Color.FromArgb(52, 199, 89), dpi);
+        Assert.Equal(side, badged.Width);
+        Assert.Equal(side, badged.Height);
+    }
+
+    [Fact]
+    public void ThePopupMenusDropLeadingAndDoubleSeparatorsAndMarkDisabledEntries()
+    {
+        WpfTestHost.Run(() =>
+        {
+            WpfApp.EnsureApplication();
+            var menu = UiMenus.Create(
+            [
+                MenuEntry.Separator,
+                new MenuEntry("Copia", Glyph.Sheet, () => { }),
+                MenuEntry.Separator,
+                MenuEntry.Separator,
+                new MenuEntry("Salva…", Glyph.Save, () => { }, Enabled: false),
+                new MenuEntry("Elimina", Glyph.Trash, () => { }, true, Danger: true),
+                MenuEntry.Separator
+            ]);
+
+            Assert.Equal(new[] { "Copia", "—", "~Salva…", "Elimina" }, UiMenus.Describe(menu));
+            Assert.Empty(UiMenus.Describe(UiMenus.Create([])));
+        });
+    }
+
     [Fact]
     public void TheTrayIconHidesAndRestoresTheWindowAndShowsThePendingUpdate()
     {
@@ -192,11 +228,17 @@ public class WpfNotificationTests
             Assert.False(tray.Visible);
 
             Assert.False(tray.UpdateItem.Visible);
+            Assert.Equal("Nessun aggiornamento in sospeso", tray.StatusLine);
+            var plainIcon = tray.Icon.Icon;
             tray.SetPendingUpdate(new Version(1, 65, 0));
             Assert.True(tray.UpdateItem.Visible);
             Assert.Contains("1.65.0", tray.UpdateItem.Text);
+            Assert.Contains("1.65.0", tray.StatusLine);
+            Assert.NotSame(plainIcon, tray.Icon.Icon);
             tray.SetPendingUpdate(null);
             Assert.False(tray.UpdateItem.Visible);
+            Assert.Equal("Nessun aggiornamento in sospeso", tray.StatusLine);
+            Assert.Same(plainIcon, tray.Icon.Icon);
             window.Close();
         });
     }

@@ -4,7 +4,28 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.72.0] - Corrente
+## [1.74.0] - Corrente
+
+### ✨ Una sola interfaccia e il calendario in anteprima
+- **Vyrn Presence usa solo la nuova interfaccia**: non esiste più il ritorno alla classica (tolti il pulsante nella barra laterale, la voce nel menu del tray e l'avvio `--classic`); se la finestra non riesce ad aprirsi il programma lo dice con il percorso del registro degli errori
+- **Calendario nell'anteprima** (scheda «Calendario»): una riga per dipendente e una colonna per giorno, ogni giorno colorato per giustificativo (presenza in verde, mezza giornata divisa a metà, ogni assenza con il suo colore); i giorni lavorativi senza movimenti sono tratteggiati in rosso, weekend e festivi in tono spento
+- Ogni riga riporta il totale del mese e, in rosso, i giorni scoperti o la differenza dalle ore teoriche; il piè conta i presenti di ogni giorno
+- Si sfoglia mese per mese, si cerca per nome, si guardano solo i dipendenti da controllare; **passando sopra un giorno** compaiono movimenti e anomalie, con un clic il giorno si evidenzia
+- Barra delle anomalie in alto (giorni oltre la giornata, giorni insoliti, totali diversi dal teorico) con «Vai al primo / al prossimo» che porta al giorno giusto
+- La legenda dei colori è sotto il calendario; la larghezza dei giorni si adatta alla finestra
+
+### 🐛 Correzioni grafiche e aggiornamenti in tempo reale
+- **Riga selezionata in magenta** (per esempio il codice nelle tabelle dei Codici): mancava un colore del tema, ora c'è; un controllo automatico verifica che ogni colore usato nel codice esista
+- **Il tema cambia subito**: scegliendo Chiaro, Scuro, Come Windows o Vetro nelle Impostazioni la finestra si ridisegna senza riavviare, restando nella stessa pagina e con il lavoro in corso (file importato, anteprima) intatto; con «Come Windows» segue anche il cambio del tema di sistema a programma aperto
+- **Icona degli aggiornamenti in alto a destra**: mostra la versione installata e lo stato in tempo reale (aggiornato, controllo in corso con icona che gira, nuova versione, download con percentuale e barra); il pulsante cerca subito o, se c'è una versione pronta, la installa
+- Il download dell'aggiornamento avanza anche nella barra delle applicazioni di Windows, e lo stato nelle Impostazioni → Aggiornamenti si aggiorna da solo
+
+### ✨ Menù e icona nel tray più curati
+- **Icona nel tray**: con un aggiornamento pronto compare un pallino verde sull'icona (oltre al suggerimento), alla misura giusta per lo schermo
+- **Menù del tray** con testata (nome, versione e stato degli aggiornamenti), accesso rapido a **Nuova conversione** e **Storico esportazioni**, voci raggruppate e senza più il ritorno alla classica
+- **Menù del tasto destro** nello stile dell'app (angoli tondi, ombra, icone, voce evidenziata) su movimenti e segnalazioni (copia riga, copia nome, mostra nel calendario), Storico (apri cartella, verifica, salva copia, copia percorso), Aziende (usa, regole, controlli, ferie e permessi, elimina) e calendario (copia i dettagli del giorno, vai alla prossima anomalia)
+
+## [1.72.0]
 
 ### ✨ Ferie e permessi residui
 - Nella sezione **Aziende** (nuova interfaccia) il pulsante **Ferie e permessi…** raccoglie quanto spetta in un anno di ogni giustificativo, una riga ciascuno: «Ferie = 26 giorni», «Permessi = 104 ore» (il giustificativo si indica col nome o col codice; i giorni contano con la giornata standard dell'azienda)

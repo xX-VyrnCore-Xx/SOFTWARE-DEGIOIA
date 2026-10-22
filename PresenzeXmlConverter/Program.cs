@@ -37,14 +37,12 @@ static class Program
 
         try
         {
-            // Nuova interfaccia di serie; se non parte (errore o blocchi ripetuti), ripiego sulla classica.
-            if (UiMode.Choose(args) == UiKind.Modern && UiMode.BeginModernStart() && Wpf.WpfLauncher.TryRun(instance, TryWriteErrorLog, StartupLaunch.IsBackgroundStart(args)))
+            // Vyrn Presence ha una sola interfaccia: se non riesce ad aprirsi il motivo è nel registro degli errori.
+            if (Wpf.WpfLauncher.TryRun(instance, TryWriteErrorLog, StartupLaunch.IsBackgroundStart(args)))
             {
                 return;
             }
-            var window = new MainForm(StartupLaunch.IsBackgroundStart(args));
-            instance.OnActivationRequested(window.ActivateFromAnotherInstance);
-            Application.Run(window);
+            throw new InvalidOperationException("La finestra principale non è riuscita ad aprirsi.");
         }
         catch (Exception exception)
         {

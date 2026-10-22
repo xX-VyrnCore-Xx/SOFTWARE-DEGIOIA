@@ -49,6 +49,9 @@ internal interface IUpdateUi
     void PromptForToken();
 }
 
+/// <summary>L'avanzamento di un aggiornamento in corso: il passo, la percentuale del download e il dettaglio (velocità, tempo che resta).</summary>
+internal sealed record UpdateProgressInfo(UpdateStep Step, int Percent, string Detail);
+
 /// <summary>
 /// Il ciclo degli aggiornamenti della nuova interfaccia, come nella classica: controllo all'avvio (ritardato), ogni dieci minuti anche
 /// con la finestra nel tray, al ritorno della rete e alla fine della sospensione, e quando si torna alla finestra dopo un po'.
@@ -101,6 +104,19 @@ internal sealed class UpdateController
     public bool StatusIsWarning { get; private set; }
 
     public bool IsChecking => _busy;
+
+    /// <summary>L'aggiornamento in corso di scaricamento e installazione (null = nessuno).</summary>
+    public UpdateProgressInfo? Progress { get; private set; }
+
+    /// <summary>Cambia l'avanzamento (download, controllo, installazione) o finisce.</summary>
+    public event Action? ProgressChanged;
+
+    /// <summary>Riceve l'avanzamento dalla finestra dell'installazione, così il resto dell'interfaccia lo segue in tempo reale.</summary>
+    internal void ReportProgress(UpdateStep step, int percent, string detail)
+    {
+        Progress = new UpdateProgressInfo(step, percent, detail);
+        ProgressChanged?.Invoke();
+    }
 
     public event Action? PendingChanged;
 
@@ -360,6 +376,7 @@ internal sealed class UpdateController
     {
         try
         {
+            ReportProgress(UpdateStep.Download, 0, "Connessione a GitHub…");
             await _ui.RunInstallAsync(update, _database);
         }
         catch (OperationCanceledException)
@@ -375,6 +392,11 @@ internal sealed class UpdateController
             SetStatus("Aggiornamento non riuscito.", warning: true);
             _ui.ShowError("Aggiornamento non riuscito", exception);
             return;
+        }
+        finally
+        {
+            Progress = null;
+            ProgressChanged?.Invoke();
         }
         SetStatus("Aggiornamento avviato: Vyrn Presence si chiude per completarlo.", warning: false);
         ExitRequested?.Invoke();
@@ -428,6 +450,9 @@ internal sealed class WpfUpdateUi : IUpdateUi
     private readonly Window _owner;
     private readonly Action _openUpdateSettings;
 
+    /// <summary>L'avanzamento dell'installazione, in tempo reale (passo, percentuale, dettaglio).</summary>
+    public event Action<UpdateStep, int, string>? InstallProgress;
+
     public WpfUpdateUi(Window owner, Action openUpdateSettings)
     {
         _owner = owner;
@@ -479,6 +504,7 @@ internal sealed class WpfUpdateUi : IUpdateUi
         {
             progress.Owner = _owner;
         }
+        progress.Reported += (step, percent, detail) => InstallProgress?.Invoke(step, percent, detail);
         progress.Show();
         try
         {

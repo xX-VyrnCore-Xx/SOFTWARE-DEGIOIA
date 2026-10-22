@@ -68,6 +68,17 @@ internal sealed class HistoryView : Grid, IRefreshablePage
         _open.Style = Ui.Style("Primary");
         _clear.Style = Ui.Style("Danger");
         _grid.SelectionChanged += (_, _) => UpdateButtons();
+        UiMenus.SelectRowOnRightClick(_grid);
+        UiMenus.Attach(_grid, () => Selected is null
+            ? []
+            :
+            [
+                new MenuEntry("Apri la cartella", Glyph.Folder, OpenFolder),
+                new MenuEntry("Verifica il file", Glyph.Shield, Verify),
+                new MenuEntry("Salva una copia…", Glyph.Save, SaveCopy, Selected.HasStoredXml),
+                MenuEntry.Separator,
+                new MenuEntry("Copia il percorso", Glyph.Sheet, CopyPath)
+            ]);
         _grid.MouseDoubleClick += (_, _) => OpenFolder();
         _open.Click += (_, _) => OpenFolder();
         _verify.Click += (_, _) => Verify();

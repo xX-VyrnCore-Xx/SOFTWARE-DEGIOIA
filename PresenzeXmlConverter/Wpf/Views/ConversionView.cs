@@ -62,6 +62,7 @@ internal sealed class ConversionView : Grid
     private readonly TextBlock _hoursValue = Ui.Text("—", 22, FontWeights.SemiBold);
     private readonly DataGrid _movementsGrid = new();
     private readonly DataGrid _findingsGrid = new();
+    private readonly CalendarView _calendar = new();
     private readonly DataGrid _summaryGrid = new();
     private readonly TextBlock _summaryNote;
     private readonly Button _pdfButton = new() { Content = "Salva PDF" };
@@ -71,6 +72,7 @@ internal sealed class ConversionView : Grid
     private readonly List<(Border Pill, TextBlock Text, FrameworkElement Page)> _tabs = new();
     private int _tab;
     private bool _working;
+    private (string Name, string Detail)? _loaded;
     private readonly WpfNotifier? _notifier;
 
     public ConversionView(ConversionService service, Func<Window?> owner, Func<IConversionPrompts>? prompts = null, WpfNotifier? notifier = null)
@@ -156,7 +158,8 @@ internal sealed class ConversionView : Grid
             {
                 return;
             }
-            _drop.ShowLoaded(Path.GetFileName(path), $"{_service.Requests.Count:N0} richieste · foglio «{_service.Inspection?.SheetName}»");
+            _loaded = (Path.GetFileName(path), $"{_service.Requests.Count:N0} richieste · foglio «{_service.Inspection?.SheetName}»");
+            _drop.ShowLoaded(_loaded.Value.Name, _loaded.Value.Detail);
             _stepper.Current = 1;
             ShowPreview();
             SetStatus("File importato. Controlla il codice azienda e genera l'anteprima.");
@@ -184,7 +187,7 @@ internal sealed class ConversionView : Grid
             ShowPreview();
             _stepper.Current = 2;
             var (errors, warnings, _) = _service.FindingCounts;
-            SelectTab(errors > 0 ? 2 : 0);
+            SelectTab(errors > 0 ? 3 : 0);
             SetStatus(errors > 0
                 ? $"{errors:N0} errori e {warnings:N0} attenzioni da verificare nella scheda Controlli."
                 : warnings > 0
@@ -263,6 +266,24 @@ internal sealed class ConversionView : Grid
 
     private void SetStatus(string text) => _status.Text = text;
 
+    /// <summary>Riprende lo stato di una schermata precedente (dopo un cambio di tema la pagina si ricostruisce: il lavoro in corso resta).</summary>
+    internal void RestoreFrom(ConversionView previous)
+    {
+        if (!_service.HasWorkbook)
+        {
+            return;
+        }
+        _loaded = previous._loaded;
+        if (_loaded is { } loaded)
+        {
+            _drop.ShowLoaded(loaded.Name, loaded.Detail);
+        }
+        _stepper.Current = previous._stepper.Current;
+        ShowPreview();
+        SelectTab(previous._tab);
+        SetStatus(previous._status.Text);
+    }
+
     /// <summary>
     /// Conversione finita: con la finestra in uso basta il cartellino; altrimenti l'avviso invita a tornare e chiede anche
     /// il lampeggio nella barra e il fumetto di Windows.
@@ -335,8 +356,9 @@ internal sealed class ConversionView : Grid
             : rows.Count == 0
                 ? "Nessun problema rilevato nei movimenti e nel foglio importato."
                 : $"{errors:N0} errori · {warnings:N0} attenzioni · {notes:N0} note";
-        _tabs[2].Text.Text = rows.Count == 0 ? "Controlli" : $"Controlli ({rows.Count:N0})";
+        _tabs[3].Text.Text = rows.Count == 0 ? "Controlli" : $"Controlli ({rows.Count:N0})";
         FillSummary();
+        _calendar.SetModel(_service.BuildCalendar());
         UpdateButtons();
     }
 
@@ -375,6 +397,10 @@ internal sealed class ConversionView : Grid
 
         ConfigureGrids();
         ConfigureSummaryGrid();
+        UiMenus.SelectRowOnRightClick(_movementsGrid);
+        UiMenus.SelectRowOnRightClick(_findingsGrid);
+        UiMenus.Attach(_movementsGrid, MovementMenu);
+        UiMenus.Attach(_findingsGrid, FindingMenu);
         _xmlBox.IsReadOnly = true;
         _xmlBox.Style = null;
         _xmlBox.BorderThickness = new Thickness(0);
@@ -411,6 +437,7 @@ internal sealed class ConversionView : Grid
         var tabBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 14) };
         var content = new Grid();
         AddTab(tabBar, content, "Movimenti", _movementsGrid);
+        AddTab(tabBar, content, "Calendario", _calendar);
         AddTab(tabBar, content, "XML", _xmlBox);
         AddTab(tabBar, content, "Controlli", findingsPage);
         AddTab(tabBar, content, "Riepilogo", summaryPage);
@@ -479,6 +506,39 @@ internal sealed class ConversionView : Grid
             Width = new DataGridLength(1, DataGridLengthUnitType.Star),
             ElementStyle = wrap
         });
+    }
+
+    /// <summary>Le voci del tasto destro su un movimento.</summary>
+    internal IEnumerable<MenuEntry> MovementMenu()
+    {
+        if (_movementsGrid.SelectedItem is not MovementRow row)
+        {
+            return [];
+        }
+        return
+        [
+            new MenuEntry("Copia la riga", Glyph.Sheet, () => UiMenus.Copy(string.Join("\t", row.Employee, row.Code, row.Date, row.Policy, row.Reason, $"{row.Hours}h {row.Minutes:00}m"))),
+            new MenuEntry("Copia il nome", Glyph.Users, () => UiMenus.Copy(row.Employee)),
+            MenuEntry.Separator,
+            new MenuEntry("Mostra nel calendario", Glyph.Clock, () =>
+            {
+                _calendar.Search(row.Employee);
+                SelectTab(1);
+            })
+        ];
+    }
+
+    /// <summary>Le voci del tasto destro su una segnalazione.</summary>
+    internal IEnumerable<MenuEntry> FindingMenu()
+    {
+        if (_findingsGrid.SelectedItem is not FindingRow row)
+        {
+            return [];
+        }
+        return
+        [
+            new MenuEntry("Copia la segnalazione", Glyph.Sheet, () => UiMenus.Copy($"{row.Label}: {row.Message}"))
+        ];
     }
 
     private void ConfigureSummaryGrid()

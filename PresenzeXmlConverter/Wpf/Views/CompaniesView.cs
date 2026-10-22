@@ -84,6 +84,19 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
         _notes.VerticalContentAlignment = VerticalAlignment.Top;
 
         _grid.SelectionChanged += (_, _) => OnSelected();
+        UiMenus.SelectRowOnRightClick(_grid);
+        UiMenus.Attach(_grid, () => Selected is null
+            ? []
+            :
+            [
+                new MenuEntry("Usa per la conversione", Glyph.Transfer, UseSelected),
+                MenuEntry.Separator,
+                new MenuEntry("Regole di conversione…", Glyph.Gear, EditRules),
+                new MenuEntry("Controlli…", Glyph.Shield, EditChecks),
+                new MenuEntry("Ferie e permessi…", Glyph.Clock, EditLeave),
+                MenuEntry.Separator,
+                new MenuEntry("Elimina l'azienda", Glyph.Trash, DeleteSelected, true, Danger: true)
+            ]);
         _save.Click += (_, _) => SaveFromForm();
         _rules.Click += (_, _) => EditRules();
         _checks.Click += (_, _) => EditChecks();

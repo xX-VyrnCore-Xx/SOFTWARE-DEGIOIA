@@ -157,7 +157,7 @@ internal sealed class SettingsService
         var message = themeFailed
             ? "Impostazioni salvate, ma la scelta del tema non si è potuta salvare: resta quello di prima."
             : themeChanged
-                ? "Impostazioni salvate. Il tema cambia al prossimo avvio: chiudi e riapri il programma."
+                ? "Impostazioni salvate. Il nuovo tema è già attivo."
                 : equivalent
                     ? "Impostazioni salvate."
                     : "Impostazioni salvate: rigenera l'anteprima per applicare le regole di conversione.";

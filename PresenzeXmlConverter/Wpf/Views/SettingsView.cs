@@ -95,6 +95,11 @@ internal sealed class SettingsView : Grid, IRefreshablePage
         Children.Add(new PageScaffold("Impostazioni", "Regole di conversione, aggiornamenti, formato dell'XML, notifiche e dati.", BuildBody()));
 
         _tabs.SelectionChanged += (_, _) => ShowTab(_tabs.SelectedIndex);
+        if (_updates?.Invoke() is { } live)
+        {
+            // Lo stato dei controlli si aggiorna da solo, senza uscire e rientrare nella pagina.
+            live.StatusChanged += () => Dispatcher.BeginInvoke(ShowUpdateStatus);
+        }
         _save.Click += (_, _) => Save();
         _verifyToken.Click += async (_, _) => await VerifyTokenAsync();
         _clearToken.Click += (_, _) => ClearToken();
@@ -113,6 +118,9 @@ internal sealed class SettingsView : Grid, IRefreshablePage
         _updateStatus.Text = updates?.StatusText ?? $"Aggiornamenti · versione installata {UpdateWorkflow.RunningVersion.ToString(3)}";
         _updateStatus.Foreground = Ui.Brush(updates?.StatusIsWarning == true ? "Brush.WarningInk" : "Brush.Muted");
     }
+
+    /// <summary>La scheda aperta (0 = Conversione … 4 = Generale).</summary>
+    internal int CurrentTab => Math.Max(0, _tabs.SelectedIndex);
 
     /// <summary>Apre la scheda indicata (0 = Conversione … 4 = Generale).</summary>
     public void ShowTab(int index)
@@ -237,7 +245,7 @@ internal sealed class SettingsView : Grid, IRefreshablePage
             Hint("Cosa fa il programma quando chiudi la finestra, dove tiene i dati e come sono protetti."),
             Label("Quando chiudi la finestra con la X (in background nel tray ricevi gli avvisi degli aggiornamenti)"),
             _close,
-            Label("Aspetto dell'app (la scelta si applica al prossimo avvio: chiudi e riapri il programma)"),
+            Label("Aspetto dell'app (si applica subito, senza riavviare)"),
             _theme,
             Label("Dati: tutto resta sul tuo computer, nella cartella dei dati del tuo profilo Windows."),
             _general,
@@ -329,6 +337,13 @@ internal sealed class SettingsView : Grid, IRefreshablePage
         var result = _service.Save(Read());
         _message.Foreground = Ui.Brush(result.Succeeded ? "Brush.SuccessInk" : "Brush.DangerInk");
         _message.Text = result.Error ?? result.Message;
+        if (result.Succeeded && result.ThemeChanged && _owner() is ShellWindow shell)
+        {
+            // Il tema si vede subito: la finestra si ridisegna con i nuovi colori.
+            shell.ApplyTheme();
+            shell.Notifier.Notify(ToastKind.Info, "Impostazioni salvate", result.Message);
+            return;
+        }
         if (result.Succeeded && _service.TokenSaved)
         {
             _message.Text += " Token attivo: gli aggiornamenti si controllano subito.";

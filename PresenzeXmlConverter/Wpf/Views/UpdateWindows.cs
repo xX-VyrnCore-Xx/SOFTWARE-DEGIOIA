@@ -133,6 +133,9 @@ internal sealed class UpdateProgressWindow : Window, IUpdateInstallUi
 
     public CancellationToken Token => _cancellation.Token;
 
+    /// <summary>Ogni avanzamento (passo, percentuale, dettaglio) per chi lo mostra altrove: icona degli aggiornamenti e barra delle applicazioni.</summary>
+    public event Action<UpdateStep, int, string>? Reported;
+
     /// <summary>Il passo mostrato e la percentuale (per i test).</summary>
     internal (UpdateStep Step, int Percent, string Detail, bool CanCancel) State => (_current, _percent, _detail.Text, _cancel.IsEnabled);
 
@@ -156,6 +159,7 @@ internal sealed class UpdateProgressWindow : Window, IUpdateInstallUi
             _ => _detail.Text
         };
         Paint();
+        Reported?.Invoke(_current, _percent, _detail.Text);
     }
 
     public void SetTransfer(TransferMeter meter)
@@ -163,6 +167,7 @@ internal sealed class UpdateProgressWindow : Window, IUpdateInstallUi
         _percent = meter.Percent;
         ApplyBar();
         _detail.Text = $"{meter.Percent}% · {meter.Describe()}";
+        Reported?.Invoke(_current, _percent, _detail.Text);
     }
 
     public void SetDetail(string text) => _detail.Text = text;

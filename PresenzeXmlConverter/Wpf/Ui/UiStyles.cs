@@ -54,6 +54,7 @@ internal static class UiStyles
   <SolidColorBrush x:Key="Brush.DividerStrong" Color="{{{p.DividerStrong}}}"/>
   <SolidColorBrush x:Key="Brush.Brand" Color="{{{p.Brand}}}"/>
   <SolidColorBrush x:Key="Brush.BrandSoft" Color="{{{p.BrandSoft}}}"/>
+  <SolidColorBrush x:Key="Brush.BrandLite" Color="{{{p.BrandLite}}}"/>
   <SolidColorBrush x:Key="Brush.BrandInk" Color="{{{p.BrandInk}}}"/>
   <SolidColorBrush x:Key="Brush.Success" Color="{{{p.Success}}}"/>
   <SolidColorBrush x:Key="Brush.SuccessSoft" Color="{{{p.SuccessSoft}}}"/>
@@ -529,6 +530,74 @@ internal static class UiStyles
     <Setter Property="EnableRowVirtualization" Value="True"/>
     <Setter Property="ColumnHeaderHeight" Value="38"/>
     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+  </Style>
+
+  <!-- Menù a comparsa -->
+  <Style TargetType="ContextMenu">
+    <Setter Property="OverridesDefaultStyle" Value="True"/>
+    <Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Setter Property="HasDropShadow" Value="True"/>
+    <Setter Property="FontFamily" Value="{{{UiStyles.FontStack}}}"/>
+    <Setter Property="FontSize" Value="13.5"/>
+    <Setter Property="Foreground" Value="{{{p.Ink}}}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContextMenu">
+          <Border Margin="10,6,10,14" Background="{{{p.Surface}}}" BorderBrush="{{{p.Divider}}}" BorderThickness="1"
+                  CornerRadius="11" Padding="5" MinWidth="200">
+            <Border.Effect>
+              <DropShadowEffect BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.22" Color="#000000"/>
+            </Border.Effect>
+            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="MenuItem">
+    <Setter Property="OverridesDefaultStyle" Value="True"/>
+    <Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Foreground" Value="{{{p.Ink}}}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="MenuItem">
+          <Border x:Name="Bd" Background="Transparent" CornerRadius="8" Margin="0,1" Padding="9,7,14,7">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="26"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <ContentPresenter ContentSource="Icon" VerticalAlignment="Center" HorizontalAlignment="Left" Width="16" Height="16"/>
+              <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"
+                                TextElement.Foreground="{TemplateBinding Foreground}" Margin="0,0,22,0"/>
+              <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Foreground="{{{p.Muted}}}" FontSize="12"
+                         VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="Bd" Property="Background" Value="{{{p.BrandSoft}}}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.42"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Separator">
+          <Border Height="1" Margin="10,5" Background="{{{p.Divider}}}"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <!-- Suggerimenti -->

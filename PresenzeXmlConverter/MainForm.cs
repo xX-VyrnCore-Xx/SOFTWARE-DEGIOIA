@@ -407,11 +407,6 @@ internal sealed partial class MainForm : Form
             _database.SaveSetting("close-behavior", string.Empty);
             SetStatus("●   Alla chiusura della finestra il programma tornerà a chiedere come comportarsi.", false);
         }, dpi);
-        ThemedMenus.Add(menu, "Usa la nuova interfaccia", Glyph.Dashboard, (_, _) =>
-        {
-            UiMode.Save(UiKind.Modern);
-            SetStatus("●   Alla prossima apertura il programma userà la nuova interfaccia. Per tornare alla classica, usa il pulsante in fondo alla barra laterale.", false);
-        }, dpi);
         menu.Items.Add(new ToolStripSeparator());
         ThemedMenus.Add(menu, "Esci definitivamente", Glyph.Arrow, (_, _) => ExitApplication(), dpi, Theme.DangerInk);
         _trayIcon.ContextMenuStrip = menu;
