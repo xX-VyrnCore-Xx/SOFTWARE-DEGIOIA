@@ -230,13 +230,18 @@ internal sealed class WorkbookInspection
             value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
-    /// <summary>Il giustificativo è una malattia («Malattia», «Sick leave», «Illness»…)? Per queste causali la durata è in giorni.</summary>
+    /// <summary>
+    /// Il giustificativo si esprime in giorni: la malattia («Malattia», «Sick leave», «Illness»…) e i permessi retribuiti
+    /// «Milestone». Per queste causali la durata nel file è in giorni, non in ore.
+    /// </summary>
     internal static bool IsIllnessPolicy(string policy)
     {
         var value = policy.Trim().ToLowerInvariant();
         return value.Contains("malatt", StringComparison.Ordinal) ||
                value.Contains("illness", StringComparison.Ordinal) ||
-               value.Contains("sick", StringComparison.Ordinal);
+               value.Contains("sick", StringComparison.Ordinal) ||
+               value.Contains("milestone", StringComparison.Ordinal) ||
+               value.Contains("permessi retribuiti", StringComparison.Ordinal);
     }
 
     /// <summary>La cella dice esplicitamente «ore» («16h», «8 ore»): il numero non va moltiplicato per la giornata.</summary>

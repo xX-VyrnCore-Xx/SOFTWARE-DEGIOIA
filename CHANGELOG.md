@@ -7,7 +7,7 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 ## [1.65.1] - Corrente
 
 ### 🐛 Correzioni
-- **Malattia in giorni**: il valore della malattia nel file Excel è letto in giorni (1 = una giornata standard, ad esempio 8 ore), anche se la colonna è «ore»; se la cella indica l'unità (ad esempio «4 h») vale quella. Le altre causali restano invariate
+- **Malattia e permessi retribuiti (Milestone) in giorni**: il valore nel file Excel è letto in giorni (1 = una giornata standard, ad esempio 8 ore), anche se la colonna è «ore»; se la cella indica l'unità (ad esempio «4 h») vale quella. Le altre causali restano invariate
 - **Impostazioni classiche**: l'interruttore riempie sempre uno sfondo opaco, così non restano righe scure ai bordi a certe scale dello schermo
 
 ## [1.65.0]

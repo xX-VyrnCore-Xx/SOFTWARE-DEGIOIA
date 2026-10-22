@@ -615,6 +615,7 @@ public class ConversionTests
     [InlineData("Malattia INPS", 3, 24)]
     [InlineData("Sick leave", 1, 8)]
     [InlineData("Illness", 1, 8)]
+    [InlineData("Permessi retribuiti (Milestone)", 1, 8)]
     [InlineData("Ferie", 1, 1)]
     [InlineData("Permesso", 2, 2)]
     public void IllnessIsReadInDaysEvenInAnHoursColumn(string policy, double value, decimal expectedHours)
@@ -676,6 +677,8 @@ public class ConversionTests
     [InlineData("  malattia figlio ", true)]
     [InlineData("Sick Leave", true)]
     [InlineData("Illness", true)]
+    [InlineData("Permessi retribuiti (Milestone)", true)]
+    [InlineData("MILESTONE", true)]
     [InlineData("Ferie", false)]
     [InlineData("Permesso", false)]
     [InlineData("", false)]
