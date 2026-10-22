@@ -317,6 +317,41 @@ internal static class MovementChecks
         return findings;
     }
 
+    /// <summary>Dipendenti che in un mese superano il tetto di ore fissato dall'azienda (0 = nessun tetto).</summary>
+    public static IReadOnlyList<MovementFinding> CheckMonthLimit(IReadOnlyList<DailyMovement> movements, decimal maxMonthHours)
+    {
+        if (maxMonthHours <= 0m || movements.Count == 0)
+        {
+            return [];
+        }
+        var limit = decimal.ToInt32(decimal.Round(maxMonthHours * 60m, 0, MidpointRounding.AwayFromZero));
+        var findings = new List<MovementFinding>();
+        foreach (var employee in movements
+                     .GroupBy(movement => movement.EmployeeCode, StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(group => group.First().EmployeeName, StringComparer.CurrentCultureIgnoreCase))
+        {
+            foreach (var month in employee
+                         .GroupBy(movement => (movement.Date.Year, movement.Date.Month))
+                         .OrderBy(group => group.Key))
+            {
+                var total = month.Sum(movement => movement.Hours * 60 + movement.Minutes);
+                if (total <= limit)
+                {
+                    continue;
+                }
+                var monthName = new DateTime(month.Key.Year, month.Key.Month, 1).ToString("MMMM yyyy");
+                findings.Add(new MovementFinding(
+                    MovementSeverity.Warning,
+                    $"{Label(employee.First())} · {monthName}: {Format(total)} registrate, oltre il tetto di {Format(limit)} al mese."));
+                if (findings.Count == 30)
+                {
+                    return findings;
+                }
+            }
+        }
+        return findings;
+    }
+
     private static string Format(int minutes) => minutes % 60 == 0
         ? $"{minutes / 60}h"
         : $"{minutes / 60}h {minutes % 60:D2}m";

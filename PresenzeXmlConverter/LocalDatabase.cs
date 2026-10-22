@@ -377,6 +377,7 @@ internal sealed class LocalDatabase
         // Database creato da una versione precedente: le colonne nuove si aggiungono
         // (mai si ricrea la tabella: lo storico esistente resta intatto).
         EnsureColumn(connection, "Companies", "RulesJson", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(connection, "Companies", "ChecksJson", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(connection, "Exports", "Fingerprint", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(connection, "Exports", "SourceName", "TEXT NOT NULL DEFAULT ''");
         using (var fingerprintIndex = connection.CreateCommand())
@@ -1095,7 +1096,7 @@ internal sealed class LocalDatabase
     {
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT Code, Name, Notes, RulesJson FROM Companies ORDER BY Code COLLATE NOCASE;";
+        command.CommandText = "SELECT Code, Name, Notes, RulesJson, ChecksJson FROM Companies ORDER BY Code COLLATE NOCASE;";
         using var reader = command.ExecuteReader();
         var companies = new List<CompanyRecord>();
         while (reader.Read())
@@ -1104,7 +1105,8 @@ internal sealed class LocalDatabase
                 reader.GetString(0),
                 reader.GetString(1),
                 reader.GetString(2),
-                CompanyRules.TryParse(reader.GetString(3))));
+                CompanyRules.TryParse(reader.GetString(3)),
+                ValidationRules.TryParse(reader.GetString(4))));
         }
         return companies;
     }
@@ -1128,6 +1130,30 @@ internal sealed class LocalDatabase
             """;
         command.Parameters.AddWithValue("$code", code);
         command.Parameters.AddWithValue("$rules", rules?.ToJson() ?? string.Empty);
+        command.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Salva le soglie dei controlli dell'azienda (null o di serie = nessuna soglia propria).</summary>
+    public void SaveCompanyChecks(string code, ValidationRules? rules)
+    {
+        code = (code ?? string.Empty).Trim();
+        if (code.Length is 0 or > 6)
+        {
+            throw new InvalidDataException("Il codice azienda deve contenere da 1 a 6 caratteri.");
+        }
+        if (rules is not null && !rules.IsValid)
+        {
+            throw new InvalidDataException("Le soglie dei controlli sono fuori dai limiti consentiti.");
+        }
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO Companies (Code, Name, Notes, UpdatedUtc, ChecksJson) VALUES ($code, '', '', $now, $checks)
+            ON CONFLICT(Code) DO UPDATE SET ChecksJson = excluded.ChecksJson, UpdatedUtc = excluded.UpdatedUtc;
+            """;
+        command.Parameters.AddWithValue("$code", code);
+        command.Parameters.AddWithValue("$checks", rules is null || rules.IsDefault ? string.Empty : rules.ToJson());
         command.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
         command.ExecuteNonQuery();
     }

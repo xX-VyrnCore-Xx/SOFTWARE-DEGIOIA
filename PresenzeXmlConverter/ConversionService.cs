@@ -290,10 +290,14 @@ internal sealed class ConversionService
             Options.HoursPerDay,
             Options.IncludeSaturdays || Options.AutoDetect));
         findings.AddRange(MovementChecks.CompareWithSource(Movements, Requests));
-        findings.AddRange(RequestChecks.Review(Requests));
+        var rules = ValidationRules.For(_database, CompanyCode);
+        findings.AddRange(RequestChecks.Review(Requests, rules));
+        findings.AddRange(RequestChecks.CheckExpectedEmployees(Requests, rules));
+        findings.AddRange(MovementChecks.CheckMonthLimit(Movements, rules.MaxMonthHours));
         findings.AddRange(RequestChecks.CompareWithPreviousDelivery(
             MovementChecks.Summarize(Movements),
-            PreviousDeliveryOfThisCompany()));
+            PreviousDeliveryOfThisCompany(),
+            rules.ChangePercent));
         findings.AddRange(MovementChecks.CheckMonthlyHours(
             Movements,
             Options,
