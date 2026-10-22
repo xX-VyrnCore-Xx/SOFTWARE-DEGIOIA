@@ -172,6 +172,8 @@ internal sealed class ShellWindow : Window
         1 => _conversion ??= new ConversionView(_service, () => this, _prompts),
         2 => new CompaniesView(_service, () => this),
         3 => new CodesView(_service, () => this),
+        4 => new HistoryView(_service, () => this),
+        5 => new ActivityView(_service, () => this),
         _ => new PageScaffold(
             Sections[index].Title,
             "Questa sezione arriva nella prossima versione dell'interfaccia: intanto usa l'interfaccia classica.",

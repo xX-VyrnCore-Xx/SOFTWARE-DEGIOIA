@@ -100,4 +100,50 @@ public class CompaniesAndCodesServiceTests
             Directory.Delete(folder, recursive: true);
         }
     }
+
+    [Fact]
+    public void HistoryVerifiesTheDeliveredFileAndActivityIsFilteredExportedAndCleared()
+    {
+        var (database, folder) = NewDatabase();
+        try
+        {
+            var path = Path.Combine(folder, "consegna.xml");
+            var xml = TrriPwXmlWriter.Create(
+                "AZ001",
+                [new DailyMovement("Rossi Mario", "E001", "Ferie", "FE", new DateTime(2026, 8, 3), 8, 0, 5)]);
+            File.WriteAllText(path, xml);
+            database.SaveExport(
+                new ExportRecord(DateTime.UtcNow, "consegna.xml", path, "AZ001", 1, 1, 480),
+                File.ReadAllBytes(path));
+
+            var history = new HistoryService(database);
+            var record = Assert.Single(history.Load());
+            Assert.NotNull(history.StoredXml(record));
+
+            var identical = history.Verify(record);
+            Assert.Equal(FileIntegrity.Identical, identical.Result);
+            Assert.Empty(identical.Problems);
+
+            File.AppendAllText(path, "\n<!-- modificato -->");
+            Assert.Equal(FileIntegrity.Modified, history.Verify(record).Result);
+            File.Delete(path);
+            Assert.Equal(FileIntegrity.Missing, history.Verify(record).Result);
+
+            var activity = new ActivityService(database);
+            var all = activity.Load();
+            Assert.Contains(all, entry => entry.Kind == ActivityKind.Check);
+            var checks = ActivityService.Filter(all, null, ActivityKind.Check);
+            Assert.All(checks, entry => Assert.Equal(ActivityKind.Check, entry.Kind));
+            Assert.Contains("consegna.xml", ActivityService.ToCsv(checks));
+
+            history.Clear();
+            Assert.Empty(history.Load());
+            activity.Clear();
+            Assert.Empty(activity.Load());
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
 }

@@ -204,7 +204,11 @@ public class WpfShellTests
             companies.Save("AZ002", "Bianchi e Figli", string.Empty);
             companies.SaveRules(companies.Load().First(), new CompanyRules(6m, true, false, "02/06"));
             service.CompanyCode = "AZ001";
-            foreach (var (section, name) in new[] { (2, "Aziende"), (3, "Codici") })
+            // Una consegna nello storico, perché le pagine Storico e Registro mostrino dei dati.
+            var delivered = Path.Combine(Path.GetTempPath(), $"consegna-{Guid.NewGuid():N}.xml");
+            File.WriteAllText(delivered, "<x/>");
+            database.SaveExport(new ExportRecord(DateTime.UtcNow, "AZ001-agosto.xml", delivered, "AZ001", 35, 759, 352800), File.ReadAllBytes(delivered));
+            foreach (var (section, name) in new[] { (2, "Aziende"), (3, "Codici"), (4, "Storico"), (5, "Registro") })
             {
                 window.Navigate(section);
                 WpfTestHost.Pump(450);
