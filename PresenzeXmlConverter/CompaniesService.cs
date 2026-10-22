@@ -56,6 +56,15 @@ internal sealed class CompaniesService
             rules.IsDefault ? string.Empty : rules.Describe());
     }
 
+    /// <summary>Salva le spettanze annuali di ferie e permessi dell'azienda (vuote = nessun saldo).</summary>
+    public void SaveLeave(CompanyRecord company, IReadOnlyList<LeaveRule> rules)
+    {
+        _database.SaveCompanyLeave(company.Code, rules);
+        Audit(
+            $"Spettanze dell'azienda {company.Code} " + (rules.Count == 0 ? "tolte" : "salvate"),
+            string.Join(" · ", rules.Select(rule => rule.Describe())));
+    }
+
     /// <summary>L'azienda diventa quella della conversione (il codice si ricorda per la prossima volta).</summary>
     public void UseForConversion(CompanyRecord company)
     {

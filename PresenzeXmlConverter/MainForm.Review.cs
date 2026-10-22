@@ -163,6 +163,7 @@ internal sealed partial class MainForm
             findings.AddRange(RequestChecks.Review(_requests, validation));
             findings.AddRange(RequestChecks.CheckExpectedEmployees(_requests, validation));
             findings.AddRange(MovementChecks.CheckMonthLimit(movements, validation.MaxMonthHours));
+            findings.AddRange(CheckLeaveBalance(movements));
             findings.AddRange(RequestChecks.CompareWithPreviousDelivery(
                 MovementChecks.Summarize(movements),
                 PreviousDeliveryOfThisCompany(movements),
@@ -383,6 +384,41 @@ internal sealed partial class MainForm
         catch (Microsoft.Data.Sqlite.SqliteException)
         {
             return null;
+        }
+    }
+
+    /// <summary>Chi, con le ore di questo file, supera le ferie o i permessi che gli spettano nell'anno (se l'azienda li ha indicati).</summary>
+    private IReadOnlyList<MovementFinding> CheckLeaveBalance(IReadOnlyList<DailyMovement> movements)
+    {
+        var company = _companyCode.Value.Trim();
+        if (company.Length == 0 || movements.Count == 0)
+        {
+            return [];
+        }
+        try
+        {
+            var rules = _database.GetCompanies()
+                .FirstOrDefault(item => string.Equals(item.Code, company, StringComparison.OrdinalIgnoreCase))?.Leave;
+            if (rules is null || rules.Count == 0)
+            {
+                return [];
+            }
+            return LeaveBalance.CheckPreview(
+                rules,
+                _generationOptions.HoursPerDay,
+                _database.GetAbsenceTotals(company),
+                LeaveBalance.FromSummary(
+                    company,
+                    MonthlySummary.Build(
+                        movements,
+                        _generationOptions,
+                        SafeProfiles(() => _database.GetEmployeeProfiles()),
+                        _inspection?.PeriodStart,
+                        _inspection?.PeriodEnd)));
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException)
+        {
+            return [];
         }
     }
 }

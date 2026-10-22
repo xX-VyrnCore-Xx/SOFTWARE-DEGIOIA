@@ -294,6 +294,7 @@ internal sealed class ConversionService
         findings.AddRange(RequestChecks.Review(Requests, rules));
         findings.AddRange(RequestChecks.CheckExpectedEmployees(Requests, rules));
         findings.AddRange(MovementChecks.CheckMonthLimit(Movements, rules.MaxMonthHours));
+        findings.AddRange(CheckLeaveBalance());
         findings.AddRange(RequestChecks.CompareWithPreviousDelivery(
             MovementChecks.Summarize(Movements),
             PreviousDeliveryOfThisCompany(),
@@ -306,6 +307,44 @@ internal sealed class ConversionService
             Inspection?.PeriodEnd));
         _ = employees;
         return findings.OrderBy(finding => finding.Severity).Take(MaximumFindingsShown).ToArray();
+    }
+
+    /// <summary>Chi, con le ore di questo file, supera le ferie o i permessi che gli spettano nell'anno (se l'azienda li ha indicati).</summary>
+    private IReadOnlyList<MovementFinding> CheckLeaveBalance()
+    {
+        var company = CompanyCode.Trim();
+        if (company.Length == 0 || Movements.Count == 0)
+        {
+            return [];
+        }
+        try
+        {
+            var rules = _database.GetCompanies()
+                .FirstOrDefault(item => string.Equals(item.Code, company, StringComparison.OrdinalIgnoreCase))?.Leave;
+            if (rules is null || rules.Count == 0)
+            {
+                return [];
+            }
+            return LeaveBalance.CheckPreview(
+                rules,
+                Options.HoursPerDay,
+                _database.GetAbsenceTotals(company),
+                LeaveBalance.FromSummary(company, MonthlySummary()));
+        }
+        catch (Exception exception) when (IsExpectedInputError(exception))
+        {
+            return [];
+        }
+    }
+
+    /// <summary>Il saldo di ferie e permessi dell'azienda per l'anno, sulle ore già consegnate (vuoto senza spettanze).</summary>
+    public IReadOnlyList<LeaveBalanceRow> LeaveBalanceFor(string companyCode, int year)
+    {
+        var company = _database.GetCompanies()
+            .FirstOrDefault(item => string.Equals(item.Code, companyCode.Trim(), StringComparison.OrdinalIgnoreCase));
+        return company?.Leave is { Count: > 0 } rules
+            ? LeaveBalance.Build(rules, OptionsFor(companyCode).HoursPerDay, _database.GetAbsenceTotals(companyCode), year)
+            : Array.Empty<LeaveBalanceRow>();
     }
 
     /// <summary>L'ultima consegna della stessa azienda con movimenti diversi da questi (null = nessuna).</summary>
@@ -507,7 +546,9 @@ internal sealed class ConversionService
     {
         try
         {
-            _database.SaveMonthlyTotals(companyCode, MonthlyTrend.FromSummary(companyCode, MonthlySummary()));
+            var summary = MonthlySummary();
+            _database.SaveMonthlyTotals(companyCode, MonthlyTrend.FromSummary(companyCode, summary));
+            _database.SaveAbsenceTotals(companyCode, LeaveBalance.FromSummary(companyCode, summary));
         }
         catch (Exception exception) when (
             exception is Microsoft.Data.Sqlite.SqliteException or IOException or UnauthorizedAccessException)

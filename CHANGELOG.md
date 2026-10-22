@@ -4,7 +4,16 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.71.0] - Corrente
+## [1.72.0] - Corrente
+
+### ✨ Ferie e permessi residui
+- Nella sezione **Aziende** (nuova interfaccia) il pulsante **Ferie e permessi…** raccoglie quanto spetta in un anno di ogni giustificativo, una riga ciascuno: «Ferie = 26 giorni», «Permessi = 104 ore» (il giustificativo si indica col nome o col codice; i giorni contano con la giornata standard dell'azienda)
+- **Storico → Residui**: per l'anno scelto, per ogni dipendente quanto è stato usato contro quanto spetta e quanto resta, con chi è oltre la spettanza in cima
+- **Avviso già in anteprima**: se con le ore del file qualcuno supera le ferie o i permessi dell'anno (contando quanto già consegnato) compare una segnalazione nella scheda Controlli; chi è vicino all'esaurimento ha una nota
+- Le ore usate per giustificativo si conservano a ogni esportazione (anche dalla classica) a partire da questa versione; esportare di nuovo un mese lo corregge
+- Nuovo passaggio del database (versione 8)
+
+## [1.71.0]
 
 ### ✨ Andamento delle ore mese su mese
 - **Storico → Andamento** (nuova interfaccia): grafico a colonne delle ore consegnate mese per mese per ogni azienda (ultimi 12 mesi) e, sotto, il confronto per dipendente fra l'ultimo mese e quello prima: ore, differenza, percentuale e ore di assenza, con chi è cambiato di più in cima
