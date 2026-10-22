@@ -4,7 +4,13 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.65.0] - Corrente
+## [1.65.1] - Corrente
+
+### 🐛 Correzioni
+- **Malattia e permessi retribuiti (Milestone) in giorni**: il valore nel file Excel è letto in giorni (1 = una giornata standard, ad esempio 8 ore), anche se la colonna è «ore»; se la cella indica l'unità (ad esempio «4 h») vale quella. Le altre causali restano invariate
+- **Impostazioni classiche**: l'interruttore riempie sempre uno sfondo opaco, così non restano righe scure ai bordi a certe scale dello schermo
+
+## [1.65.0]
 
 ### ✨ Nuova interfaccia (anteprima): aggiornamenti
 - **Controllo automatico** all'avvio (ritardato), ogni dieci minuti anche con la finestra nel tray, al ritorno della rete e alla fine della sospensione, e quando si torna alla finestra dopo un po'; «Cerca aggiornamenti ora» e lo stato nelle Impostazioni → Aggiornamenti
