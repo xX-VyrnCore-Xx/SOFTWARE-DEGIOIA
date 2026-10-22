@@ -48,14 +48,35 @@ internal sealed class ConversionService
         _globalOptions = GenerationSettings.Read(database);
         Options = _globalOptions;
         XmlFormat.Active = XmlFormat.Load(database);
-        CompanyCode = database.GetSetting("company-code") ?? string.Empty;
+        _companyCode = database.GetSetting("company-code") ?? string.Empty;
     }
 
     public LocalDatabase Database => _database;
 
     public GenerationOptions Options { get; private set; }
 
-    public string CompanyCode { get; set; }
+    /// <summary>Le regole generali (Impostazioni), valide per le aziende senza regole proprie.</summary>
+    public GenerationOptions GlobalOptions => _globalOptions;
+
+    private string _companyCode;
+
+    /// <summary>Il codice azienda in uso per la conversione. Cambiandolo da un'altra sezione la schermata si aggiorna.</summary>
+    public string CompanyCode
+    {
+        get => _companyCode;
+        set
+        {
+            value ??= string.Empty;
+            if (string.Equals(_companyCode, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+            _companyCode = value;
+            CompanyCodeChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public event EventHandler? CompanyCodeChanged;
 
     public string? SourcePath { get; private set; }
 

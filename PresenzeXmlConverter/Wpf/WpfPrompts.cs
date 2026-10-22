@@ -10,16 +10,11 @@ namespace PresenzeXmlConverter.Wpf;
 /// </summary>
 internal sealed class WpfPrompts : IConversionPrompts
 {
-    private sealed class Win32Owner(IntPtr handle) : System.Windows.Forms.IWin32Window
-    {
-        public IntPtr Handle { get; } = handle;
-    }
-
     private readonly Window _owner;
 
     public WpfPrompts(Window owner) => _owner = owner;
 
-    private System.Windows.Forms.IWin32Window Owner => new Win32Owner(new WindowInteropHelper(_owner).Handle);
+    private System.Windows.Forms.IWin32Window Owner => WpfInterop.Owner(_owner);
 
     public ColumnSelection? AskColumns(IReadOnlyList<string> headers)
     {

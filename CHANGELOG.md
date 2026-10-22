@@ -4,7 +4,14 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.59.0] - Corrente
+## [1.60.0] - Corrente
+
+### ✨ Nuova interfaccia (anteprima): Aziende e Gestione codici
+- **Aziende**: elenco con l'azienda in uso, modulo per codice (1-6 caratteri), ragione sociale e note; pulsanti per **Regole…** (le stesse della finestra classica), **Usa per la conversione** (la schermata di Conversione si aggiorna subito) ed **Elimina**
+- **Gestione codici**: tabelle **Dipendenti** (codice PAGHE, ore al giorno, assunzione e fine rapporto) e **Giustificativi**, con celle modificabili; i nomi del foglio importato senza codice sono segnati con *. Si salva con «Salva abbinamenti» o da sé poco dopo l'ultima modifica, **anche a metà**: lunghezze del tracciato, ore, date e codici assegnati a più persone si controllano come nella versione classica
+- Dietro le due sezioni ci sono servizi senza finestre con i loro test; l'interfaccia classica non cambia e resta quella di partenza
+
+## [1.59.0]
 
 ### 📄 «Rinomina PDF» nella barra laterale e Impostazioni più coerenti
 - **Rinomina PDF è una sezione della barra laterale** (con la sua pagina nella finestra, non più un dialogo a parte): scegli o trascini lo ZIP, controlli la tabella e salvi. La scorciatoia in Dashboard e il comando Ctrl+K aprono la stessa sezione

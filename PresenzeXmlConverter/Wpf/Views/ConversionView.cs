@@ -96,6 +96,13 @@ internal sealed class ConversionView : Grid
             service.CompanyCode = _company.Text;
             UpdateButtons();
         };
+        service.CompanyCodeChanged += (_, _) =>
+        {
+            if (_company.Text != service.CompanyCode)
+            {
+                _company.Text = service.CompanyCode;
+            }
+        };
         _chooseButton.Click += async (_, _) => await ImportAsync(null);
         _drop.Clicked += async (_, _) => await ImportAsync(null);
         _drop.FileDropped += async (_, path) => await ImportAsync(path);

@@ -198,6 +198,28 @@ public class WpfShellTests
                     encoder.Save(stream);
                 }
             }
+            // Aziende e Codici: pagine vere, con i dati del database.
+            var companies = new CompaniesService(database);
+            companies.Save("AZ001", "Rossi Srl", "Cliente storico");
+            companies.Save("AZ002", "Bianchi e Figli", string.Empty);
+            companies.SaveRules(companies.Load().First(), new CompanyRules(6m, true, false, "02/06"));
+            service.CompanyCode = "AZ001";
+            foreach (var (section, name) in new[] { (2, "Aziende"), (3, "Codici") })
+            {
+                window.Navigate(section);
+                WpfTestHost.Pump(450);
+                var bitmap = Render(window);
+                Assert.True(CountMagenta(bitmap) == 0, $"{name}: colori mancanti (magenta).");
+                Assert.True(DistinctColors(bitmap) > 6, $"{name}: pagina vuota.");
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using var stream = File.Create(Path.Combine(directory, $"wpf-{name}.png"));
+                    encoder.Save(stream);
+                }
+            }
+            Assert.Empty(prompts.Problems);
             window.Close();
         });
     }
