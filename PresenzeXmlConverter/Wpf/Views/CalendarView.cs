@@ -20,6 +20,7 @@ using Size = System.Windows.Size;
 using Orientation = System.Windows.Controls.Orientation;
 using Cursors = System.Windows.Input.Cursors;
 using ToolTip = System.Windows.Controls.ToolTip;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 /// <summary>
 /// Il calendario dell'anteprima: una riga per dipendente e una colonna per giorno, ogni giorno colorato per giustificativo
@@ -100,6 +101,18 @@ internal sealed class CalendarView : Grid
         _onlyChecks.Checked += (_, _) => ApplyFilter();
         _onlyChecks.Unchecked += (_, _) => ApplyFilter();
         _alertNext.Click += (_, _) => GoToNextAlert();
+        UiMenus.Attach(_surface, () =>
+        {
+            if (_surface.HoveredDescription() is not { } text)
+            {
+                return [];
+            }
+            return
+            [
+                new MenuEntry("Copia i dettagli del giorno", Glyph.Sheet, () => UiMenus.Copy(text)),
+                new MenuEntry("Vai alla prossima anomalia", Glyph.Alert, GoToNextAlert, _model is { AlertDays.Count: > 0 })
+            ];
+        });
         Clear();
     }
 
@@ -356,6 +369,17 @@ internal sealed class CalendarView : Grid
         }
 
         public CalendarModel? Model { get; set; }
+
+        /// <summary>Il testo del giorno sotto il mouse (per il menù del tasto destro), nullo se non c'è.</summary>
+        public string? HoveredDescription()
+        {
+            if (_hover is not { } cell || Model is null || cell.Row >= _rows.Count)
+            {
+                return null;
+            }
+            var row = _rows[cell.Row];
+            return Model.Describe(row.EmployeeName, row.Days[cell.Day].Date);
+        }
 
         public IReadOnlyList<CalendarRow> Rows => _rows;
 

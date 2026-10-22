@@ -240,6 +240,16 @@ internal sealed class ShellWindow : Window
             RestoreFromTray();
             Navigate(SettingsSection);
         });
+        tray.NewConversionRequested += () => Dispatcher.BeginInvoke(() =>
+        {
+            RestoreFromTray();
+            Navigate(ConversionSection);
+        });
+        tray.HistoryRequested += () => Dispatcher.BeginInvoke(() =>
+        {
+            RestoreFromTray();
+            Navigate(HistorySection);
+        });
         tray.Message += text => Dispatcher.BeginInvoke(() => Notifier.Notify(ToastKind.Info, "Vyrn Presence", text));
     }
 
@@ -248,6 +258,12 @@ internal sealed class ShellWindow : Window
 
     /// <summary>Chiude i cartellini (per i test).</summary>
     internal void ClearToasts() => _toasts.Clear();
+
+    /// <summary>La sezione della conversione (per il tray).</summary>
+    internal static int ConversionSection => 1;
+
+    /// <summary>La sezione dello Storico (per il tray).</summary>
+    internal static int HistorySection => 4;
 
     /// <summary>La sezione delle Impostazioni (l'ultima della barra laterale).</summary>
     internal static int SettingsSection => Sections.Length - 1;

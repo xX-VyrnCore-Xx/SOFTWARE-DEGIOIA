@@ -4,7 +4,7 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.73.0] - Corrente
+## [1.74.0] - Corrente
 
 ### ✨ Una sola interfaccia e il calendario in anteprima
 - **Vyrn Presence usa solo la nuova interfaccia**: non esiste più il ritorno alla classica (tolti il pulsante nella barra laterale, la voce nel menu del tray e l'avvio `--classic`); se la finestra non riesce ad aprirsi il programma lo dice con il percorso del registro degli errori
@@ -13,6 +13,11 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 - Si sfoglia mese per mese, si cerca per nome, si guardano solo i dipendenti da controllare; **passando sopra un giorno** compaiono movimenti e anomalie, con un clic il giorno si evidenzia
 - Barra delle anomalie in alto (giorni oltre la giornata, giorni insoliti, totali diversi dal teorico) con «Vai al primo / al prossimo» che porta al giorno giusto
 - La legenda dei colori è sotto il calendario; la larghezza dei giorni si adatta alla finestra
+
+### ✨ Menù e icona nel tray più curati
+- **Icona nel tray**: con un aggiornamento pronto compare un pallino verde sull'icona (oltre al suggerimento), alla misura giusta per lo schermo
+- **Menù del tray** con testata (nome, versione e stato degli aggiornamenti), accesso rapido a **Nuova conversione** e **Storico esportazioni**, voci raggruppate e senza più il ritorno alla classica
+- **Menù del tasto destro** nello stile dell'app (angoli tondi, ombra, icone, voce evidenziata) su movimenti e segnalazioni (copia riga, copia nome, mostra nel calendario), Storico (apri cartella, verifica, salva copia, copia percorso), Aziende (usa, regole, controlli, ferie e permessi, elimina) e calendario (copia i dettagli del giorno, vai alla prossima anomalia)
 
 ## [1.72.0]
 

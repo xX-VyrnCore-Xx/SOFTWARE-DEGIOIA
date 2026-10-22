@@ -377,6 +377,10 @@ internal sealed class ConversionView : Grid
 
         ConfigureGrids();
         ConfigureSummaryGrid();
+        UiMenus.SelectRowOnRightClick(_movementsGrid);
+        UiMenus.SelectRowOnRightClick(_findingsGrid);
+        UiMenus.Attach(_movementsGrid, MovementMenu);
+        UiMenus.Attach(_findingsGrid, FindingMenu);
         _xmlBox.IsReadOnly = true;
         _xmlBox.Style = null;
         _xmlBox.BorderThickness = new Thickness(0);
@@ -482,6 +486,39 @@ internal sealed class ConversionView : Grid
             Width = new DataGridLength(1, DataGridLengthUnitType.Star),
             ElementStyle = wrap
         });
+    }
+
+    /// <summary>Le voci del tasto destro su un movimento.</summary>
+    internal IEnumerable<MenuEntry> MovementMenu()
+    {
+        if (_movementsGrid.SelectedItem is not MovementRow row)
+        {
+            return [];
+        }
+        return
+        [
+            new MenuEntry("Copia la riga", Glyph.Sheet, () => UiMenus.Copy(string.Join("\t", row.Employee, row.Code, row.Date, row.Policy, row.Reason, $"{row.Hours}h {row.Minutes:00}m"))),
+            new MenuEntry("Copia il nome", Glyph.Users, () => UiMenus.Copy(row.Employee)),
+            MenuEntry.Separator,
+            new MenuEntry("Mostra nel calendario", Glyph.Clock, () =>
+            {
+                _calendar.Search(row.Employee);
+                SelectTab(1);
+            })
+        ];
+    }
+
+    /// <summary>Le voci del tasto destro su una segnalazione.</summary>
+    internal IEnumerable<MenuEntry> FindingMenu()
+    {
+        if (_findingsGrid.SelectedItem is not FindingRow row)
+        {
+            return [];
+        }
+        return
+        [
+            new MenuEntry("Copia la segnalazione", Glyph.Sheet, () => UiMenus.Copy($"{row.Label}: {row.Message}"))
+        ];
     }
 
     private void ConfigureSummaryGrid()
