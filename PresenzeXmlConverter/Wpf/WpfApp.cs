@@ -38,6 +38,7 @@ internal static class WpfApp
         {
             application.Resources.MergedDictionaries.Add(UiStyles.Create(UiPalette.Current));
         }
+        GridColumns.RegisterForAllGrids();
         return application;
     }
 }

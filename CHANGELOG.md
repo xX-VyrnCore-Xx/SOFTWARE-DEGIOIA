@@ -4,7 +4,13 @@ Tutti i cambiamenti significativi di Vyrn Presence sono documentati in questo fi
 
 > Nota: le voci "Cronologia versioni"/"Novità" nel README e le sezioni storiche di questo file descrivono le release precedenti; la distribuzione attuale è solo l'installer Windows Inno Setup.
 
-## [1.76.0] - Corrente
+## [1.77.0] - Corrente
+
+### 🐛 Rifiniture grafiche dalle schermate
+- **Testo dei campi**: quello che si scrive nei campi di testo (codice azienda, ore, note, chiusure aziendali) partiva troppo a destra rispetto al segnaposto; ora è allineato
+- **Tabelle**: il testo troppo lungo finisce con i puntini invece di essere tagliato di netto (Storico, Registro, Aziende…); le intestazioni delle colonne di cifre sono allineate ai valori; «Ragione sociale» non è più accorciata; nel Riepilogo la colonna dei dipendenti non sparisce più nelle finestre strette (la colonna dei giorni scoperti si chiama «Scoperti»); la colonna delle ore dello Storico è più larga
+
+## [1.76.0]
 
 ### 🐛 Esportare e importare codici e aziende
 - Nella nuova interfaccia è tornato il pulsante **Trasferisci ▾** in **Gestione codici** e in **Aziende**: esporta in un file i codici, le ore dei dipendenti e le aziende (con le regole) per usarli su un altro PC, importa da un file unendo i dati (prima si fa una copia di sicurezza) e apre la cartella delle copie automatiche

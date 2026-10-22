@@ -184,7 +184,7 @@ internal static class UiStyles
             <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10">
               <Grid>
-                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"
+                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"
                               Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
                 <TextBlock x:Name="Hint" Text="{TemplateBinding Tag}" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"
                            Foreground="{{{p.Faint}}}" IsHitTestVisible="False" Visibility="Collapsed"/>
@@ -232,7 +232,7 @@ internal static class UiStyles
         <ControlTemplate TargetType="PasswordBox">
           <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" Focusable="False"
+            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False"
                           HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
           </Border>
           <ControlTemplate.Triggers>

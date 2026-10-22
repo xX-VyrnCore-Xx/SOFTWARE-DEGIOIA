@@ -116,7 +116,7 @@ internal sealed class CompaniesView : Grid, IRefreshablePage
     {
         _grid.Columns.Add(new DataGridTextColumn { Header = "", Binding = new Binding(nameof(CompanyRow.InUse)), Width = new DataGridLength(40) });
         _grid.Columns.Add(new DataGridTextColumn { Header = "Codice", Binding = new Binding(nameof(CompanyRow.Code)), Width = new DataGridLength(84) });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "Ragione sociale", Binding = new Binding(nameof(CompanyRow.Name)), Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "Ragione sociale", Binding = new Binding(nameof(CompanyRow.Name)), MinWidth = 135, Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
         _grid.Columns.Add(new DataGridTextColumn { Header = "Regole", Binding = new Binding(nameof(CompanyRow.Rules)), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
 
         var listCard = new Grid();
