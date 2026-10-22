@@ -59,10 +59,10 @@ public sealed class ActivityLogTests : IDisposable
     {
         var database = NewDatabase();
         var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        for (var index = 0; index < ActivityLog.MaximumEntries + 25; index++)
-        {
-            database.AddActivity(ActivityKind.Check, $"voce {index}", "", start.AddSeconds(index));
-        }
+        // Una sola transazione: una per voce (oltre cinquemila) su un disco lento di CI impiegava minuti.
+        database.AddActivities(Enumerable.Range(0, ActivityLog.MaximumEntries + 25)
+            .Select(index => (ActivityKind.Check, $"voce {index}", string.Empty, start.AddSeconds(index)))
+            .ToList());
 
         var entries = database.GetActivities();
         Assert.Equal(ActivityLog.MaximumEntries, entries.Count);
