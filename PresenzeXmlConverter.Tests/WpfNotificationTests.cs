@@ -45,15 +45,15 @@ public class NotificationPolicyTests
     }
 
     [Theory]
-    [InlineData("", true, false, CloseAction.Ask)]
-    [InlineData(null, true, false, CloseAction.Ask)]
-    [InlineData("tray", true, false, CloseAction.MinimizeToTray)]
-    [InlineData("exit", true, false, CloseAction.Exit)]
-    [InlineData("tray", false, false, CloseAction.Exit)]
-    [InlineData("tray", true, true, CloseAction.Exit)]
-    [InlineData("qualcosa", true, false, CloseAction.Ask)]
-    public void TheCloseButtonFollowsTheRememberedChoice(string? remembered, bool userClosing, bool force, CloseAction expected) =>
-        Assert.Equal(expected, CloseBehaviorPolicy.Decide(remembered, userClosing, force));
+    [InlineData("", true, false, "Ask")]
+    [InlineData(null, true, false, "Ask")]
+    [InlineData("tray", true, false, "MinimizeToTray")]
+    [InlineData("exit", true, false, "Exit")]
+    [InlineData("tray", false, false, "Exit")]
+    [InlineData("tray", true, true, "Exit")]
+    [InlineData("qualcosa", true, false, "Ask")]
+    public void TheCloseButtonFollowsTheRememberedChoice(string? remembered, bool userClosing, bool force, string expected) =>
+        Assert.Equal(Enum.Parse<CloseAction>(expected), CloseBehaviorPolicy.Decide(remembered, userClosing, force));
 
     [Fact]
     public void OnlyAnExplicitRememberIsStored()
