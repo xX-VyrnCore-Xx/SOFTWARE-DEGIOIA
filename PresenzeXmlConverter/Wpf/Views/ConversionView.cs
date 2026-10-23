@@ -543,10 +543,10 @@ internal sealed class ConversionView : Grid
 
     private void ConfigureSummaryGrid()
     {
-        var right = new Style(typeof(TextBlock));
-        right.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right));
-        _summaryGrid.Columns.Add(Column("Dipendente", nameof(SummaryRow.Employee), star: 2));
-        _summaryGrid.Columns.Add(Column("Mese", nameof(SummaryRow.Month), pixels: 130));
+        var employee = Column("Dipendente", nameof(SummaryRow.Employee), star: 2);
+        employee.MinWidth = 130;
+        _summaryGrid.Columns.Add(employee);
+        _summaryGrid.Columns.Add(Column("Mese", nameof(SummaryRow.Month), pixels: 118));
         foreach (var (header, property) in new[]
                  {
                      ("Presenza", nameof(SummaryRow.Presence)),
@@ -554,12 +554,10 @@ internal sealed class ConversionView : Grid
                      ("Totale", nameof(SummaryRow.Total)),
                      ("Teoriche", nameof(SummaryRow.Expected)),
                      ("Differenza", nameof(SummaryRow.Difference)),
-                     ("Giorni scoperti", nameof(SummaryRow.Uncovered))
+                     ("Scoperti", nameof(SummaryRow.Uncovered))
                  })
         {
-            var column = Column(header, property, pixels: header == "Giorni scoperti" ? 130 : 96);
-            column.ElementStyle = right;
-            _summaryGrid.Columns.Add(column);
+            _summaryGrid.Columns.Add(Column(header, property, pixels: 92).RightAligned());
         }
     }
 

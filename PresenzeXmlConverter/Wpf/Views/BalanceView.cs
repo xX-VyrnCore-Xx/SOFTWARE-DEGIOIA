@@ -53,11 +53,7 @@ internal sealed class BalanceView : Grid
                      ("Restano", nameof(BalanceRow.Remaining))
                  })
         {
-            var right = new Style(typeof(TextBlock));
-            right.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right));
-            var column = Column(title, property, pixels: 110);
-            column.ElementStyle = right;
-            _grid.Columns.Add(column);
+            _grid.Columns.Add(Column(title, property, pixels: 110).RightAligned());
         }
         var tone = new Style(typeof(TextBlock));
         tone.Setters.Add(new Setter(TextBlock.ForegroundProperty, new Binding(nameof(BalanceRow.Tone))));

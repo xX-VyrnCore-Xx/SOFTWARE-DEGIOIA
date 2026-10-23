@@ -55,11 +55,7 @@ internal sealed class TrendView : Grid
                      ("Di cui assenza", nameof(TrendRow.Absence))
                  })
         {
-            var right = new Style(typeof(TextBlock));
-            right.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right));
-            var column = Column(title, property, pixels: title == "Di cui assenza" ? 130 : 110);
-            column.ElementStyle = right;
-            _grid.Columns.Add(column);
+            _grid.Columns.Add(Column(title, property, pixels: title == "Di cui assenza" ? 130 : 110).RightAligned());
         }
         Children.Add(_grid.At(2, 0));
         _companies.SelectionChanged += (_, _) => ShowSelected();

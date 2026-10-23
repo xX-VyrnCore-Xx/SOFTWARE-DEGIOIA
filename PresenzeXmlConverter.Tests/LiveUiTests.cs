@@ -130,4 +130,24 @@ public class LiveUiTests
             window.Close();
         });
     }
+
+    [Fact]
+    public void GridTextEndsWithEllipsisAndNumbersAreRightAligned()
+    {
+        WpfTestHost.Run(() =>
+        {
+            WpfApp.EnsureApplication();
+            var grid = new System.Windows.Controls.DataGrid();
+            var plain = new System.Windows.Controls.DataGridTextColumn { Header = "Testo" };
+            var number = new System.Windows.Controls.DataGridTextColumn { Header = "Cifre" }.RightAligned();
+            grid.Columns.Add(plain);
+            grid.Columns.Add(number);
+
+            GridColumns.Polish(grid);
+
+            Assert.Same(GridColumns.Trimmed, plain.ElementStyle);
+            Assert.NotSame(GridColumns.Trimmed, number.ElementStyle);
+            Assert.Contains(number.HeaderStyle.Setters.OfType<Setter>(), setter => Equals(setter.Value, System.Windows.HorizontalAlignment.Right));
+        });
+    }
 }

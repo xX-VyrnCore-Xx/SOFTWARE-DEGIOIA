@@ -159,7 +159,7 @@ internal sealed class HistoryView : Grid, IRefreshablePage
         _grid.Columns.Add(new DataGridTextColumn { Header = "File XML", Binding = new Binding(nameof(ExportRow.File)), Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
         _grid.Columns.Add(new DataGridTextColumn { Header = "Cartella", Binding = new Binding(nameof(ExportRow.Folder)), Width = new DataGridLength(1.6, DataGridLengthUnitType.Star) });
         _grid.Columns.Add(new DataGridTextColumn { Header = "Movimenti", Binding = new Binding(nameof(ExportRow.Movements)), Width = new DataGridLength(100) });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "Ore", Binding = new Binding(nameof(ExportRow.Hours)), Width = new DataGridLength(110) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "Ore", Binding = new Binding(nameof(ExportRow.Hours)), Width = new DataGridLength(135) });
 
         var inner = new Grid();
         inner.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
